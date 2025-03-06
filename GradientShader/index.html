@@ -1,0 +1,33 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width" />
+    <title>GLSL Gradient Shader Generator</title>
+    <link rel="stylesheet" href="css/styles.css" />
+  </head>
+  <body>
+    <div class="info">
+      <h3>Noisy Normal &amp; Color Plane</h3>
+      <p>Use the GUI panel to control parameters</p>
+    </div>
+
+    <!-- Three.js and dat.GUI -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/dat-gui/0.7.7/dat.gui.min.js"></script>
+    <!-- Stats.js for performance monitoring (using non-module version) -->
+    <script src="https://mrdoob.github.io/stats.js/build/stats.min.js"></script>
+
+    <!-- Application code -->
+    <script src="js/ShaderApp.js"></script>
+
+    <script>
+      // Initialize the application when the page loads
+      document.addEventListener("DOMContentLoaded", () => {
+        const app = new ShaderApp();
+        app.init();
+      });
+    </script>
+  </body>
+</html>
