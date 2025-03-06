@@ -29,6 +29,14 @@ export class GUIManager {
     this.app.gui = new dat.GUI({ width: 300 });
     this.app.controllers = [];
 
+    // Presets folder (moved to the top)
+    const presetFolder = this.app.gui.addFolder("Presets");
+    presetFolder.add(this.app.presets, "Default").name("Default");
+    presetFolder.add(this.app.presets, "Ocean Waves").name("Ocean Waves");
+    presetFolder.add(this.app.presets, "Lava Flow").name("Lava Flow");
+    presetFolder.add(this.app.presets, "Abstract Art").name("Abstract Art");
+    presetFolder.open();
+
     // Plane controls
     const planeFolder = this.app.gui.addFolder("Plane Controls");
     this.app.controllers.push(
@@ -270,18 +278,11 @@ export class GUIManager {
         })
     );
     visFolder.open();
-
-    // Presets folder
-    const presetFolder = this.app.gui.addFolder("Presets");
-    presetFolder.add(this.app.presets, "Default").name("Default");
-    presetFolder.add(this.app.presets, "Ocean Waves").name("Ocean Waves");
-    presetFolder.add(this.app.presets, "Lava Flow").name("Lava Flow");
-    presetFolder.add(this.app.presets, "Abstract Art").name("Abstract Art");
-    presetFolder.open();
     
     // Export folder
     const exportFolder = this.app.gui.addFolder("Export");
     exportFolder.add(this.app, "saveAsImage").name("Save as Image");
+    exportFolder.add(this.app, "exportCode").name("Export Code");
     exportFolder.add(this.app.params, "exportTransparentBg").name("Transparent Background");
     exportFolder.add(this.app.params, "exportHighQuality").name("High Quality");
     exportFolder.open();
@@ -328,6 +329,15 @@ export class GUIManager {
         // Update GUI without triggering camera updates
         this.updateGUI();
       }
+      
+      // Save camera position and target to params
+      this.app.params.cameraPosX = this.app.camera.position.x;
+      this.app.params.cameraPosY = this.app.camera.position.y;
+      this.app.params.cameraPosZ = this.app.camera.position.z;
+      
+      this.app.params.cameraTargetX = this.app.controls.target.x;
+      this.app.params.cameraTargetY = this.app.controls.target.y;
+      this.app.params.cameraTargetZ = this.app.controls.target.z;
     });
   }
   

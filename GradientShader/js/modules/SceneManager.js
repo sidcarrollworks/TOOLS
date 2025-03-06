@@ -68,9 +68,19 @@ export class SceneManager {
     this.app.controls.maxDistance = 10;
     this.app.controls.maxPolarAngle = Math.PI / 1.5; // Limit vertical rotation
     
-    // Set initial position
-    this.app.controls.target.set(0, 0, 0);
-    this.app.camera.position.set(0, 0, this.app.params.cameraDistance);
+    // Set initial position from params
+    this.app.controls.target.set(
+      this.app.params.cameraTargetX,
+      this.app.params.cameraTargetY,
+      this.app.params.cameraTargetZ
+    );
+    
+    this.app.camera.position.set(
+      this.app.params.cameraPosX,
+      this.app.params.cameraPosY,
+      this.app.params.cameraPosZ
+    );
+    
     this.app.controls.update();
   }
   
@@ -175,6 +185,19 @@ export class SceneManager {
           this.app.camera.position.copy(newPosition);
           this.app.controls.update();
         }
+      }
+    }
+    
+    // Always save current camera position and target to params
+    if (this.app.camera) {
+      this.app.params.cameraPosX = this.app.camera.position.x;
+      this.app.params.cameraPosY = this.app.camera.position.y;
+      this.app.params.cameraPosZ = this.app.camera.position.z;
+      
+      if (this.app.controls) {
+        this.app.params.cameraTargetX = this.app.controls.target.x;
+        this.app.params.cameraTargetY = this.app.controls.target.y;
+        this.app.params.cameraTargetZ = this.app.controls.target.z;
       }
     }
     

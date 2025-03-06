@@ -7,6 +7,7 @@ import { SceneManager } from './modules/SceneManager.js';
 import { GUIManager } from './modules/GUIManager.js';
 import { PresetManager } from './modules/PresetManager.js';
 import { Utils } from './modules/Utils.js';
+import { ExportManager } from './modules/ExportManager.js';
 
 class ShaderApp {
   constructor() {
@@ -46,6 +47,12 @@ class ShaderApp {
       // Camera
       cameraDistance: 2,
       cameraFov: 90,
+      cameraPosX: 0,
+      cameraPosY: 0,
+      cameraPosZ: 2,
+      cameraTargetX: 0,
+      cameraTargetY: 0,
+      cameraTargetZ: 0,
       
       // Normal noise
       normalNoiseScaleX: 3.0,
@@ -142,6 +149,7 @@ class ShaderApp {
     this.guiManager = new GUIManager(this);
     this.presetManager = new PresetManager(this);
     this.utils = new Utils();
+    this.exportManager = new ExportManager(this);
     
     // Preset functions
     this.presets = {
@@ -245,6 +253,13 @@ class ShaderApp {
   }
   
   /**
+   * Export code
+   */
+  exportCode() {
+    this.exportManager.exportCode();
+  }
+  
+  /**
    * Clean up resources when app is destroyed
    */
   dispose() {
@@ -258,6 +273,7 @@ class ShaderApp {
     this.guiManager.dispose();
     this.sceneManager.dispose();
     this.utils.cleanupStats(this);
+    this.exportManager.dispose();
     
     // Remove reference to uniforms
     this.uniforms = null;
