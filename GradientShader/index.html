@@ -20,9 +20,9 @@
     <script src="https://mrdoob.github.io/stats.js/build/stats.min.js"></script>
 
     <!-- Application code -->
-    <script src="js/ShaderApp.js"></script>
+    <script type="module">
+      import { ShaderApp } from "./js/ShaderApp.js";
 
-    <script>
       // Initialize the application when the page loads
       document.addEventListener("DOMContentLoaded", () => {
         const app = new ShaderApp();
