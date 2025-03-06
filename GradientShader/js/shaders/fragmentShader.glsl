@@ -3,6 +3,11 @@ uniform float uColorNoiseScale;
 uniform float uColorNoiseSpeed;
 uniform int uGradientMode;
 
+// Gradient shift parameters
+uniform float uGradientShiftX;
+uniform float uGradientShiftY;
+uniform float uGradientShiftSpeed;
+
 // Five user-defined colors:
 uniform vec3 uColors[4];
 
@@ -73,9 +78,25 @@ void main() {
     vec3 light = normalize(uLightDir);
     float diffuse = max(0.0, dot(vNormal, light)) * uDiffuseIntensity + uAmbientIntensity;
 
-    // Sample noise in [-1,1], map to [0,1].
-    float noiseVal = cnoise(vec3(vUv * uColorNoiseScale, uTime * uColorNoiseSpeed));
-    float t = (noiseVal + 1.0) * 0.5;  // Now t is in [0..1].
+    // ---------------------------------------
+    // COMPLETELY REVISED GRADIENT SHIFT LOGIC
+    // ---------------------------------------
+    
+    // Create a gradient shift offset
+    vec2 gradientOffset = vec2(
+        uTime * uGradientShiftX * uGradientShiftSpeed * 10.0,
+        uTime * uGradientShiftY * uGradientShiftSpeed * 10.0
+    );
+    
+    // Sample noise with the gradient shift applied DIRECTLY to the noise coordinate
+    float noiseVal = cnoise(vec3(
+        vUv.x * uColorNoiseScale + gradientOffset.x,
+        vUv.y * uColorNoiseScale + gradientOffset.y,
+        uTime * uColorNoiseSpeed
+    ));
+    
+    // Map to [0,1] range
+    float t = (noiseVal + 1.0) * 0.5;
     
     // Get our 4 colors
     vec3 c1 = uColors[0];
@@ -110,9 +131,10 @@ void main() {
     }
     else if (uGradientMode == 4) {
         // Direct mapping (raw noise to color index)
-        // This gives more distinct color regions
-        int index = int(t * 4.0);
-        index = clamp(index, 0, 3);
+        // This gives more distinct color regions without interpolation
+        float scaledT = t * 4.0; // Scale to 0-4 range
+        int index = int(floor(scaledT)); // Get integer part
+        index = clamp(index, 0, 3); // Ensure index is in valid range
         chosenColor = uColors[index];
     }
     else {

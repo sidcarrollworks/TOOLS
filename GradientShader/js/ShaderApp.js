@@ -24,40 +24,45 @@ class ShaderApp {
     // Track if we're currently interacting with GUI
     this.isInteractingWithGUI = false;
     
-    // Parameters for the shader
+    // Default parameters
     this.params = {
-      // Geometry
+      // Plane geometry
       planeWidth: 2,
       planeHeight: 2,
       segments: 128,
-
-      // Position & Rotation
+      
+      // Rotation
       rotationX: -Math.PI / 4, // 45 degrees
       rotationY: 0,
       rotationZ: 0,
-
+      
       // Camera
       cameraDistance: 2,
       cameraFov: 90,
-
-      // Normal Noise
+      
+      // Normal noise
       normalNoiseScaleX: 3.0,
       normalNoiseScaleY: 3.0,
       normalNoiseSpeed: 0.2,
       normalNoiseStrength: 0.15,
       normalNoiseShiftSpeed: 0.0,
-
-      // Color Noise
+      
+      // Color noise
       colorNoiseScale: 2.0,
       colorNoiseSpeed: 0.3,
-      gradientMode: 0, // Default to B-spline (original)
-
-      // Five user-defined colors in hex form:
+      
+      // Gradient shift parameters
+      gradientShiftX: 0.2,
+      gradientShiftY: 0.1,
+      gradientShiftSpeed: 0.05,
+      
+      // Colors
+      gradientMode: 0, // 0: B-spline, 1: Linear, 2: Step, 3: Smooth step, 4: Direct mapping
       color1: "#ff0000",
       color2: "#00ff00",
       color3: "#0000ff",
       color4: "#ffff00",
-
+      
       // Lighting
       lightX: 0.5,
       lightY: 0.8,
@@ -65,17 +70,15 @@ class ShaderApp {
       diffuseIntensity: 0.5,
       ambientIntensity: 0.5,
       rimLightIntensity: 0.3,
-
-      // Background
+      
+      // Visualization
       backgroundColor: "#111111",
-
+      showWireframe: false,
+      wireframeColor: "#ffffff",
+      
       // Animation
       animationSpeed: 0.01,
       pauseAnimation: false,
-
-      // Wireframe
-      showWireframe: false,
-      wireframeColor: "#ffffff",
     };
     
     // Uniforms for the shader
@@ -96,6 +99,12 @@ class ShaderApp {
       uColorNoiseScale: { value: this.params.colorNoiseScale },
       uColorNoiseSpeed: { value: this.params.colorNoiseSpeed },
       uGradientMode: { value: this.params.gradientMode },
+      
+      // Gradient shift uniforms
+      uGradientShiftX: { value: this.params.gradientShiftX },
+      uGradientShiftY: { value: this.params.gradientShiftY },
+      uGradientShiftSpeed: { value: this.params.gradientShiftSpeed },
+      
       uColors: { value: this.uniformColors },
 
       uLightDir: {
@@ -207,23 +216,38 @@ class ShaderApp {
    */
   async loadShaders() {
     try {
-      // Load Perlin noise shader
-      const perlinResponse = await fetch('js/shaders/perlinNoise.glsl');
+      // Add random query parameter to force reload
+      const timestamp = Date.now();
+      
+      // Add special cache prevention parameter
+      const cacheParams = `?v=${timestamp}`;
+      
+      // Load Perlin noise code
+      const perlinResponse = await fetch(`js/shaders/perlinNoise.glsl${cacheParams}`);
       this.shaders.perlinNoise = await perlinResponse.text();
       
       // Load vertex shader
-      const vertexResponse = await fetch('js/shaders/vertexShader.glsl');
+      const vertexResponse = await fetch(`js/shaders/vertexShader.glsl${cacheParams}`);
       this.shaders.vertex = await vertexResponse.text();
       
       // Load fragment shader
-      const fragmentResponse = await fetch('js/shaders/fragmentShader.glsl');
+      const fragmentResponse = await fetch(`js/shaders/fragmentShader.glsl${cacheParams}`);
       this.shaders.fragment = await fragmentResponse.text();
       
-      // Inject Perlin noise into vertex and fragment shaders
-      this.shaders.vertex = this.shaders.vertex.replace('// We\'ll include the Perlin noise code via JavaScript', this.shaders.perlinNoise);
-      this.shaders.fragment = this.shaders.fragment.replace('// We\'ll include the Perlin noise code via JavaScript', this.shaders.perlinNoise);
+      // Insert Perlin noise code into both vertex and fragment shaders
+      this.shaders.vertex = this.shaders.vertex.replace(
+        "// We'll include the Perlin noise code via JavaScript",
+        this.shaders.perlinNoise
+      );
+      
+      this.shaders.fragment = this.shaders.fragment.replace(
+        "// We'll include the Perlin noise code via JavaScript",
+        this.shaders.perlinNoise
+      );
+      
+      console.log("All shader files loaded successfully");
     } catch (error) {
-      console.error('Error loading shaders:', error);
+      console.error("Error loading shader files:", error);
     }
   }
   
@@ -323,17 +347,26 @@ class ShaderApp {
   }
   
   /**
-   * Update parameters and uniforms
+   * Update shader parameters
    */
   updateParams(updateCamera = false) {
-    // Update numeric uniforms
+    // Update noise parameters
     this.uniforms.uNoiseScaleX.value = this.params.normalNoiseScaleX;
     this.uniforms.uNoiseScaleY.value = this.params.normalNoiseScaleY;
     this.uniforms.uNoiseSpeed.value = this.params.normalNoiseSpeed;
     this.uniforms.uNoiseStrength.value = this.params.normalNoiseStrength;
     this.uniforms.uNoiseShiftSpeed.value = this.params.normalNoiseShiftSpeed;
+    
+    // Update color noise parameters
     this.uniforms.uColorNoiseScale.value = this.params.colorNoiseScale;
     this.uniforms.uColorNoiseSpeed.value = this.params.colorNoiseSpeed;
+    
+    // Update gradient shift parameters
+    this.uniforms.uGradientShiftX.value = this.params.gradientShiftX;
+    this.uniforms.uGradientShiftY.value = this.params.gradientShiftY;
+    this.uniforms.uGradientShiftSpeed.value = this.params.gradientShiftSpeed;
+    
+    // Update gradient mode
     this.uniforms.uGradientMode.value = this.params.gradientMode;
     
     // Convert each color param (hex) to a Three.js Color => Vector3
@@ -412,6 +445,7 @@ class ShaderApp {
     for (const name in this.presets) {
       presetFolder.add(this.presets, name).name(name);
     }
+    presetFolder.open();
     
     // Performance folder
     if (this.stats) {
@@ -425,62 +459,56 @@ class ShaderApp {
         .onChange((value) => {
           this.stats.showPanel(Number(value));
         });
-      
-      perfFolder.open();
     }
     
-    // Plane geometry folder
-    const geomFolder = this.gui.addFolder("Plane Geometry");
+    // Plane folder (combining geometry and rotation)
+    const planeFolder = this.gui.addFolder("Plane");
     this.controllers.push(
-      geomFolder
+      planeFolder
         .add(this.params, "planeWidth", 0.5, 5)
         .name("Width")
         .onChange(() => this.recreatePlane())
     );
     this.controllers.push(
-      geomFolder
+      planeFolder
         .add(this.params, "planeHeight", 0.5, 5)
         .name("Height")
         .onChange(() => this.recreatePlane())
     );
     this.controllers.push(
-      geomFolder
+      planeFolder
         .add(this.params, "segments", 16, 256, 8)
         .name("Segments")
         .onChange(() => this.recreatePlane())
     );
-    
-    // Rotation folder
-    const rotationFolder = this.gui.addFolder("Plane Rotation");
     this.controllers.push(
-      rotationFolder
+      planeFolder
         .add(this.params, "rotationX", -Math.PI, Math.PI, 0.01)
-        .name("X Rotation")
+        .name("Rotation X")
         .onChange(() => this.updateParams())
     );
     this.controllers.push(
-      rotationFolder
+      planeFolder
         .add(this.params, "rotationY", -Math.PI, Math.PI, 0.01)
-        .name("Y Rotation")
+        .name("Rotation Y")
         .onChange(() => this.updateParams())
     );
     this.controllers.push(
-      rotationFolder
+      planeFolder
         .add(this.params, "rotationZ", -Math.PI, Math.PI, 0.01)
-        .name("Z Rotation")
+        .name("Rotation Z")
         .onChange(() => this.updateParams())
     );
+    planeFolder.open();
     
     // Camera folder
     const cameraFolder = this.gui.addFolder("Camera");
-    
     this.controllers.push(
       cameraFolder
         .add(this.params, "cameraDistance", 0.5, 10)
         .name("Camera Distance")
         .onChange(() => this.updateParams(true))
     );
-    
     this.controllers.push(
       cameraFolder
         .add(this.params, "cameraFov", 1, 120)
@@ -488,67 +516,56 @@ class ShaderApp {
         .onChange(() => this.updateParams(true))
     );
     
-    // Normal displacement (vertex) noise folder
-    const noiseFolder = this.gui.addFolder("Normal Displacement");
+    // Normal Noise folder (for vertex displacement only)
+    const normalNoiseFolder = this.gui.addFolder("Normal Displacement");
     this.controllers.push(
-      noiseFolder
+      normalNoiseFolder
         .add(this.params, "normalNoiseScaleX", 0.1, 10)
-        .name("Noise Scale X")
+        .name("Scale X")
         .onChange(() => this.updateParams())
     );
     this.controllers.push(
-      noiseFolder
+      normalNoiseFolder
         .add(this.params, "normalNoiseScaleY", 0.1, 10)
-        .name("Noise Scale Y")
+        .name("Scale Y")
         .onChange(() => this.updateParams())
     );
     this.controllers.push(
-      noiseFolder
+      normalNoiseFolder
         .add(this.params, "normalNoiseSpeed", 0, 1)
-        .name("Noise Speed")
+        .name("Speed")
         .onChange(() => this.updateParams())
     );
     this.controllers.push(
-      noiseFolder
+      normalNoiseFolder
         .add(this.params, "normalNoiseStrength", 0, 1)
-        .name("Noise Strength")
+        .name("Strength")
         .onChange(() => this.updateParams())
     );
     this.controllers.push(
-      noiseFolder
-        .add(this.params, "normalNoiseShiftSpeed", -0.5, 0.5, 0.005)
-        .name("Noise Shift Speed")
+      normalNoiseFolder
+        .add(this.params, "normalNoiseShiftSpeed", -1, 1)
+        .name("Shift Speed")
         .onChange(() => this.updateParams())
     );
+    normalNoiseFolder.open();
     
-    // Color folder
-    const colorFolder = this.gui.addFolder("Color Settings");
-    this.controllers.push(
-      colorFolder
-        .add(this.params, "colorNoiseScale", 0.1, 10)
-        .name("Color Noise Scale")
-        .onChange(() => this.updateParams())
-    );
-    this.controllers.push(
-      colorFolder
-        .add(this.params, "colorNoiseSpeed", 0, 1)
-        .name("Color Noise Speed")
-        .onChange(() => this.updateParams())
-    );
+    // Color Parameters folder (including gradient shift and color noise)
+    const colorFolder = this.gui.addFolder("Color Parameters");
     this.controllers.push(
       colorFolder
         .add(this.params, "gradientMode", {
-          "B-Spline (Smooth)": 0,
-          "Linear Interpolation": 1,
-          "Step (Hard Edges)": 2,
+          "B-Spline": 0,
+          "Linear": 1,
+          "Step": 2,
           "Smooth Step": 3,
-          "Direct Mapping": 4,
+          "Direct Mapping": 4
         })
         .name("Gradient Mode")
         .onChange(() => this.updateParams())
     );
-    
-    // 4 color pickers:
+
+    // Color pickers
     this.controllers.push(
       colorFolder
         .addColor(this.params, "color1")
@@ -573,6 +590,43 @@ class ShaderApp {
         .name("Color 4")
         .onChange(() => this.updateParams())
     );
+    
+    // Color noise parameters
+    this.controllers.push(
+      colorFolder
+        .add(this.params, "colorNoiseScale", 0.1, 10)
+        .name("Noise Scale")
+        .onChange(() => this.updateParams())
+    );
+    this.controllers.push(
+      colorFolder
+        .add(this.params, "colorNoiseSpeed", 0, 1)
+        .name("Noise Speed")
+        .onChange(() => this.updateParams())
+    );
+    
+    // Gradient shift parameters
+    this.controllers.push(
+      colorFolder
+        .add(this.params, "gradientShiftX", -1, 1, 0.01)
+        .name("Shift X")
+        .onChange(() => this.updateParams())
+    );
+    this.controllers.push(
+      colorFolder
+        .add(this.params, "gradientShiftY", -1, 1, 0.01)
+        .name("Shift Y")
+        .onChange(() => this.updateParams())
+    );
+    this.controllers.push(
+      colorFolder
+        .add(this.params, "gradientShiftSpeed", 0, 0.5, 0.01)
+        .name("Shift Speed")
+        .onChange(() => this.updateParams())
+    );
+    
+    
+    colorFolder.open();
     
     // Lighting folder
     const lightFolder = this.gui.addFolder("Lighting");
@@ -642,13 +696,7 @@ class ShaderApp {
     this.controllers.push(
       animFolder.add(this.params, "pauseAnimation").name("Pause")
     );
-    
-    // Open some folders by default
-    rotationFolder.open();
-    noiseFolder.open();
-    colorFolder.open();
     animFolder.open();
-    presetFolder.open();
   }
   
   /**
@@ -727,8 +775,10 @@ class ShaderApp {
     if (!this.params.pauseAnimation) {
       // Update time for shader uniforms
       this.time += this.params.animationSpeed;
-      this.uniforms.uTime.value = this.time;
     }
+    
+    // Always update the time uniform
+    this.uniforms.uTime.value = this.time;
     
     // Update OrbitControls
     if (this.controls) {
@@ -795,6 +845,11 @@ class ShaderApp {
     this.params.color2 = "#0099cc";
     this.params.color3 = "#00ffcc";
     this.params.color4 = "#0080ff";
+
+    // Set up gradient shift for wave-like movement
+    this.params.gradientShiftX = 0.5;  // Horizontal wave movement
+    this.params.gradientShiftY = 0.2;  // Slight vertical movement
+    this.params.gradientShiftSpeed = 0.08;  // Moderate speed
 
     this.params.backgroundColor = "#001030";
     this.params.rotationX = -Math.PI / 3;
