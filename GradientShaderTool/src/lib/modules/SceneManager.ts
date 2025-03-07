@@ -56,10 +56,10 @@ export class SceneManager {
       const canvas = this.app.renderer.domElement;
       canvas.style.backgroundColor = "#191919";
       canvas.style.backgroundImage = `
-        linear-gradient(45deg, #2a2a2a 25%, transparent 25%), 
-        linear-gradient(-45deg, #2a2a2a 25%, transparent 25%),
-        linear-gradient(45deg, transparent 75%, #2a2a2a 75%),
-        linear-gradient(-45deg, transparent 75%, #2a2a2a 75%)
+        linear-gradient(45deg, #222222 25%, transparent 25%), 
+        linear-gradient(-45deg, #222222 25%, transparent 25%),
+        linear-gradient(45deg, transparent 75%, #222222 75%),
+        linear-gradient(-45deg, transparent 75%, #222222 75%)
       `;
       canvas.style.backgroundSize = "20px 20px";
       canvas.style.backgroundPosition = "0 0, 0 10px, 10px -10px, -10px 0px";
@@ -176,6 +176,7 @@ export class SceneManager {
       this.app.geometry.dispose();
     }
 
+    // Create new geometry
     this.app.geometry = new THREE.PlaneGeometry(
       this.app.params.planeWidth,
       this.app.params.planeHeight,
@@ -183,14 +184,23 @@ export class SceneManager {
       this.app.params.planeSegments
     );
 
+    // Standard smooth shading
+    this.app.geometry.computeVertexNormals();
+
     if (!this.app.material) return;
 
+    // Apply wireframe property directly to the material
+    this.app.material.wireframe = this.app.params.showWireframe;
+
+    // Create the mesh with the geometry and material
     this.app.plane = new THREE.Mesh(this.app.geometry, this.app.material);
 
+    // Set the rotation
     this.app.plane.rotation.x = this.app.params.rotationX;
     this.app.plane.rotation.y = this.app.params.rotationY;
     this.app.plane.rotation.z = this.app.params.rotationZ;
 
+    // Add to scene
     this.app.scene.add(this.app.plane);
   }
 
@@ -254,6 +264,11 @@ export class SceneManager {
     this.app.uniforms.uShowWireframe.value = this.app.params.showWireframe;
     this.app.uniforms.uWireframeColor.value.set(this.app.params.wireframeColor);
 
+    // Apply wireframe property directly to the material if it exists
+    if (this.app.material) {
+      this.app.material.wireframe = this.app.params.showWireframe;
+    }
+
     // Update plane transform
     if (this.app.plane) {
       this.app.plane.rotation.x = this.app.params.rotationX;
@@ -309,10 +324,10 @@ export class SceneManager {
       const canvas = this.app.renderer.domElement;
       canvas.style.backgroundColor = "#191919";
       canvas.style.backgroundImage = `
-        linear-gradient(45deg, #2a2a2a 25%, transparent 25%), 
-        linear-gradient(-45deg, #2a2a2a 25%, transparent 25%),
-        linear-gradient(45deg, transparent 75%, #2a2a2a 75%),
-        linear-gradient(-45deg, transparent 75%, #2a2a2a 75%)
+        linear-gradient(45deg, #222222 25%, transparent 25%), 
+        linear-gradient(-45deg, #222222 25%, transparent 25%),
+        linear-gradient(45deg, transparent 75%, #222222 75%),
+        linear-gradient(-45deg, transparent 75%, #222222 75%)
       `;
       canvas.style.backgroundSize = "20px 20px";
       canvas.style.backgroundPosition = "0 0, 0 10px, 10px -10px, -10px 0px";

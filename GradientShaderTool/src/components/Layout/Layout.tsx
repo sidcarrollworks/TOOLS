@@ -46,8 +46,8 @@ export const Layout: FunctionComponent<LayoutProps> = ({
             {viewportContent}
             {isPaused && <span className={styles.pausedBadge}>Paused</span>}
             <div className={styles.keyboardHints}>
-              Press <kbd>H</kbd> to toggle settings panel | <kbd>Space</kbd> to
-              toggle animation
+              Press <kbd>H</kbd> to toggle settings panel & stats |{" "}
+              <kbd>Space</kbd> to toggle animation
             </div>
           </div>
         </div>

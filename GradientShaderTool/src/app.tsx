@@ -27,7 +27,16 @@ export const App: ComponentType = () => {
   // Toggle settings handler
   const toggleSettings = useCallback(() => {
     setShowSettings((prev) => !prev);
-  }, []);
+
+    // Toggle stats visibility when settings are toggled
+    if (app && app.stats) {
+      const statsElement = app.stats.dom;
+      if (statsElement) {
+        statsElement.style.display =
+          statsElement.style.display === "none" ? "block" : "none";
+      }
+    }
+  }, [app]);
 
   // Set up keyboard shortcuts
   useEffect(() => {

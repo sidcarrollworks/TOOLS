@@ -66,6 +66,7 @@ export interface ShaderParams {
   backgroundColor: string;
   showWireframe: boolean;
   wireframeColor: string;
+  flatShading: boolean;
 
   // Animation
   animationSpeed: number;
@@ -202,6 +203,7 @@ export class ShaderApp {
       backgroundColor: "#111111",
       showWireframe: false,
       wireframeColor: "#ffffff",
+      flatShading: false,
 
       // Animation
       animationSpeed: 0.01,
