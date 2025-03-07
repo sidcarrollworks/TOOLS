@@ -131,7 +131,7 @@ function createGradientShader(container) {
       renderer.setSize(container.clientWidth, container.clientHeight);
       renderer.render(scene, camera); // Force a render after resize
     }
-  }, 250); // Longer debounce time to prevent flickering
+  }, 10); // Longer debounce time to prevent flickering
   
   // Use both window resize event and ResizeObserver
   window.addEventListener('resize', handleResize);
@@ -141,7 +141,7 @@ function createGradientShader(container) {
   if (window.ResizeObserver) {
     resizeObserver = new ResizeObserver(debounce(() => {
       handleResize();
-    }, 250));
+    }, 10));
     resizeObserver.observe(container);
   }
   
