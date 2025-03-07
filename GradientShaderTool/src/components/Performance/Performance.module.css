@@ -1,0 +1,6 @@
+.performance {
+  display: inline-block;
+  font-family: monospace;
+  font-size: 12px;
+  color: var(--text-secondary);
+}

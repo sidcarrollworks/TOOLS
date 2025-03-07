@@ -1,7 +1,7 @@
 # GRADIENT SHADER - TODO LIST
 
 ## IMMEDIATE TASKS
-- Fix any remaining export issues or edge cases
+- Rewrite app using Preact version 10 and typescript using the bun package manager
 
 ## HIGH PRIORITY
 - Add preset saving/loading functionality

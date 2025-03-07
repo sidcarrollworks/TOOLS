@@ -1,0 +1,30 @@
+.canvasContainer {
+  width: 100%;
+  height: 100%;
+  position: relative;
+  overflow: hidden;
+  background-color: var(--viewport-bg);
+  border-radius: 4px;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  transition: width var(--transition-normal), height var(--transition-normal);
+}
+
+/* Target any canvas that is a direct child of the container */
+.canvasContainer > canvas {
+  display: block;
+  width: 100% !important; /* Override any inline styles */
+  height: 100% !important; /* Override any inline styles */
+  max-width: 100%;
+  max-height: 100%;
+  object-fit: contain;
+}
+
+/* Target any canvas that might be added by Three.js */
+canvas[data-engine="three.js r174"] {
+  width: 100% !important;
+  height: 100% !important;
+  max-width: 100%;
+  max-height: 100%;
+}

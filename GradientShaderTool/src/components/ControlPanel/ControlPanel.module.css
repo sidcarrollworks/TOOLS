@@ -1,0 +1,195 @@
+.controlPanel {
+  width: 100%;
+  height: 100%;
+  min-height: 0; /* Important for flex child to enable scrolling */
+  display: flex;
+  flex-direction: column;
+  overflow-y: auto;
+  color: var(--text-primary);
+  font-size: 12px;
+  padding-bottom: 80px;
+  -webkit-overflow-scrolling: touch;
+  padding: 16px;
+}
+
+.controlGroup {
+  margin-bottom: 16px;
+  border-bottom: 1px solid var(--separator-color);
+  padding-bottom: 16px;
+}
+
+.controlGroup:last-child {
+  border-bottom: none;
+}
+
+.controlGroupTitle {
+  font-weight: 600;
+  margin-bottom: 12px;
+  font-size: 13px;
+  color: var(--text-secondary);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.controlRow {
+  display: flex;
+  align-items: center;
+  margin-bottom: 8px;
+}
+
+.controlLabel {
+  flex: 1;
+  font-size: 12px;
+  color: var(--text-primary);
+}
+
+.controlInput {
+  flex: 1;
+}
+
+.slider {
+  width: 100%;
+  background: var(--control-bg);
+  height: 4px;
+  outline: none;
+  -webkit-appearance: none;
+  border-radius: 2px;
+  cursor: pointer;
+  transition: background-color var(--transition-fast);
+}
+
+.slider::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  background: var(--gray-dark-10);
+  cursor: pointer;
+  transition: background var(--transition-fast);
+  border: 2px solid var(--gray-dark-8);
+}
+
+.slider::-webkit-slider-thumb:hover {
+  background: var(--gray-dark-11);
+}
+
+.slider:focus {
+  background: var(--control-active);
+}
+
+.colorPicker {
+  width: 24px;
+  height: 24px;
+  border: none;
+  cursor: pointer;
+  border-radius: 4px;
+  outline: 1px solid var(--gray-dark-8);
+  outline-offset: 1px;
+}
+
+.button {
+  background-color: var(--control-bg);
+  color: var(--text-primary);
+  border: 1px solid var(--border-color);
+  padding: 6px 12px;
+  margin: 4px 0;
+  cursor: pointer;
+  font-size: 12px;
+  border-radius: 4px;
+  transition: background-color var(--transition-fast);
+}
+
+.button:hover {
+  background-color: var(--control-hover);
+}
+
+.button:active {
+  background-color: var(--control-active);
+}
+
+.presetButton {
+  background-color: var(--gray-dark-3);
+  color: var(--text-primary);
+  border: 1px solid var(--border-color);
+  padding: 6px 10px;
+  margin: 3px;
+  cursor: pointer;
+  font-size: 12px;
+  border-radius: 4px;
+  transition: all var(--transition-fast);
+}
+
+.presetButton:hover {
+  background-color: var(--gray-dark-4);
+}
+
+.presetButton:active {
+  background-color: var(--gray-dark-5);
+}
+
+.valueDisplay {
+  width: 40px;
+  text-align: right;
+  font-size: 11px;
+  color: var(--text-tertiary);
+  margin-left: 8px;
+  font-family: monospace;
+}
+
+/* Styled checkbox */
+.checkbox {
+  appearance: none;
+  -webkit-appearance: none;
+  width: 16px;
+  height: 16px;
+  border: 1px solid var(--border-color);
+  border-radius: 3px;
+  background-color: var(--control-bg);
+  cursor: pointer;
+  position: relative;
+  transition: all var(--transition-fast);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.checkbox:checked {
+  background-color: var(--gray-dark-8);
+  border-color: var(--gray-dark-9);
+}
+
+.checkbox:checked::after {
+  content: "";
+  position: absolute;
+  width: 6px;
+  height: 6px;
+  background-color: var(--text-primary);
+  border-radius: 1px;
+}
+
+.select {
+  background-color: var(--control-bg);
+  color: var(--text-primary);
+  border: 1px solid var(--border-color);
+  padding: 4px 8px;
+  border-radius: 4px;
+  font-size: 12px;
+  min-width: 120px;
+  cursor: pointer;
+  appearance: none;
+  -webkit-appearance: none;
+  background-image: url("data:image/svg+xml;charset=UTF-8,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='white' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3e%3cpolyline points='6 9 12 15 18 9'%3e%3c/polyline%3e%3c/svg%3e");
+  background-repeat: no-repeat;
+  background-position: right 8px center;
+  background-size: 12px;
+  padding-right: 30px;
+}
+
+.select:hover {
+  background-color: var(--control-hover);
+}
+
+.select:focus {
+  outline: none;
+  border-color: var(--gray-dark-8);
+}

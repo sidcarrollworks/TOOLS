@@ -1,0 +1,379 @@
+import type { FunctionComponent } from "preact";
+import type { ShaderParams } from "../../lib/ShaderApp";
+import { useState, useEffect } from "preact/hooks";
+import styles from "./ControlPanel.module.css";
+import { ShaderApp } from "../../lib/ShaderApp";
+
+interface ControlPanelProps {
+  app: ShaderApp | null;
+}
+
+export const ControlPanel: FunctionComponent<ControlPanelProps> = ({ app }) => {
+  const [params, setParams] = useState<ShaderParams | null>(null);
+
+  useEffect(() => {
+    if (app) {
+      // Initialize params from app
+      setParams({ ...app.params });
+
+      // Add a method to update the GUI from the app
+      (app as any).updateGUI = () => {
+        setParams({ ...app.params });
+      };
+    }
+  }, [app]);
+
+  if (!app || !params) {
+    return <div className={styles.controlPanel}>Loading controls...</div>;
+  }
+
+  // Handle parameter changes
+  const handleChange = (
+    key: keyof ShaderParams,
+    value: number | string | boolean
+  ) => {
+    if (!app) return;
+
+    // Update the app parameter
+    app.params[key] = value as never; // Type assertion needed due to complex type constraints
+
+    // Update local state
+    setParams({ ...app.params });
+
+    // Special handling for parameters that require recreation of the plane
+    if (["planeWidth", "planeHeight", "planeSegments"].includes(key)) {
+      app.recreatePlane();
+    } else {
+      // Update other parameters
+      app.updateParams(key.toString().startsWith("camera"));
+    }
+  };
+
+  // Handle preset selection
+  const applyPreset = (presetName: string) => {
+    if (!app || !app.presets[presetName]) return;
+
+    // Apply the preset
+    app.presets[presetName]();
+
+    // Update local state
+    setParams({ ...app.params });
+  };
+
+  // Helper function to create a slider control
+  const createSlider = (
+    label: string,
+    key: keyof ShaderParams,
+    min: number,
+    max: number,
+    step: number,
+    decimals: number = 1
+  ) => (
+    <div className={styles.controlRow}>
+      <label className={styles.controlLabel}>{label}</label>
+      <input
+        type="range"
+        className={styles.slider}
+        min={min}
+        max={max}
+        step={step}
+        value={params[key] as number}
+        onChange={(e) =>
+          handleChange(key, parseFloat((e.target as HTMLInputElement).value))
+        }
+      />
+      <span className={styles.valueDisplay}>
+        {typeof params[key] === "number"
+          ? (params[key] as number).toFixed(decimals)
+          : params[key]}
+      </span>
+    </div>
+  );
+
+  return (
+    <div className={styles.controlPanel}>
+      {/* Presets */}
+      <div className={styles.controlGroup}>
+        <div className={styles.controlGroupTitle}>Presets</div>
+        <div style={{ display: "flex", flexWrap: "wrap", gap: "4px" }}>
+          <button
+            className={styles.presetButton}
+            onClick={() => applyPreset("Default")}
+          >
+            Default
+          </button>
+          <button
+            className={styles.presetButton}
+            onClick={() => applyPreset("Ocean Waves")}
+          >
+            Ocean Waves
+          </button>
+          <button
+            className={styles.presetButton}
+            onClick={() => applyPreset("Lava Flow")}
+          >
+            Lava Flow
+          </button>
+          <button
+            className={styles.presetButton}
+            onClick={() => applyPreset("Abstract Art")}
+          >
+            Abstract Art
+          </button>
+        </div>
+      </div>
+
+      {/* Plane Controls */}
+      <div className={styles.controlGroup}>
+        <div className={styles.controlGroupTitle}>Plane Controls</div>
+        {createSlider("Width", "planeWidth", 0.5, 5, 0.1)}
+        {createSlider("Height", "planeHeight", 0.5, 5, 0.1)}
+        {createSlider("Segments", "planeSegments", 16, 256, 8, 0)}
+      </div>
+
+      {/* Normal Noise Controls */}
+      <div className={styles.controlGroup}>
+        <div className={styles.controlGroupTitle}>Normal Noise</div>
+        {createSlider("Scale X", "normalNoiseScaleX", 0.1, 10, 0.1)}
+        {createSlider("Scale Y", "normalNoiseScaleY", 0.1, 10, 0.1)}
+        {createSlider("Speed", "normalNoiseSpeed", 0, 1, 0.01, 2)}
+        {createSlider("Strength", "normalNoiseStrength", 0, 1, 0.01, 2)}
+        {createSlider("Shift X", "normalNoiseShiftX", -1, 1, 0.01, 2)}
+        {createSlider("Shift Y", "normalNoiseShiftY", -1, 1, 0.01, 2)}
+        {createSlider("Shift Speed", "normalNoiseShiftSpeed", 0, 1, 0.01, 2)}
+      </div>
+
+      {/* Color Noise Controls */}
+      <div className={styles.controlGroup}>
+        <div className={styles.controlGroupTitle}>Color Noise</div>
+        {createSlider("Scale", "colorNoiseScale", 0.1, 10, 0.1)}
+        {createSlider("Speed", "colorNoiseSpeed", 0, 1, 0.01, 2)}
+      </div>
+
+      {/* Gradient Shift Controls */}
+      <div className={styles.controlGroup}>
+        <div className={styles.controlGroupTitle}>Gradient Shift</div>
+        {createSlider("Shift X", "gradientShiftX", -1, 1, 0.01, 2)}
+        {createSlider("Shift Y", "gradientShiftY", -1, 1, 0.01, 2)}
+        {createSlider("Shift Speed", "gradientShiftSpeed", 0, 0.5, 0.01, 2)}
+      </div>
+
+      {/* Colors Controls */}
+      <div className={styles.controlGroup}>
+        <div className={styles.controlGroupTitle}>Colors</div>
+
+        <div className={styles.controlRow}>
+          <label className={styles.controlLabel}>Gradient Mode</label>
+          <select
+            value={params.gradientMode}
+            onChange={(e) =>
+              handleChange(
+                "gradientMode",
+                parseInt((e.target as HTMLSelectElement).value, 10)
+              )
+            }
+            className={styles.select}
+          >
+            <option value={0}>B-Spline</option>
+            <option value={1}>Linear</option>
+            <option value={2}>Step</option>
+            <option value={3}>Smooth Step</option>
+            <option value={4}>Direct Mapping</option>
+          </select>
+        </div>
+
+        <div className={styles.controlRow}>
+          <label className={styles.controlLabel}>Color 1</label>
+          <input
+            type="color"
+            className={styles.colorPicker}
+            value={params.color1}
+            onChange={(e) =>
+              handleChange("color1", (e.target as HTMLInputElement).value)
+            }
+          />
+          <span className={styles.valueDisplay}>{params.color1}</span>
+        </div>
+
+        <div className={styles.controlRow}>
+          <label className={styles.controlLabel}>Color 2</label>
+          <input
+            type="color"
+            className={styles.colorPicker}
+            value={params.color2}
+            onChange={(e) =>
+              handleChange("color2", (e.target as HTMLInputElement).value)
+            }
+          />
+          <span className={styles.valueDisplay}>{params.color2}</span>
+        </div>
+
+        <div className={styles.controlRow}>
+          <label className={styles.controlLabel}>Color 3</label>
+          <input
+            type="color"
+            className={styles.colorPicker}
+            value={params.color3}
+            onChange={(e) =>
+              handleChange("color3", (e.target as HTMLInputElement).value)
+            }
+          />
+          <span className={styles.valueDisplay}>{params.color3}</span>
+        </div>
+
+        <div className={styles.controlRow}>
+          <label className={styles.controlLabel}>Color 4</label>
+          <input
+            type="color"
+            className={styles.colorPicker}
+            value={params.color4}
+            onChange={(e) =>
+              handleChange("color4", (e.target as HTMLInputElement).value)
+            }
+          />
+          <span className={styles.valueDisplay}>{params.color4}</span>
+        </div>
+      </div>
+
+      {/* Lighting Controls */}
+      <div className={styles.controlGroup}>
+        <div className={styles.controlGroupTitle}>Lighting</div>
+        {createSlider("Light Dir X", "lightDirX", -1, 1, 0.01, 2)}
+        {createSlider("Light Dir Y", "lightDirY", -1, 1, 0.01, 2)}
+        {createSlider("Light Dir Z", "lightDirZ", -1, 1, 0.01, 2)}
+        {createSlider("Diffuse", "diffuseIntensity", 0, 1, 0.01, 2)}
+        {createSlider("Ambient", "ambientIntensity", 0, 1, 0.01, 2)}
+        {createSlider("Rim Light", "rimLightIntensity", 0, 1, 0.01, 2)}
+      </div>
+
+      {/* Visualization Controls */}
+      <div className={styles.controlGroup}>
+        <div className={styles.controlGroupTitle}>Visualization</div>
+
+        <div className={styles.controlRow}>
+          <label className={styles.controlLabel}>Background</label>
+          <input
+            type="color"
+            className={styles.colorPicker}
+            value={params.backgroundColor}
+            onChange={(e) =>
+              handleChange(
+                "backgroundColor",
+                (e.target as HTMLInputElement).value
+              )
+            }
+          />
+          <span className={styles.valueDisplay}>{params.backgroundColor}</span>
+        </div>
+
+        <div className={styles.controlRow}>
+          <label className={styles.controlLabel}>Show Wireframe</label>
+          <input
+            type="checkbox"
+            className={styles.checkbox}
+            checked={params.showWireframe}
+            onChange={(e) =>
+              handleChange(
+                "showWireframe",
+                (e.target as HTMLInputElement).checked
+              )
+            }
+          />
+        </div>
+
+        <div className={styles.controlRow}>
+          <label className={styles.controlLabel}>Wireframe Color</label>
+          <input
+            type="color"
+            className={styles.colorPicker}
+            value={params.wireframeColor}
+            onChange={(e) =>
+              handleChange(
+                "wireframeColor",
+                (e.target as HTMLInputElement).value
+              )
+            }
+          />
+          <span className={styles.valueDisplay}>{params.wireframeColor}</span>
+        </div>
+      </div>
+
+      {/* Camera Controls */}
+      <div className={styles.controlGroup}>
+        <div className={styles.controlGroupTitle}>Camera</div>
+        {createSlider("Distance", "cameraDistance", 0.5, 10, 0.1)}
+        {createSlider("FOV", "cameraFov", 1, 120, 1, 0)}
+      </div>
+
+      {/* Animation Controls */}
+      <div className={styles.controlGroup}>
+        <div className={styles.controlGroupTitle}>Animation</div>
+        {createSlider("Speed", "animationSpeed", 0, 0.05, 0.001, 3)}
+
+        <div className={styles.controlRow}>
+          <label className={styles.controlLabel}>Pause</label>
+          <input
+            type="checkbox"
+            className={styles.checkbox}
+            checked={params.pauseAnimation}
+            onChange={(e) =>
+              handleChange(
+                "pauseAnimation",
+                (e.target as HTMLInputElement).checked
+              )
+            }
+          />
+        </div>
+      </div>
+
+      {/* Export Controls */}
+      <div className={styles.controlGroup}>
+        <div className={styles.controlGroupTitle}>Export</div>
+
+        <div className={styles.controlRow}>
+          <button className={styles.button} onClick={() => app.saveAsImage()}>
+            Save as Image
+          </button>
+        </div>
+
+        <div className={styles.controlRow}>
+          <button className={styles.button} onClick={() => app.exportCode()}>
+            Export Code
+          </button>
+        </div>
+
+        <div className={styles.controlRow}>
+          <label className={styles.controlLabel}>Transparent Background</label>
+          <input
+            type="checkbox"
+            className={styles.checkbox}
+            checked={params.exportTransparentBg}
+            onChange={(e) =>
+              handleChange(
+                "exportTransparentBg",
+                (e.target as HTMLInputElement).checked
+              )
+            }
+          />
+        </div>
+
+        <div className={styles.controlRow}>
+          <label className={styles.controlLabel}>High Quality</label>
+          <input
+            type="checkbox"
+            className={styles.checkbox}
+            checked={params.exportHighQuality}
+            onChange={(e) =>
+              handleChange(
+                "exportHighQuality",
+                (e.target as HTMLInputElement).checked
+              )
+            }
+          />
+        </div>
+      </div>
+    </div>
+  );
+};
+
+export default ControlPanel;

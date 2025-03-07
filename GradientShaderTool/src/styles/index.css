@@ -1,0 +1,174 @@
+@import "./theme.css";
+
+/* Base styles */
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+html,
+body {
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+  font-family: "Inter", "Segoe UI", Roboto, -apple-system, BlinkMacSystemFont,
+    sans-serif;
+}
+
+body {
+  background-color: var(--app-bg);
+  color: var(--text-primary);
+}
+
+#app {
+  width: 100%;
+  height: 100%;
+}
+
+/* Custom scrollbar for a modern look */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: var(--gray-dark-3);
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--gray-dark-6);
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: var(--gray-dark-7);
+}
+
+/* Hide visually but maintain accessibility */
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border-width: 0;
+}
+
+.app-container {
+  width: 100%;
+  height: 100vh;
+  position: relative;
+}
+
+.canvas-wrapper {
+  width: 100%;
+  height: 100%;
+  position: absolute;
+  top: 0;
+  left: 0;
+}
+
+.info {
+  position: absolute;
+  top: 10px;
+  left: 10px;
+  z-index: 100;
+  background-color: rgba(0, 0, 0, 0.7);
+  padding: 10px;
+  border-radius: 5px;
+  max-width: 300px;
+}
+
+.info h3 {
+  margin-bottom: 5px;
+  font-size: 16px;
+}
+
+.info p {
+  font-size: 12px;
+  opacity: 0.8;
+}
+
+/* App container */
+.app {
+  display: flex;
+  flex-direction: column;
+  height: 100vh;
+  width: 100vw;
+}
+
+/* Header styles */
+.header {
+  background-color: rgba(0, 0, 0, 0.8);
+  padding: 1rem 0;
+  border-bottom: 1px solid #333;
+}
+
+.header .container {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 0 1rem;
+}
+
+.header h1 {
+  font-size: 1.5rem;
+  font-weight: 600;
+  color: #f0f0f0;
+}
+
+.header nav a {
+  color: #f0f0f0;
+  text-decoration: none;
+  margin-left: 1rem;
+  transition: color 0.2s ease;
+}
+
+.header nav a:hover {
+  color: #6366f1;
+}
+
+/* Main content */
+main {
+  flex: 1;
+  overflow: hidden;
+}
+
+/* Canvas container */
+.canvas-container {
+  width: 100%;
+  height: 100%;
+  background-color: #000;
+}
+
+.loading,
+.canvas-placeholder {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  width: 100%;
+  height: 100%;
+  color: #666;
+  font-size: 1.2rem;
+}
+
+/* dat.GUI customization */
+.dg.ac {
+  z-index: 1000 !important;
+}
+
+/* Full screen canvas */
+canvas {
+  display: block;
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+}
