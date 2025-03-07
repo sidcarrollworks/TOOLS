@@ -5,7 +5,6 @@ import { ShaderApp } from "./lib/ShaderApp";
 import ShaderCanvas from "./components/ShaderCanvas/ShaderCanvas";
 import ControlPanel from "./components/ControlPanel/ControlPanel";
 import Layout from "./components/Layout/Layout";
-import Performance from "./components/Performance/Performance";
 
 export const App: ComponentType = () => {
   const [app, setApp] = useState<ShaderApp | null>(null);
@@ -93,13 +92,10 @@ export const App: ComponentType = () => {
 
   const settingsContent = <ControlPanel app={app} />;
 
-  const performanceContent = <Performance statsInstance={app?.stats} />;
-
   return (
     <Layout
       viewportContent={viewportContent}
       settingsContent={settingsContent}
-      performanceContent={performanceContent}
       isPaused={app?.params.pauseAnimation}
       showSettings={showSettings}
       onToggleSettings={toggleSettings}

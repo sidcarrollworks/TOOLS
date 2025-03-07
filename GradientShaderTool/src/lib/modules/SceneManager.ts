@@ -40,14 +40,42 @@ export class SceneManager {
     this.app.renderer = new THREE.WebGLRenderer({
       antialias: true,
       alpha: true,
+      premultipliedAlpha: false,
     });
     this.app.renderer.setSize(
       parentElement.clientWidth,
       parentElement.clientHeight
     );
-    this.app.renderer.setClearColor(
-      new THREE.Color(this.app.params.backgroundColor)
-    );
+
+    // Set clear color based on transparent background setting
+    if (this.app.params.exportTransparentBg) {
+      // Set transparent background (alpha = 0)
+      this.app.renderer.setClearColor(0x000000, 0);
+
+      // Apply checkered background to the canvas element
+      const canvas = this.app.renderer.domElement;
+      canvas.style.backgroundColor = "#191919";
+      canvas.style.backgroundImage = `
+        linear-gradient(45deg, #2a2a2a 25%, transparent 25%), 
+        linear-gradient(-45deg, #2a2a2a 25%, transparent 25%),
+        linear-gradient(45deg, transparent 75%, #2a2a2a 75%),
+        linear-gradient(-45deg, transparent 75%, #2a2a2a 75%)
+      `;
+      canvas.style.backgroundSize = "20px 20px";
+      canvas.style.backgroundPosition = "0 0, 0 10px, 10px -10px, -10px 0px";
+    } else {
+      // Set solid background color
+      this.app.renderer.setClearColor(
+        new THREE.Color(this.app.params.backgroundColor)
+      );
+
+      // Remove checkered background
+      const canvas = this.app.renderer.domElement;
+      canvas.style.backgroundColor = "";
+      canvas.style.backgroundImage = "";
+      canvas.style.backgroundSize = "";
+      canvas.style.backgroundPosition = "";
+    }
     targetElement.appendChild(this.app.renderer.domElement);
 
     // Setup OrbitControls
@@ -273,9 +301,34 @@ export class SceneManager {
     }
 
     // Update background
-    this.app.renderer.setClearColor(
-      new THREE.Color(this.app.params.backgroundColor)
-    );
+    if (this.app.params.exportTransparentBg) {
+      // Set transparent background (alpha = 0)
+      this.app.renderer.setClearColor(0x000000, 0);
+
+      // Apply checkered background to the canvas element
+      const canvas = this.app.renderer.domElement;
+      canvas.style.backgroundColor = "#191919";
+      canvas.style.backgroundImage = `
+        linear-gradient(45deg, #2a2a2a 25%, transparent 25%), 
+        linear-gradient(-45deg, #2a2a2a 25%, transparent 25%),
+        linear-gradient(45deg, transparent 75%, #2a2a2a 75%),
+        linear-gradient(-45deg, transparent 75%, #2a2a2a 75%)
+      `;
+      canvas.style.backgroundSize = "20px 20px";
+      canvas.style.backgroundPosition = "0 0, 0 10px, 10px -10px, -10px 0px";
+    } else {
+      // Set solid background color
+      this.app.renderer.setClearColor(
+        new THREE.Color(this.app.params.backgroundColor)
+      );
+
+      // Remove checkered background
+      const canvas = this.app.renderer.domElement;
+      canvas.style.backgroundColor = "";
+      canvas.style.backgroundImage = "";
+      canvas.style.backgroundSize = "";
+      canvas.style.backgroundPosition = "";
+    }
   }
 
   /**

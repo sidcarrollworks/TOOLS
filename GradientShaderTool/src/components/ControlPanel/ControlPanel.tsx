@@ -78,6 +78,9 @@ export const ControlPanel: FunctionComponent<ControlPanelProps> = ({ app }) => {
         max={max}
         step={step}
         value={params[key] as number}
+        onInput={(e) =>
+          handleChange(key, parseFloat((e.target as HTMLInputElement).value))
+        }
         onChange={(e) =>
           handleChange(key, parseFloat((e.target as HTMLInputElement).value))
         }
@@ -251,7 +254,28 @@ export const ControlPanel: FunctionComponent<ControlPanelProps> = ({ app }) => {
         <div className={styles.controlGroupTitle}>Visualization</div>
 
         <div className={styles.controlRow}>
-          <label className={styles.controlLabel}>Background</label>
+          <label className={styles.controlLabel}>Transparent Background</label>
+          <input
+            type="checkbox"
+            className={styles.checkbox}
+            checked={params.exportTransparentBg}
+            onChange={(e) =>
+              handleChange(
+                "exportTransparentBg",
+                (e.target as HTMLInputElement).checked
+              )
+            }
+          />
+        </div>
+
+        <div className={styles.controlRow}>
+          <label
+            className={`${styles.controlLabel} ${
+              params.exportTransparentBg ? styles.disabled : ""
+            }`}
+          >
+            Background
+          </label>
           <input
             type="color"
             className={styles.colorPicker}
@@ -262,8 +286,15 @@ export const ControlPanel: FunctionComponent<ControlPanelProps> = ({ app }) => {
                 (e.target as HTMLInputElement).value
               )
             }
+            disabled={params.exportTransparentBg}
           />
-          <span className={styles.valueDisplay}>{params.backgroundColor}</span>
+          <span
+            className={`${styles.valueDisplay} ${
+              params.exportTransparentBg ? styles.disabled : ""
+            }`}
+          >
+            {params.backgroundColor}
+          </span>
         </div>
 
         <div className={styles.controlRow}>
@@ -340,21 +371,6 @@ export const ControlPanel: FunctionComponent<ControlPanelProps> = ({ app }) => {
           <button className={styles.button} onClick={() => app.exportCode()}>
             Export Code
           </button>
-        </div>
-
-        <div className={styles.controlRow}>
-          <label className={styles.controlLabel}>Transparent Background</label>
-          <input
-            type="checkbox"
-            className={styles.checkbox}
-            checked={params.exportTransparentBg}
-            onChange={(e) =>
-              handleChange(
-                "exportTransparentBg",
-                (e.target as HTMLInputElement).checked
-              )
-            }
-          />
         </div>
 
         <div className={styles.controlRow}>

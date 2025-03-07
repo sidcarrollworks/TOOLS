@@ -193,3 +193,10 @@
   outline: none;
   border-color: var(--gray-dark-8);
 }
+
+/* Disabled elements */
+.disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+  pointer-events: none;
+}

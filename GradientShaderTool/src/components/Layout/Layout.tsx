@@ -5,7 +5,6 @@ import styles from "./Layout.module.css";
 interface LayoutProps {
   viewportContent?: preact.ComponentChildren;
   settingsContent?: preact.ComponentChildren;
-  performanceContent?: preact.ComponentChildren;
   isPaused?: boolean;
   showSettings?: boolean;
   onToggleSettings?: () => void;
@@ -14,7 +13,6 @@ interface LayoutProps {
 export const Layout: FunctionComponent<LayoutProps> = ({
   viewportContent,
   settingsContent,
-  performanceContent,
   isPaused = false,
   showSettings = true,
   onToggleSettings,
