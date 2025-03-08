@@ -414,7 +414,7 @@ export const FigmaInput: FunctionComponent<FigmaInputProps> = ({
   useEffect(() => {
     if (!isDragging || !usePointerLock || !pointerLockSupported.current) {
       if (isDragging) {
-        console.log("🔄 Dragging started but pointer lock not used:", {
+        console.log("🔄Dragging started but pointer lock not used:", {
           usePointerLock,
           pointerLockSupported: pointerLockSupported.current,
         });
