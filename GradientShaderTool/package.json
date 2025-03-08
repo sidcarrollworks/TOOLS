@@ -9,13 +9,13 @@
     "preview": "vite preview"
   },
   "devDependencies": {
-    "@preact/preset-vite": "^2.10.1",
+    "@preact/preset-vite": "^2.5.0",
     "@types/bun": "latest",
-    "@types/node": "^22.13.9",
-    "vite": "^6.2.1"
+    "@types/node": "^18.19.3",
+    "vite": "^4.5.1"
   },
   "peerDependencies": {
-    "typescript": "^5.8.2"
+    "typescript": "^5.0.0"
   },
   "dependencies": {
     "@types/dat.gui": "^0.7.13",
@@ -23,9 +23,10 @@
     "@types/three": "^0.174.0",
     "dat.gui": "^0.7.9",
     "preact": "10",
-    "preact-render-to-string": "^6.5.13",
+    "preact-render-to-string": "^6.2.1",
     "preact-router": "^4.1.2",
     "stats.js": "^0.17.0",
+    "terser": "^5.39.0",
     "three": "^0.174.0"
   }
 }
