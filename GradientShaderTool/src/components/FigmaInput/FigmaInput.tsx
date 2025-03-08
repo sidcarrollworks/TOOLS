@@ -147,7 +147,6 @@ const initVirtualCursor = () => {
   });
 
   document.body.appendChild(virtualCursor);
-  console.log("🖱️ Virtual cursor initialized:", virtualCursor);
   return virtualCursor;
 };
 

@@ -1,6 +1,11 @@
 /**
  * ShaderLoader - Loads GLSL shader files from the server
  */
+// Import shader files directly
+import perlinNoiseShader from '../shaders/perlinNoise.glsl';
+import vertexShader from '../shaders/vertexShader.glsl';
+import fragmentShader from '../shaders/fragmentShader.glsl';
+
 export class ShaderLoader {
   /**
    * Load shader files
@@ -12,44 +17,20 @@ export class ShaderLoader {
     fragment: string;
   }): Promise<void> {
     try {
-      // Load shader files
-      const [perlinNoiseResponse, vertexResponse, fragmentResponse] =
-        await Promise.all([
-          fetch("/src/lib/shaders/perlinNoise.glsl"),
-          fetch("/src/lib/shaders/vertexShader.glsl"),
-          fetch("/src/lib/shaders/fragmentShader.glsl"),
-        ]);
-
-      // Check responses
-      if (
-        !perlinNoiseResponse.ok ||
-        !vertexResponse.ok ||
-        !fragmentResponse.ok
-      ) {
-        throw new Error("Failed to load one or more shader files");
-      }
-
-      // Get shader text content
-      const [perlinNoiseText, vertexText, fragmentText] = await Promise.all([
-        perlinNoiseResponse.text(),
-        vertexResponse.text(),
-        fragmentResponse.text(),
-      ]);
-
-      // Store the raw shader content
-      shaders.perlinNoise = perlinNoiseText;
+      // Store the raw shader content directly from imports
+      shaders.perlinNoise = perlinNoiseShader;
 
       // Combine perlinNoise with vertex and fragment shaders
       // Look for the comment "// We'll include the Perlin noise code via JavaScript"
       // and replace it with the perlinNoise content
-      shaders.vertex = vertexText.replace(
+      shaders.vertex = vertexShader.replace(
         "// We'll include the Perlin noise code via JavaScript",
-        perlinNoiseText
+        perlinNoiseShader
       );
 
-      shaders.fragment = fragmentText.replace(
+      shaders.fragment = fragmentShader.replace(
         "// We'll include the Perlin noise code via JavaScript",
-        perlinNoiseText
+        perlinNoiseShader
       );
 
       console.log("All shader files loaded and combined successfully");
