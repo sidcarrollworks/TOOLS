@@ -3,6 +3,7 @@ import type { ShaderParams } from "../../lib/ShaderApp";
 import { useState, useEffect } from "preact/hooks";
 import styles from "./ControlPanel.module.css";
 import { ShaderApp } from "../../lib/ShaderApp";
+import { NumericControl } from "./NumericControl";
 
 interface ControlPanelProps {
   app: ShaderApp | null;
@@ -60,7 +61,7 @@ export const ControlPanel: FunctionComponent<ControlPanelProps> = ({ app }) => {
     setParams({ ...app.params });
   };
 
-  // Helper function to create a slider control
+  // Helper function to create a slider control (kept for backward compatibility)
   const createSlider = (
     label: string,
     key: keyof ShaderParams,
@@ -69,28 +70,16 @@ export const ControlPanel: FunctionComponent<ControlPanelProps> = ({ app }) => {
     step: number,
     decimals: number = 1
   ) => (
-    <div className={styles.controlRow}>
-      <label className={styles.controlLabel}>{label}</label>
-      <input
-        type="range"
-        className={styles.slider}
-        min={min}
-        max={max}
-        step={step}
-        value={params[key] as number}
-        onInput={(e) =>
-          handleChange(key, parseFloat((e.target as HTMLInputElement).value))
-        }
-        onChange={(e) =>
-          handleChange(key, parseFloat((e.target as HTMLInputElement).value))
-        }
-      />
-      <span className={styles.valueDisplay}>
-        {typeof params[key] === "number"
-          ? (params[key] as number).toFixed(decimals)
-          : params[key]}
-      </span>
-    </div>
+    <NumericControl
+      label={label}
+      paramKey={key}
+      value={params[key] as number}
+      min={min}
+      max={max}
+      step={step}
+      decimals={decimals}
+      onChange={handleChange}
+    />
   );
 
   return (
@@ -128,7 +117,7 @@ export const ControlPanel: FunctionComponent<ControlPanelProps> = ({ app }) => {
 
       {/* Plane Controls */}
       <div className={styles.controlGroup}>
-        <div className={styles.controlGroupTitle}>Plane Controls</div>
+        <div className={styles.controlGroupTitle}>Mesh</div>
         {createSlider("Width", "planeWidth", 0.5, 5, 0.1)}
         {createSlider("Height", "planeHeight", 0.5, 5, 0.1)}
         {createSlider("Segments", "planeSegments", 16, 256, 8, 0)}
@@ -141,9 +130,10 @@ export const ControlPanel: FunctionComponent<ControlPanelProps> = ({ app }) => {
         {createSlider("Scale Y", "normalNoiseScaleY", 0.1, 10, 0.1)}
         {createSlider("Speed", "normalNoiseSpeed", 0, 1, 0.01, 2)}
         {createSlider("Strength", "normalNoiseStrength", 0, 1, 0.01, 2)}
-        {createSlider("Shift X", "normalNoiseShiftX", -1, 1, 0.01, 2)}
-        {createSlider("Shift Y", "normalNoiseShiftY", -1, 1, 0.01, 2)}
-        {createSlider("Shift Speed", "normalNoiseShiftSpeed", 0, 1, 0.01, 2)}
+        <div className={styles.controlGroupSubtitle}>Shift</div>
+        {createSlider("X", "normalNoiseShiftX", -1, 1, 0.01, 2)}
+        {createSlider("Y", "normalNoiseShiftY", -1, 1, 0.01, 2)}
+        {createSlider("Speed", "normalNoiseShiftSpeed", 0, 1, 0.01, 2)}
       </div>
 
       {/* Color Noise Controls */}
@@ -151,11 +141,8 @@ export const ControlPanel: FunctionComponent<ControlPanelProps> = ({ app }) => {
         <div className={styles.controlGroupTitle}>Color Noise</div>
         {createSlider("Scale", "colorNoiseScale", 0.1, 10, 0.1)}
         {createSlider("Speed", "colorNoiseSpeed", 0, 1, 0.01, 2)}
-      </div>
+        <div className={styles.controlGroupSubtitle}>Shift</div>
 
-      {/* Gradient Shift Controls */}
-      <div className={styles.controlGroup}>
-        <div className={styles.controlGroupTitle}>Gradient Shift</div>
         {createSlider("Shift X", "gradientShiftX", -1, 1, 0.01, 2)}
         {createSlider("Shift Y", "gradientShiftY", -1, 1, 0.01, 2)}
         {createSlider("Shift Speed", "gradientShiftSpeed", 0, 0.5, 0.01, 2)}

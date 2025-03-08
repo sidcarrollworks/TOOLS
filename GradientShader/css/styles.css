@@ -2,6 +2,7 @@ body {
   margin: 0;
   overflow: hidden;
   background-color: #000;
+  font-family: "DM Sans", sans-serif;
 }
 canvas {
   display: block;
@@ -14,7 +15,7 @@ canvas {
   background-color: rgba(0, 0, 0, 0.5);
   color: white;
   border-radius: 5px;
-  font-family: Arial, sans-serif;
+  font-family: "DM Sans", sans-serif;
   z-index: 10;
   pointer-events: none;
 }
@@ -25,4 +26,4 @@ canvas {
   bottom: 0;
   left: 0;
   z-index: 100;
-} 
+}

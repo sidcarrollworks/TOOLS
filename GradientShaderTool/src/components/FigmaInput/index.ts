@@ -1,0 +1,1 @@
+export { FigmaInput } from "./FigmaInput";

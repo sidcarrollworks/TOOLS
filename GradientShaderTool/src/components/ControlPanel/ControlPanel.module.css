@@ -25,7 +25,17 @@
 .controlGroupTitle {
   font-weight: 600;
   margin-bottom: 12px;
-  font-size: 13px;
+  font-size: 11px;
+  color: var(--text-secondary);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.controlGroupSubtitle {
+  font-weight: 600;
+  margin-bottom: 11px;
+  margin-top: 32px;
+  font-size: 11px;
   color: var(--text-secondary);
   text-transform: uppercase;
   letter-spacing: 0.5px;
@@ -35,6 +45,7 @@
   display: flex;
   align-items: center;
   margin-bottom: 8px;
+  height: 24px;
 }
 
 .controlLabel {
@@ -45,6 +56,10 @@
 
 .controlInput {
   flex: 1;
+}
+
+.figmaInputWrapper {
+  width: 100%;
 }
 
 .slider {
