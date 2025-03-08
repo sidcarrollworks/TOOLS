@@ -9,6 +9,7 @@ import Layout from "./components/Layout/Layout";
 export const App: ComponentType = () => {
   const [app, setApp] = useState<ShaderApp | null>(null);
   const [showSettings, setShowSettings] = useState(true);
+  const [showStats, setShowStats] = useState(false);
 
   // Reference to the shader canvas container
   const shaderCanvasRef = useRef<HTMLDivElement | null>(null);
@@ -26,17 +27,37 @@ export const App: ComponentType = () => {
 
   // Toggle settings handler
   const toggleSettings = useCallback(() => {
-    setShowSettings((prev) => !prev);
+    const newShowSettings = !showSettings;
+    setShowSettings(newShowSettings);
 
-    // Toggle stats visibility when settings are toggled
+    // If we're hiding the UI, always hide the stats
+    if (!newShowSettings) {
+      setShowStats(false);
+
+      // Hide stats element if it exists
+      if (app && app.stats) {
+        const statsElement = app.stats.dom;
+        if (statsElement) {
+          statsElement.style.display = "none";
+        }
+      }
+    }
+  }, [showSettings, app]);
+
+  // Toggle stats handler
+  const toggleStats = useCallback(() => {
+    // Toggle the state
+    const newShowStats = !showStats;
+    setShowStats(newShowStats);
+
+    // Update the DOM element visibility to match the state
     if (app && app.stats) {
       const statsElement = app.stats.dom;
       if (statsElement) {
-        statsElement.style.display =
-          statsElement.style.display === "none" ? "block" : "none";
+        statsElement.style.display = newShowStats ? "block" : "none";
       }
     }
-  }, [app]);
+  }, [app, showStats]);
 
   // Set up keyboard shortcuts
   useEffect(() => {
@@ -49,7 +70,14 @@ export const App: ComponentType = () => {
 
       // 'H' to toggle settings panel
       if (e.key === "h" || e.key === "H") {
+        e.preventDefault(); // Prevent default behavior
         toggleSettings();
+      }
+
+      // 'S' to toggle stats visibility - ONLY when UI is visible
+      if ((e.key === "s" || e.key === "S") && showSettings) {
+        e.preventDefault(); // Prevent default behavior
+        toggleStats();
       }
     };
 
@@ -58,7 +86,7 @@ export const App: ComponentType = () => {
     return () => {
       window.removeEventListener("keydown", handleKeyDown);
     };
-  }, [toggleAnimation, toggleSettings]);
+  }, [toggleAnimation, toggleSettings, toggleStats, showSettings]);
 
   // Handle resize when settings panel is toggled
   useEffect(() => {
@@ -81,6 +109,14 @@ export const App: ComponentType = () => {
         .init(shaderCanvasRef.current.parentElement as HTMLElement)
         .then(() => {
           setApp(shaderApp);
+
+          // Set initial stats visibility to match showStats state (should be false by default)
+          if (shaderApp.stats) {
+            const statsElement = shaderApp.stats.dom;
+            if (statsElement) {
+              statsElement.style.display = "none";
+            }
+          }
         });
     }
 
@@ -108,6 +144,8 @@ export const App: ComponentType = () => {
       isPaused={app?.params.pauseAnimation}
       showSettings={showSettings}
       onToggleSettings={toggleSettings}
+      onToggleStats={toggleStats}
+      showStats={showStats}
     />
   );
 };

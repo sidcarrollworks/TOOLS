@@ -1,5 +1,5 @@
 import type { FunctionComponent } from "preact";
-import { useEffect } from "preact/hooks";
+import { useEffect, useState, useRef } from "preact/hooks";
 import styles from "./Layout.module.css";
 
 interface LayoutProps {
@@ -7,7 +7,9 @@ interface LayoutProps {
   settingsContent?: preact.ComponentChildren;
   isPaused?: boolean;
   showSettings?: boolean;
+  showStats?: boolean;
   onToggleSettings?: () => void;
+  onToggleStats?: () => void;
 }
 
 export const Layout: FunctionComponent<LayoutProps> = ({
@@ -15,8 +17,53 @@ export const Layout: FunctionComponent<LayoutProps> = ({
   settingsContent,
   isPaused = false,
   showSettings = true,
+  showStats = true,
   onToggleSettings,
+  onToggleStats,
 }) => {
+  // State to track if hints should be visible
+  const [hintsVisible, setHintsVisible] = useState(true);
+  // State to track if transitions should be disabled
+  const [disableTransitions, setDisableTransitions] = useState(false);
+  const timeoutRef = useRef<number | null>(null);
+  const transitionTimeoutRef = useRef<number | null>(null);
+
+  // Function to handle mouse movement
+  const handleMouseMove = () => {
+    // Show hints when mouse moves
+    setHintsVisible(true);
+
+    // Clear any existing timeout
+    if (timeoutRef.current) {
+      window.clearTimeout(timeoutRef.current);
+    }
+
+    // Only set timeout to hide hints if settings panel is hidden
+    if (!showSettings) {
+      // Set a new timeout to hide hints after 3 seconds
+      timeoutRef.current = window.setTimeout(() => {
+        setHintsVisible(false);
+      }, 3000);
+    }
+  };
+
+  // Set up mouse movement detection
+  useEffect(() => {
+    // Initialize hints visibility
+    handleMouseMove();
+
+    // Add mouse movement listener
+    window.addEventListener("mousemove", handleMouseMove);
+
+    // Clean up on unmount
+    return () => {
+      window.removeEventListener("mousemove", handleMouseMove);
+      if (timeoutRef.current) {
+        window.clearTimeout(timeoutRef.current);
+      }
+    };
+  }, [showSettings]); // Re-run effect when showSettings changes
+
   // Set up keyboard shortcuts
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -36,6 +83,49 @@ export const Layout: FunctionComponent<LayoutProps> = ({
     }
   }, [onToggleSettings]);
 
+  // Ensure hints are always visible when settings panel is shown
+  // and disable transitions temporarily for instant appearance
+  useEffect(() => {
+    if (showSettings) {
+      // Disable transitions for instant appearance
+      setDisableTransitions(true);
+
+      // Make hints visible
+      setHintsVisible(true);
+
+      // Clear any existing timeout
+      if (timeoutRef.current) {
+        window.clearTimeout(timeoutRef.current);
+        timeoutRef.current = null;
+      }
+
+      // Clear any existing transition timeout
+      if (transitionTimeoutRef.current) {
+        window.clearTimeout(transitionTimeoutRef.current);
+      }
+
+      // Re-enable transitions after a brief delay
+      transitionTimeoutRef.current = window.setTimeout(() => {
+        setDisableTransitions(false);
+      }, 100);
+    }
+
+    return () => {
+      if (transitionTimeoutRef.current) {
+        window.clearTimeout(transitionTimeoutRef.current);
+      }
+    };
+  }, [showSettings]);
+
+  // Determine CSS classes for hints based on visibility and transition state
+  const keyboardHintsClass = `${styles.keyboardHints} ${
+    !hintsVisible ? styles.keyboardHintsHidden : ""
+  } ${disableTransitions ? styles.noTransition : ""}`;
+
+  const minimalHintClass = `${styles.minimalHint} ${
+    !hintsVisible ? styles.minimalHintHidden : ""
+  } ${disableTransitions ? styles.noTransition : ""}`;
+
   return (
     <>
       <div
@@ -45,10 +135,23 @@ export const Layout: FunctionComponent<LayoutProps> = ({
           <div className={styles.viewport}>
             {viewportContent}
             {isPaused && <span className={styles.pausedBadge}>Paused</span>}
-            <div className={styles.keyboardHints}>
-              Press <kbd>H</kbd> to toggle settings panel & stats |{" "}
-              <kbd>Space</kbd> to toggle animation
-            </div>
+            {showSettings ? (
+              <div className={keyboardHintsClass}>
+                <span>
+                  <kbd>H</kbd> Hide UI
+                </span>
+                <span>
+                  <kbd>S</kbd> Show Stats
+                </span>
+                <span>
+                  <kbd>Space</kbd> Pause/Play
+                </span>
+              </div>
+            ) : (
+              <div className={minimalHintClass}>
+                <kbd>H</kbd> Show UI
+              </div>
+            )}
           </div>
         </div>
 

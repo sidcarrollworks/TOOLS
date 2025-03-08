@@ -15,8 +15,6 @@ uniform vec3 uLightDir;
 uniform float uDiffuseIntensity;
 uniform float uAmbientIntensity;
 uniform float uRimLightIntensity;
-uniform bool uShowWireframe;
-uniform vec3 uWireframeColor;
 
 // We'll include the Perlin noise code via JavaScript
 
@@ -24,11 +22,6 @@ varying vec2 vUv;
 varying vec3 vNormal;
 varying float vNoise;
 
-// Function for wireframe overlay:
-float grid(vec2 st, float resolution) {
-    vec2 gv = fract(st * resolution);
-    return step(0.98, max(gv.x, gv.y));
-}
 
 // Linear interpolation between two colors
 vec3 linearGradient(vec3 colorA, vec3 colorB, float t) {
@@ -77,10 +70,6 @@ void main() {
     // Basic lighting
     vec3 light = normalize(uLightDir);
     float diffuse = max(0.0, dot(vNormal, light)) * uDiffuseIntensity + uAmbientIntensity;
-
-    // ---------------------------------------
-    // COMPLETELY REVISED GRADIENT SHIFT LOGIC
-    // ---------------------------------------
     
     // Create a gradient shift offset
     vec2 gradientOffset = vec2(
@@ -149,12 +138,6 @@ void main() {
     float rim = 1.0 - max(0.0, dot(vNormal, vec3(0.0, 0.0, 1.0)));
     rim = pow(rim, 2.0) * uRimLightIntensity;
     finalColor += vec3(1.0, 0.9, 0.8) * rim;
-
-    // Optional wireframe overlay
-    if (uShowWireframe) {
-        float gridPattern = grid(vUv, 64.0);
-        finalColor = mix(finalColor, uWireframeColor, gridPattern);
-    }
 
     gl_FragColor = vec4(finalColor, 1.0);
 } 

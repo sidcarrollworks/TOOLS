@@ -23,8 +23,10 @@ export class Utils {
 
   /**
    * Setup Stats.js for performance monitoring
+   * @param {ShaderApp} app - The shader app instance
+   * @param {boolean} initiallyVisible - Whether stats should be initially visible
    */
-  setupStats(app: ShaderApp): void {
+  setupStats(app: ShaderApp, initiallyVisible: boolean = true): void {
     // Create Stats instance
     app.stats = new Stats();
     app.stats.showPanel(0); // 0: fps, 1: ms, 2: mb, 3+: custom
@@ -34,6 +36,12 @@ export class Utils {
       app.stats.dom.style.position = "absolute";
       app.stats.dom.style.left = "0px";
       app.stats.dom.style.top = "0px";
+
+      // Set initial visibility
+      if (!initiallyVisible) {
+        app.stats.dom.style.display = "none";
+      }
+
       app.parentElement.appendChild(app.stats.dom);
     }
   }
