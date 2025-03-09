@@ -32,16 +32,16 @@ body {
 }
 
 ::-webkit-scrollbar-track {
-  background: var(--gray-dark-3);
+  background: var(--gray-3);
 }
 
 ::-webkit-scrollbar-thumb {
-  background: var(--gray-dark-6);
+  background: var(--gray-6);
   border-radius: 4px;
 }
 
 ::-webkit-scrollbar-thumb:hover {
-  background: var(--gray-dark-7);
+  background: var(--gray-7);
 }
 
 /* Hide visually but maintain accessibility */

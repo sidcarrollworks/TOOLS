@@ -1,5 +1,5 @@
 import type { FunctionComponent } from "preact";
-import { useRef } from "preact/hooks";
+import { useRef, useMemo } from "preact/hooks";
 import styles from "./FigmaInput.module.css";
 import { useFigmaDrag } from "./useFigmaDrag";
 import { useInputHandler } from "./useInputHandler";
@@ -48,16 +48,54 @@ export const FigmaInput: FunctionComponent<FigmaInputProps> = ({
     usePointerLock,
   });
 
-  const { inputValue, handleInputChange, handleInputBlur, handleKeyPress } = useInputHandler({
-    value,
-    min,
-    max,
-    step,
-    decimals,
-    onChange,
-  });
+  const { inputValue, handleInputChange, handleInputBlur, handleKeyPress } =
+    useInputHandler({
+      value,
+      min,
+      max,
+      step,
+      decimals,
+      onChange,
+    });
 
   const { isDragging, dragDirection } = dragState;
+
+  // Calculate progress bar styles based on value, min, and max
+  const progressBarStyles = useMemo(() => {
+    // Normalize the value to a percentage
+    const range = max - min;
+    const normalizedValue = Math.max(0, Math.min(1, (value - min) / range));
+
+    // Determine if the range includes negative values
+    const hasNegativeRange = min < 0 && max > 0;
+
+    if (hasNegativeRange) {
+      // For ranges like -1 to 1, calculate from the middle
+      const zeroPoint = Math.abs(min) / range;
+
+      if (value < 0) {
+        // For negative values, start from the zero point and go left
+        const width = Math.abs(value / min) * zeroPoint * 100;
+        return {
+          width: `${width}%`,
+          transform: `translateX(${(zeroPoint - width / 100) * 100}%)`,
+        };
+      } else {
+        // For positive values, start from the zero point and go right
+        const width = (value / max) * (1 - zeroPoint) * 100;
+        return {
+          width: `${width}%`,
+          transform: `translateX(${zeroPoint * 100}%)`,
+        };
+      }
+    } else {
+      // For ranges like 0 to 1, simply use the normalized value
+      return {
+        width: `${normalizedValue * 100}%`,
+        transform: "none",
+      };
+    }
+  }, [value, min, max]);
 
   return (
     <div
@@ -69,9 +107,7 @@ export const FigmaInput: FunctionComponent<FigmaInputProps> = ({
       <div className={styles.inputWrapper}>
         <div
           ref={dragIconRef}
-          className={`${styles.dragIcon} ${isDragging ? styles.dragging : ""} ${
-            styles[`direction-${dragDirection}`]
-          }`}
+          className={`${styles.dragIcon} ${isDragging ? styles.dragging : ""}`}
           onMouseDown={handleDragStart}
         >
           <svg
@@ -89,6 +125,13 @@ export const FigmaInput: FunctionComponent<FigmaInputProps> = ({
             <path d="m15 7 5 5-5 5" />
           </svg>
         </div>
+        <div
+          className={styles.progressBar}
+          style={{
+            width: progressBarStyles.width,
+            transform: progressBarStyles.transform,
+          }}
+        />
         <input
           ref={inputRef}
           type="text"

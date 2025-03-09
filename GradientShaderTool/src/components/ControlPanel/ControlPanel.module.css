@@ -78,14 +78,14 @@
   width: 12px;
   height: 12px;
   border-radius: 50%;
-  background: var(--gray-dark-10);
+  background: var(--gray-10);
   cursor: pointer;
   transition: background var(--transition-fast);
-  border: 2px solid var(--gray-dark-8);
+  border: 2px solid var(--gray-8);
 }
 
 .slider::-webkit-slider-thumb:hover {
-  background: var(--gray-dark-11);
+  background: var(--gray-11);
 }
 
 .slider:focus {
@@ -98,7 +98,7 @@
   border: none;
   cursor: pointer;
   border-radius: 4px;
-  outline: 1px solid var(--gray-dark-8);
+  outline: 1px solid var(--gray-8);
   outline-offset: 1px;
 }
 
@@ -123,7 +123,7 @@
 }
 
 .presetButton {
-  background-color: var(--gray-dark-3);
+  background-color: var(--gray-3);
   color: var(--text-primary);
   border: 1px solid var(--border-color);
   padding: 6px 10px;
@@ -135,11 +135,11 @@
 }
 
 .presetButton:hover {
-  background-color: var(--gray-dark-4);
+  background-color: var(--gray-4);
 }
 
 .presetButton:active {
-  background-color: var(--gray-dark-5);
+  background-color: var(--gray-5);
 }
 
 .valueDisplay {
@@ -169,8 +169,8 @@
 }
 
 .checkbox:checked {
-  background-color: var(--gray-dark-8);
-  border-color: var(--gray-dark-9);
+  background-color: var(--gray-8);
+  border-color: var(--gray-9);
 }
 
 .checkbox:checked::after {
@@ -206,7 +206,7 @@
 
 .select:focus {
   outline: none;
-  border-color: var(--gray-dark-8);
+  border-color: var(--gray-8);
 }
 
 /* Disabled elements */

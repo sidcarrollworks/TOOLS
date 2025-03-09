@@ -65,21 +65,29 @@
   gap: 6px;
   bottom: 6px;
   left: 6px;
-  background-color: var(--gray-a9);
+  background-color: color-mix(in srgb, var(--gray-dark-2) 30%, transparent);
   padding: 6px;
   border-radius: 6px;
   font-size: 11px;
-  color: var(--text-primary);
+
   backdrop-filter: blur(4px);
   font-family: monospace;
   transition: transform 0.3s ease;
   transform: translateY(0);
 
-  /* border: 1px solid var(--gray-dark-a5); */
+  /* border: 1px solid var(--gray-a5); */
 }
 
 .keyboardHintsHidden {
   transform: translateY(32px);
+}
+
+.keyboardHint {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 0 2px 0 0;
+  color: var(--text-primary);
 }
 
 .minimalHint {
@@ -112,9 +120,9 @@
 }
 
 .minimalHint kbd {
-  background-color: var(--gray-dark-a5);
+  background-color: var(--gray-a5);
   border-radius: 4px;
-  border: 1px solid var(--gray-dark-a7);
+  border: 1px solid var(--gray-a7);
   padding: 2px 5px;
   font-family: monospace;
   font-size: 11px;
@@ -128,9 +136,9 @@
 }
 
 .keyboardHints kbd {
-  background-color: var(--gray-dark-a5);
+  background-color: var(--gray-a5);
   border-radius: 4px;
-  border: 1px solid var(--gray-dark-a7);
+  border: 1px solid var(--gray-a7);
   padding: 2px 5px;
   font-family: monospace;
   font-size: 11px;

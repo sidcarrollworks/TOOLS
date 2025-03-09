@@ -135,14 +135,14 @@ export const Layout: FunctionComponent<LayoutProps> = ({
           <div className={styles.viewport}>
             {viewportContent}
             {showSettings ? (
-              <div className={keyboardHintsClass}>
-                <span>
+              <div className={`${keyboardHintsClass}`}>
+                <span className={`dark ${styles.keyboardHint}`}>
                   <kbd>H</kbd> Hide UI
                 </span>
-                <span>
+                <span className={`dark ${styles.keyboardHint}`}>
                   <kbd>S</kbd> Show Stats
                 </span>
-                <span>
+                <span className={`dark ${styles.keyboardHint}`}>
                   <kbd>Space</kbd> Pause/Play
                 </span>
               </div>

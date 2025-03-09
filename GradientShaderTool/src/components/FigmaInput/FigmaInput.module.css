@@ -12,10 +12,28 @@
 
 .inputWrapper {
   position: relative;
-  width: 64px;
+  width: 86px;
   height: 24px;
   display: flex;
   align-items: center;
+}
+
+/* Progress bar styles */
+.progressBar {
+  position: absolute;
+  height: calc(100% - 2px);
+  background-color: var(--gray-a3);
+  border-radius: 3px;
+  z-index: 0;
+  pointer-events: none;
+  transition: width 0.2s ease, transform 0.2s ease;
+  max-width: calc(100% - 28px);
+  transform-origin: left center;
+}
+
+/* Add hover effect to input when hovering the wrapper */
+.inputWrapper:hover .input {
+  border-color: var(--gray-a3);
 }
 
 .input {
@@ -33,16 +51,17 @@
   transition: border-color var(--transition-fast),
     background-color var(--transition-fast);
   text-align: right;
+  position: relative;
+  z-index: 1;
 }
 
 .input:hover {
-  background-color: var(--control-hover);
-  border-color: var(--gray-dark-a3);
+  border-color: var(--gray-a3);
 }
 
 .input:focus {
   border-color: var(--control-active);
-  background-color: var(--control-hover);
+  background-color: var(--control-active);
 }
 
 .dragIcon {
@@ -59,34 +78,23 @@
   border-radius: 4px;
   transition: background-color var(--transition-fast),
     color var(--transition-fast);
-  z-index: 1;
+  z-index: 2;
   pointer-events: all;
 }
 
 .dragIcon:hover {
-  color: var(--text-secondary);
-}
-
-.dragging {
-  background-color: var(--control-active);
   color: var(--text-primary);
 }
 
-/* Direction indicators */
-.direction-left {
-  background: linear-gradient(
-    to left,
-    var(--control-active),
-    var(--control-hover)
-  );
+.dragging {
+  /* background-color: var(--control-active); */
+  color: var(--text-primary);
 }
 
-.direction-right {
-  background: linear-gradient(
-    to right,
-    var(--control-active),
-    var(--control-hover)
-  );
+/* Ensure input hover effect is maintained when dragging */
+.inputWrapper .dragging + .input {
+  background-color: var(--gray-a1);
+  border-color: var(--gray-a3);
 }
 
 .disabled {

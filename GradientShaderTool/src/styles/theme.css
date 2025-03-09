@@ -26,7 +26,6 @@
   --gray-a11: #0000009b;
   --gray-a12: #000000df;
 
-  /* Dark theme colors - we'll use these by default since our app is dark */
   --gray-dark-1: #111111;
   --gray-dark-2: #191919;
   --gray-dark-3: #222222;
@@ -54,23 +53,23 @@
   --gray-dark-a12: #ffffffed;
 
   /* Semantic aliases for our app (using dark theme by default) */
-  --app-bg: var(--gray-dark-1);
-  --panel-bg: var(--gray-dark-2);
-  --component-bg: var(--gray-dark-3);
-  --border-color: var(--gray-dark-a5);
-  --separator-color: var(--gray-dark-a4);
+  --app-bg: var(--gray-1);
+  --panel-bg: var(--gray-2);
+  --component-bg: var(--gray-3);
+  --border-color: var(--gray-a5);
+  --separator-color: var(--gray-a4);
 
-  --text-primary: var(--gray-dark-12);
-  --text-secondary: var(--gray-dark-11);
-  --text-tertiary: var(--gray-dark-10);
-  --text-muted: var(--gray-dark-9);
+  --text-primary: var(--gray-12);
+  --text-secondary: var(--gray-11);
+  --text-tertiary: var(--gray-10);
+  --text-muted: var(--gray-9);
 
-  --control-bg: var(--gray-dark-a3);
-  --control-hover: var(--gray-dark-5);
-  --control-active: var(--gray-dark-6);
+  --control-bg: var(--gray-a3);
+  --control-hover: var(--gray-5);
+  --control-active: var(--gray-6);
 
-  --highlight: var(--gray-dark-a7);
-  --highlight-hover: var(--gray-dark-a8);
+  --highlight: var(--gray-a7);
+  --highlight-hover: var(--gray-a8);
 
   /* Other UI elements */
   --shadow-light: 0 1px 2px rgba(0, 0, 0, 0.2);
@@ -84,4 +83,94 @@
   --transition-fast: 0.1s ease;
   --transition-normal: 0.2s ease;
   --transition-slow: 0.3s ease;
+
+  .dark {
+    /* Dark theme colors - we'll use these by default since our app is dark */
+    --gray-1: #111111;
+    --gray-2: #191919;
+    --gray-3: #222222;
+    --gray-4: #2a2a2a;
+    --gray-5: #313131;
+    --gray-6: #3a3a3a;
+    --gray-7: #484848;
+    --gray-8: #606060;
+    --gray-9: #6e6e6e;
+    --gray-10: #7b7b7b;
+    --gray-11: #b4b4b4;
+    --gray-12: #eeeeee;
+
+    --gray-a1: #00000000;
+    --gray-a2: #ffffff09;
+    --gray-a3: #ffffff12;
+    --gray-a4: #ffffff1b;
+    --gray-a5: #ffffff22;
+    --gray-a6: #ffffff2c;
+    --gray-a7: #ffffff3b;
+    --gray-a8: #ffffff55;
+    --gray-a9: #ffffff64;
+    --gray-a10: #ffffff72;
+    --gray-a11: #ffffffaf;
+    --gray-a12: #ffffffed;
+
+    /* Semantic aliases for our app (using dark theme by default) */
+    --app-bg: var(--gray-1);
+    --panel-bg: var(--gray-2);
+    --component-bg: var(--gray-3);
+    --border-color: var(--gray-a5);
+    --separator-color: var(--gray-a4);
+
+    --text-primary: var(--gray-12);
+    --text-secondary: var(--gray-11);
+    --text-tertiary: var(--gray-10);
+    --text-muted: var(--gray-9);
+
+    --control-bg: var(--gray-a3);
+    --control-hover: var(--gray-5);
+    --control-active: var(--gray-6);
+
+    --highlight: var(--gray-a7);
+    --highlight-hover: var(--gray-a8);
+
+    /* Other UI elements */
+    --shadow-light: 0 1px 2px rgba(0, 0, 0, 0.2);
+    --shadow-medium: 0 2px 4px rgba(0, 0, 0, 0.3);
+    --shadow-strong: 0 4px 8px rgba(0, 0, 0, 0.4);
+
+    /* Viewport background - slightly different from the app background for contrast */
+    --viewport-bg: #090909;
+
+    /* Animation presets */
+    --transition-fast: 0.1s ease;
+    --transition-normal: 0.2s ease;
+    --transition-slow: 0.3s ease;
+  }
+
+  .light {
+    /* Light theme colors */
+    --gray-1: #fcfcfc;
+    --gray-2: #f9f9f9;
+    --gray-3: #f0f0f0;
+    --gray-4: #e8e8e8;
+    --gray-5: #e0e0e0;
+    --gray-6: #d9d9d9;
+    --gray-7: #cecece;
+    --gray-8: #bbbbbb;
+    --gray-9: #8d8d8d;
+    --gray-10: #838383;
+    --gray-11: #646464;
+    --gray-12: #202020;
+
+    --gray-a1: #00000003;
+    --gray-a2: #00000006;
+    --gray-a3: #0000000f;
+    --gray-a4: #00000017;
+    --gray-a5: #0000001f;
+    --gray-a6: #00000026;
+    --gray-a7: #00000031;
+    --gray-a8: #00000044;
+    --gray-a9: #00000072;
+    --gray-a10: #0000007c;
+    --gray-a11: #0000009b;
+    --gray-a12: #000000df;
+  }
 }
