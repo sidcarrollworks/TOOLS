@@ -26,14 +26,17 @@
   border-radius: 3px;
   z-index: 0;
   pointer-events: none;
-  transition: width 0.2s ease, transform 0.2s ease;
-  max-width: calc(100% - 28px);
+  max-width: 100%;
+  left: 0;
   transform-origin: left center;
 }
 
-/* Add hover effect to input when hovering the wrapper */
-.inputWrapper:hover .input {
-  border-color: var(--gray-a3);
+.progressBar.dragging {
+  background-color: var(--gray-a6);
+}
+
+.inputWrapper:hover .progressBar {
+  background-color: var(--gray-a5);
 }
 
 .input {
@@ -62,6 +65,11 @@
 .input:focus {
   border-color: var(--control-active);
   background-color: var(--control-active);
+}
+/* Add hover effect to input when hovering the wrapper */
+.inputWrapper:hover .input {
+  background-color: var(--gray-a4);
+  border-color: var(--gray-a3);
 }
 
 .dragIcon {
@@ -93,7 +101,6 @@
 
 /* Ensure input hover effect is maintained when dragging */
 .inputWrapper .dragging + .input {
-  background-color: var(--gray-a1);
   border-color: var(--gray-a3);
 }
 

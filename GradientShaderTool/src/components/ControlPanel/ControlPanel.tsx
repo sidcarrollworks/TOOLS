@@ -4,6 +4,7 @@ import { useState, useEffect } from "preact/hooks";
 import styles from "./ControlPanel.module.css";
 import { ShaderApp } from "../../lib/ShaderApp";
 import { NumericControl } from "./NumericControl";
+import { setPresetApplying } from "../FigmaInput/FigmaInput";
 
 interface ControlPanelProps {
   app: ShaderApp | null;
@@ -54,11 +55,22 @@ export const ControlPanel: FunctionComponent<ControlPanelProps> = ({ app }) => {
   const applyPreset = (presetName: string) => {
     if (!app || !app.presets[presetName]) return;
 
-    // Apply the preset
-    app.presets[presetName]();
+    // Set the preset application state to true before applying the preset
+    setPresetApplying(true);
 
-    // Update local state
-    setParams({ ...app.params });
+    // Use setTimeout to ensure the transition property is applied before values change
+    setTimeout(() => {
+      // Apply the preset
+      app.presets[presetName]();
+
+      // Update local state
+      setParams({ ...app.params });
+
+      // Set the preset application state back to false after a delay
+      setTimeout(() => {
+        setPresetApplying(false);
+      }, 600); // Slightly longer than the transition duration to ensure it completes
+    }, 50); // Small delay to ensure transition property is applied first
   };
 
   // Helper function to create a slider control (kept for backward compatibility)

@@ -20,7 +20,6 @@ export class PresetManager {
   private updateAllParams(updateGUI = true): void {
     this.app.updateParams(true);
 
-    // Update GUI if applicable (will be implemented in GUIManager for Preact)
     if (updateGUI && "updateGUI" in this.app) {
       (this.app as any).updateGUI();
     }

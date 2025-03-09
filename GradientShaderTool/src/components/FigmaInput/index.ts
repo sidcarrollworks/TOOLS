@@ -1,1 +1,1 @@
-export { FigmaInput } from "./FigmaInput";
+export { FigmaInput, setPresetApplying } from "./FigmaInput";
