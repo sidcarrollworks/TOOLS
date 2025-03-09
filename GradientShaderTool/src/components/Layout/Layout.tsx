@@ -134,7 +134,6 @@ export const Layout: FunctionComponent<LayoutProps> = ({
         <div className={styles.viewportContainer}>
           <div className={styles.viewport}>
             {viewportContent}
-            {isPaused && <span className={styles.pausedBadge}>Paused</span>}
             {showSettings ? (
               <div className={keyboardHintsClass}>
                 <span>

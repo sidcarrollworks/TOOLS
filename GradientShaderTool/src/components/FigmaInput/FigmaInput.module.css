@@ -47,15 +47,16 @@
 
 .dragIcon {
   position: absolute;
-  left: 4px;
-  width: 16px;
-  height: 16px;
+  left: 0px;
+
+  width: 24px;
+  height: 100%;
   display: flex;
   align-items: center;
   justify-content: center;
   color: var(--text-tertiary);
   cursor: ew-resize;
-  border-radius: 2px;
+  border-radius: 4px;
   transition: background-color var(--transition-fast),
     color var(--transition-fast);
   z-index: 1;
