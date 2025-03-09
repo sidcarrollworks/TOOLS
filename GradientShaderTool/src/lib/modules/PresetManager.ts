@@ -105,55 +105,67 @@ export class PresetManager {
    * Ocean Waves preset
    */
   presetOceanWaves(): void {
-    // Set plane dimensions
-    this.app.params.planeWidth = 3;
-    this.app.params.planeHeight = 3;
-    this.app.params.planeSegments = 192;
+    // Set plane dimensions - larger plane with more segments for detailed waves
+    this.app.params.planeWidth = 4;
+    this.app.params.planeHeight = 4;
+    this.app.params.planeSegments = 220;
 
-    // Set rotation
-    this.app.params.rotationX = -Math.PI / 3;
-    this.app.params.rotationY = 0;
+    // Set rotation - slightly tilted for better wave visibility
+    this.app.params.rotationX = -Math.PI / 3.5;
+    this.app.params.rotationY = Math.PI / 24;
     this.app.params.rotationZ = 0;
 
-    // Set normal noise
-    this.app.params.normalNoiseScaleX = 5.0;
-    this.app.params.normalNoiseScaleY = 5.0;
-    this.app.params.normalNoiseSpeed = 0.3;
-    this.app.params.normalNoiseStrength = 0.1;
-    this.app.params.normalNoiseShiftX = 0.1;
-    this.app.params.normalNoiseShiftY = 0.1;
-    this.app.params.normalNoiseShiftSpeed = 0.08;
+    // Camera settings for better ocean view
+    this.app.params.cameraDistance = 1.2;
+    this.app.params.cameraFov = 35;
+    this.app.params.cameraPosX = 0.2;
+    this.app.params.cameraPosY = 0.1;
+    this.app.params.cameraPosZ = 2.2;
+    this.app.params.cameraTargetX = 0;
+    this.app.params.cameraTargetY = -0.2;
+    this.app.params.cameraTargetZ = 0;
 
-    // Set color noise
-    this.app.params.colorNoiseScale = 3.0;
-    this.app.params.colorNoiseSpeed = 0.2;
+    // Set normal noise - create more realistic wave patterns
+    this.app.params.normalNoiseScaleX = 6.5;
+    this.app.params.normalNoiseScaleY = 4.2;
+    this.app.params.normalNoiseSpeed = 0.4;
+    this.app.params.normalNoiseStrength = 0.18;
+    this.app.params.normalNoiseShiftX = 0.3;
+    this.app.params.normalNoiseShiftY = 0.2;
+    this.app.params.normalNoiseShiftSpeed = 0.12;
 
-    // Set gradient shift
-    this.app.params.gradientShiftX = 0.5;
-    this.app.params.gradientShiftY = 0.2;
-    this.app.params.gradientShiftSpeed = 0.08;
+    // Set color noise - create foam and depth variations
+    this.app.params.colorNoiseScale = 5.0;
+    this.app.params.colorNoiseSpeed = 0.3;
 
-    // Set colors - ocean blue theme
+    // Set gradient shift - more dynamic color transitions
+    this.app.params.gradientShiftX = 0.6;
+    this.app.params.gradientShiftY = 0.3;
+    this.app.params.gradientShiftSpeed = 0.12;
+
+    // Set colors - enhanced oceanic palette with deeper blues and foam highlights
     this.app.params.gradientMode = 1; // Linear interpolation
-    this.app.params.color1 = "#006994";
-    this.app.params.color2 = "#0099cc";
-    this.app.params.color3 = "#00ffcc";
-    this.app.params.color4 = "#0080ff";
+    this.app.params.color1 = "#003366"; // Deep ocean blue
+    this.app.params.color2 = "#0066aa"; // Mid-ocean blue
+    this.app.params.color3 = "#00bbee"; // Surface blue
+    this.app.params.color4 = "#aaeeff"; // Foam/highlights
 
-    // Set lighting
-    this.app.params.lightDirX = 0.5;
-    this.app.params.lightDirY = 0.8;
-    this.app.params.lightDirZ = 1.0;
-    this.app.params.diffuseIntensity = 0.7;
-    this.app.params.ambientIntensity = 0.3;
-    this.app.params.rimLightIntensity = 0.5;
+    // Set lighting - improved to create realistic water reflections
+    this.app.params.lightDirX = 0.6;
+    this.app.params.lightDirY = 0.9;
+    this.app.params.lightDirZ = 0.8;
+    this.app.params.diffuseIntensity = 0.8;
+    this.app.params.ambientIntensity = 0.25;
+    this.app.params.rimLightIntensity = 0.7;
 
     // Set visualization
-    this.app.params.backgroundColor = "#001030";
+    this.app.params.backgroundColor = "#001840"; // Deeper sky blue
     this.app.params.showWireframe = false;
+    this.app.params.wireframeColor = "#4488aa";
 
-    // Set animation
-    this.app.params.animationSpeed = 0.007;
+    // Set animation - slightly faster for more dynamic waves
+    this.app.params.animationSpeed = 0.009;
+    this.app.params.pauseAnimation = false;
 
     // Recreate plane and update all parameters
     this.app.recreatePlane();
