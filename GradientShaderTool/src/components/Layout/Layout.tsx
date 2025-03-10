@@ -1,6 +1,7 @@
 import type { FunctionComponent } from "preact";
 import { useEffect, useState, useRef } from "preact/hooks";
 import styles from "./Layout.module.css";
+import { KeyboardHints, MinimalHint } from "./KeyboardHints";
 
 interface LayoutProps {
   viewportContent?: preact.ComponentChildren;
@@ -64,25 +65,6 @@ export const Layout: FunctionComponent<LayoutProps> = ({
     };
   }, [showSettings]); // Re-run effect when showSettings changes
 
-  // Set up keyboard shortcuts
-  useEffect(() => {
-    const handleKeyDown = (e: KeyboardEvent) => {
-      // 'H' to toggle settings panel
-      if ((e.key === "h" || e.key === "H") && onToggleSettings) {
-        onToggleSettings();
-      }
-    };
-
-    // Only add the event listener if onToggleSettings is not provided by parent
-    if (!onToggleSettings) {
-      window.addEventListener("keydown", handleKeyDown);
-
-      return () => {
-        window.removeEventListener("keydown", handleKeyDown);
-      };
-    }
-  }, [onToggleSettings]);
-
   // Ensure hints are always visible when settings panel is shown
   // and disable transitions temporarily for instant appearance
   useEffect(() => {
@@ -117,15 +99,6 @@ export const Layout: FunctionComponent<LayoutProps> = ({
     };
   }, [showSettings]);
 
-  // Determine CSS classes for hints based on visibility and transition state
-  const keyboardHintsClass = `${styles.keyboardHints} ${
-    !hintsVisible ? styles.keyboardHintsHidden : ""
-  } ${disableTransitions ? styles.noTransition : ""}`;
-
-  const minimalHintClass = `${styles.minimalHint} ${
-    !hintsVisible ? styles.minimalHintHidden : ""
-  } ${disableTransitions ? styles.noTransition : ""}`;
-
   return (
     <>
       <div
@@ -135,24 +108,15 @@ export const Layout: FunctionComponent<LayoutProps> = ({
           <div className={styles.viewport}>
             {viewportContent}
             {showSettings ? (
-              <div className={`${keyboardHintsClass}`}>
-                <span className={`dark ${styles.keyboardHint}`}>
-                  <kbd>H</kbd> Hide UI
-                </span>
-                <span className={`dark ${styles.keyboardHint}`}>
-                  <kbd>S</kbd> Show Stats
-                </span>
-                <span className={`dark ${styles.keyboardHint}`}>
-                  <kbd>Space</kbd> Pause/Play
-                </span>
-                <span className={`dark ${styles.keyboardHint}`}>
-                  <kbd>Ctrl</kbd>+<kbd>I</kbd> Dev Panel
-                </span>
-              </div>
+              <KeyboardHints
+                visible={hintsVisible}
+                disableTransitions={disableTransitions}
+              />
             ) : (
-              <div className={`dark ${minimalHintClass}`}>
-                <kbd>H</kbd> Show UI
-              </div>
+              <MinimalHint
+                visible={hintsVisible}
+                disableTransitions={disableTransitions}
+              />
             )}
           </div>
         </div>

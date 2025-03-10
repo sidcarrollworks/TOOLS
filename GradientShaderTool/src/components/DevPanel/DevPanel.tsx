@@ -14,25 +14,38 @@ const paramCategories = {
   geometry: ["planeWidth", "planeHeight", "planeSegments"],
   rotation: ["rotationX", "rotationY", "rotationZ"],
   camera: [
-    "cameraDistance", "cameraFov", 
-    "cameraPosX", "cameraPosY", "cameraPosZ", 
-    "cameraTargetX", "cameraTargetY", "cameraTargetZ"
+    "cameraDistance",
+    "cameraFov",
+    "cameraPosX",
+    "cameraPosY",
+    "cameraPosZ",
+    "cameraTargetX",
+    "cameraTargetY",
+    "cameraTargetZ",
   ],
   normalNoise: [
-    "normalNoiseScaleX", "normalNoiseScaleY", "normalNoiseSpeed", 
-    "normalNoiseStrength", "normalNoiseShiftX", "normalNoiseShiftY", 
-    "normalNoiseShiftSpeed"
+    "normalNoiseScaleX",
+    "normalNoiseScaleY",
+    "normalNoiseSpeed",
+    "normalNoiseStrength",
+    "normalNoiseShiftX",
+    "normalNoiseShiftY",
+    "normalNoiseShiftSpeed",
   ],
   colorNoise: ["colorNoiseScale", "colorNoiseSpeed"],
   gradientShift: ["gradientShiftX", "gradientShiftY", "gradientShiftSpeed"],
   colors: ["gradientMode", "color1", "color2", "color3", "color4"],
   lighting: [
-    "lightDirX", "lightDirY", "lightDirZ", 
-    "diffuseIntensity", "ambientIntensity", "rimLightIntensity"
+    "lightDirX",
+    "lightDirY",
+    "lightDirZ",
+    "diffuseIntensity",
+    "ambientIntensity",
+    "rimLightIntensity",
   ],
   visualization: ["backgroundColor", "showWireframe", "flatShading"],
   animation: ["animationSpeed", "pauseAnimation"],
-  export: ["exportTransparentBg", "exportHighQuality"]
+  export: ["exportTransparentBg", "exportHighQuality"],
 };
 
 // Helper function to format values for display
@@ -119,10 +132,10 @@ const customPreset = () => {
 };`;
 };
 
-export const DevPanel: FunctionComponent<DevPanelProps> = ({ 
-  app, 
-  visible, 
-  onToggle 
+export const DevPanel: FunctionComponent<DevPanelProps> = ({
+  app,
+  visible,
+  onToggle,
 }) => {
   const [params, setParams] = useState<ShaderParams | null>(null);
   const [activeTab, setActiveTab] = useState<string>("params");
@@ -131,7 +144,7 @@ export const DevPanel: FunctionComponent<DevPanelProps> = ({
   const [drawCalls, setDrawCalls] = useState<number>(0);
   const [memoryUsage, setMemoryUsage] = useState<number>(0);
   const [presetCode, setPresetCode] = useState<string>("");
-  
+
   const fpsCounterRef = useRef<number>(0);
   const lastTimeRef = useRef<number>(performance.now());
   const frameCountRef = useRef<number>(0);
@@ -204,11 +217,12 @@ export const DevPanel: FunctionComponent<DevPanelProps> = ({
 
   // Copy preset code to clipboard
   const copyPresetCode = () => {
-    navigator.clipboard.writeText(presetCode)
+    navigator.clipboard
+      .writeText(presetCode)
       .then(() => {
         alert("Preset code copied to clipboard!");
       })
-      .catch(err => {
+      .catch((err) => {
         console.error("Failed to copy preset code:", err);
       });
   };
@@ -221,26 +235,34 @@ export const DevPanel: FunctionComponent<DevPanelProps> = ({
   return (
     <div className={`${styles.devPanel} ${visible ? "" : styles.hidden}`}>
       <div className={styles.header}>
-        <div className={styles.title}>Shader Dev Panel (Ctrl+I)</div>
-        <button className={styles.closeButton} onClick={onToggle}>×</button>
+        <div className={styles.title}>Shader Dev Panel</div>
+        <button className={styles.closeButton} onClick={onToggle}>
+          ×
+        </button>
       </div>
 
       {/* Tabs */}
       <div className={styles.tabs}>
-        <button 
-          className={`${styles.tab} ${activeTab === "params" ? styles.active : ""}`}
+        <button
+          className={`${styles.tab} ${
+            activeTab === "params" ? styles.active : ""
+          }`}
           onClick={() => setActiveTab("params")}
         >
           Parameters
         </button>
-        <button 
-          className={`${styles.tab} ${activeTab === "stats" ? styles.active : ""}`}
+        <button
+          className={`${styles.tab} ${
+            activeTab === "stats" ? styles.active : ""
+          }`}
           onClick={() => setActiveTab("stats")}
         >
           Performance
         </button>
-        <button 
-          className={`${styles.tab} ${activeTab === "preset" ? styles.active : ""}`}
+        <button
+          className={`${styles.tab} ${
+            activeTab === "preset" ? styles.active : ""
+          }`}
           onClick={() => setActiveTab("preset")}
         >
           Preset Code
@@ -248,23 +270,29 @@ export const DevPanel: FunctionComponent<DevPanelProps> = ({
       </div>
 
       {/* Parameters Tab */}
-      <div className={`${styles.tabContent} ${activeTab === "params" ? styles.active : ""}`}>
+      <div
+        className={`${styles.tabContent} ${
+          activeTab === "params" ? styles.active : ""
+        }`}
+      >
         {Object.entries(paramCategories).map(([category, paramKeys]) => (
           <div key={category} className={styles.section}>
-            <div className={styles.sectionTitle}>{category.charAt(0).toUpperCase() + category.slice(1)}</div>
+            <div className={styles.sectionTitle}>
+              {category.charAt(0).toUpperCase() + category.slice(1)}
+            </div>
             <div className={styles.paramList}>
-              {paramKeys.map(key => {
+              {paramKeys.map((key) => {
                 const paramKey = key as keyof ShaderParams;
                 const value = params[paramKey];
                 const isColor = key.toLowerCase().includes("color");
-                
+
                 return (
                   <div key={key} className={styles.param}>
                     <span className={styles.paramName}>{key}:</span>
                     <span className={styles.paramValue}>
                       {isColor && typeof value === "string" && (
-                        <span 
-                          className={styles.colorValue} 
+                        <span
+                          className={styles.colorValue}
                           style={{ backgroundColor: value }}
                         />
                       )}
@@ -279,7 +307,11 @@ export const DevPanel: FunctionComponent<DevPanelProps> = ({
       </div>
 
       {/* Performance Stats Tab */}
-      <div className={`${styles.tabContent} ${activeTab === "stats" ? styles.active : ""}`}>
+      <div
+        className={`${styles.tabContent} ${
+          activeTab === "stats" ? styles.active : ""
+        }`}
+      >
         <div className={styles.section}>
           <div className={styles.sectionTitle}>Performance Metrics</div>
           <div className={styles.statItem}>
@@ -312,7 +344,11 @@ export const DevPanel: FunctionComponent<DevPanelProps> = ({
       </div>
 
       {/* Preset Code Tab */}
-      <div className={`${styles.tabContent} ${activeTab === "preset" ? styles.active : ""}`}>
+      <div
+        className={`${styles.tabContent} ${
+          activeTab === "preset" ? styles.active : ""
+        }`}
+      >
         <div className={styles.section}>
           <div className={styles.sectionTitle}>Preset Code</div>
           <div className={styles.presetCode}>{presetCode}</div>
@@ -325,4 +361,4 @@ export const DevPanel: FunctionComponent<DevPanelProps> = ({
   );
 };
 
-export default DevPanel; 
+export default DevPanel;

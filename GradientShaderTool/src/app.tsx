@@ -92,7 +92,7 @@ export const App: ComponentType = () => {
       }
 
       // 'Ctrl+I' to toggle dev panel
-      if ((e.key === "i" || e.key === "I") && e.ctrlKey) {
+      if ((e.key === "d" || e.key === "D") && e.ctrlKey) {
         e.preventDefault(); // Prevent default behavior
         toggleDevPanel();
       }
@@ -103,7 +103,13 @@ export const App: ComponentType = () => {
     return () => {
       window.removeEventListener("keydown", handleKeyDown);
     };
-  }, [toggleAnimation, toggleSettings, toggleStats, toggleDevPanel, showSettings]);
+  }, [
+    toggleAnimation,
+    toggleSettings,
+    toggleStats,
+    toggleDevPanel,
+    showSettings,
+  ]);
 
   // Handle resize when settings panel is toggled
   useEffect(() => {
@@ -165,11 +171,7 @@ export const App: ComponentType = () => {
         onToggleStats={toggleStats}
         showStats={showStats}
       />
-      <DevPanel 
-        app={app} 
-        visible={showDevPanel} 
-        onToggle={toggleDevPanel} 
-      />
+      <DevPanel app={app} visible={showDevPanel} onToggle={toggleDevPanel} />
     </>
   );
 };
