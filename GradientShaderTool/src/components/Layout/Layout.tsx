@@ -150,10 +150,8 @@ export const Layout: FunctionComponent<LayoutProps> = ({
                 </span>
               </div>
             ) : (
-              <div className={minimalHintClass}>
+              <div className={`dark ${minimalHintClass}`}>
                 <kbd>H</kbd> Show UI
-                <span className={styles.separator}>|</span>
-                <kbd>Ctrl</kbd>+<kbd>I</kbd> Dev Panel
               </div>
             )}
           </div>
