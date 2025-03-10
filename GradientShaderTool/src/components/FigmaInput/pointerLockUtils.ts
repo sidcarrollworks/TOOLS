@@ -118,8 +118,8 @@ export const initVirtualCursor = () => {
   // Style the virtual cursor
   Object.assign(virtualCursor.style, {
     position: "fixed",
-    width: "19px",
-    height: "11px",
+    width: "20px",
+    height: "12px",
     pointerEvents: "none",
     zIndex: "10000",
     transform: "translate(-50%, -50%)",
@@ -143,6 +143,8 @@ export const positionVirtualCursor = (x: number, y: number) => {
     console.warn("⚠️ Failed to initialize virtual cursor");
     return;
   }
+
+  console.log('positioning virtual cursor', x, y)
 
   // Update position and ensure it's visible
   cursor.style.left = `${x}px`;

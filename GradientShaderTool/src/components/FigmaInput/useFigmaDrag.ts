@@ -61,6 +61,9 @@ export function useFigmaDrag({
   const isDraggingRef = useRef(false);
   const cleanupInProgress = useRef(false);
   const mouseEventListenerAdded = useRef(false);
+  const accumulatedMovementY = useRef(0);
+  const initialCursorX = useRef(0);
+  const initialCursorY = useRef(0);
 
   // Update the ref when state changes
   useEffect(() => {
@@ -91,13 +94,23 @@ export function useFigmaDrag({
   };
 
   // Clean up function to completely reset pointer lock state
-  const cleanupPointerLock = () => {
-    // Prevent multiple cleanups
+  const cleanup = () => {
     if (cleanupInProgress.current) {
       return;
     }
 
+    // Set cleanup flag to prevent multiple cleanups
     cleanupInProgress.current = true;
+
+    // Reset dragging state
+    isDraggingRef.current = false;
+    setIsDragging(false);
+    setDragDirection("none");
+    setVirtualCursorPos(null);
+
+    // Reset accumulated movement
+    accumulatedMovementX.current = 0;
+    accumulatedMovementY.current = 0;
 
     // Cancel any pending animation frames
     if (frameId.current !== null) {
@@ -141,13 +154,17 @@ export function useFigmaDrag({
     if (!isDraggingRef.current) {
       return;
     }
-
+    
     // Get the movement from the pointer lock API
     const movementX = e.movementX || 0;
     const movementY = e.movementY || 0;
 
+    console.log('movementX', movementX)
+    console.log('movementY', movementY)
+
     // Update accumulated movement for value calculation
     accumulatedMovementX.current += movementX;
+    accumulatedMovementY.current += movementY;
 
     // Update virtual cursor position
     if (!virtualCursorPos) {
@@ -156,14 +173,53 @@ export function useFigmaDrag({
         x: window.innerWidth / 2,
         y: window.innerHeight / 2,
       };
+      // Store initial positions for reference
+      initialCursorX.current = initialPos.x;
+      initialCursorY.current = initialPos.y;
+      
       setVirtualCursorPos(initialPos);
       positionVirtualCursor(initialPos.x, initialPos.y);
       return;
     }
 
-    // Calculate new position with direct movement values
-    const newX = virtualCursorPos.x + movementX;
-    const newY = virtualCursorPos.y + movementY;
+    // Calculate new position based on accumulated movement from initial position
+    let newX = initialCursorX.current + accumulatedMovementX.current;
+    let newY = initialCursorY.current + accumulatedMovementY.current;
+
+    // Get window dimensions
+    const windowWidth = window.innerWidth;
+    const windowHeight = window.innerHeight;
+
+    // Define padding from the edge (in pixels)
+    const edgePadding = 2;
+
+    // Check if cursor is near the edge and wrap if needed
+    if (newX < edgePadding) {
+      // Wrap from left to right
+      newX = windowWidth - edgePadding;
+      // Adjust the initial position to maintain smooth movement
+      initialCursorX.current = newX - accumulatedMovementX.current;
+    } else if (newX > windowWidth - edgePadding) {
+      // Wrap from right to left
+      newX = edgePadding;
+      // Adjust the initial position to maintain smooth movement
+      initialCursorX.current = newX - accumulatedMovementX.current;
+    }
+
+    // Do the same for Y axis
+    if (newY < edgePadding) {
+      // Wrap from top to bottom
+      newY = windowHeight - edgePadding;
+      // Adjust the initial position to maintain smooth movement
+      initialCursorY.current = newY - accumulatedMovementY.current;
+    } else if (newY > windowHeight - edgePadding) {
+      // Wrap from bottom to top
+      newY = edgePadding;
+      // Adjust the initial position to maintain smooth movement
+      initialCursorY.current = newY - accumulatedMovementY.current;
+    }
+
+    console.log('newX', newX)
 
     // Update cursor position - do this BEFORE updating state to avoid delays
     positionVirtualCursor(newX, newY);
@@ -225,7 +281,7 @@ export function useFigmaDrag({
     }
 
     return () => {
-      cleanupPointerLock();
+      cleanup();
       setActiveInstance(null);
     };
   }, []);
@@ -253,6 +309,7 @@ export function useFigmaDrag({
 
     // Reset accumulated movement
     accumulatedMovementX.current = 0;
+    accumulatedMovementY.current = 0;
 
     // Position the virtual cursor at the mouse position initially
     if (virtualCursorPos) {
@@ -320,7 +377,7 @@ export function useFigmaDrag({
 
       setIsDragging(false);
       setDragDirection("none");
-      cleanupPointerLock();
+      cleanup();
 
       // Prevent default behavior
       e.preventDefault();
@@ -375,32 +432,31 @@ export function useFigmaDrag({
 
       // Only clean up if we're not already in the process of cleaning up
       if (!cleanupInProgress.current) {
-        cleanupPointerLock();
+        cleanup();
       }
     };
   }, [isDragging, usePointerLock]);
 
   // Handle drag start
   const handleDragStart = (e: MouseEvent) => {
-    if (disabled) return;
-
-    // Cancel any previous animation frame
-    if (frameId.current !== null) {
-      cancelAnimationFrame(frameId.current);
-      frameId.current = null;
+    if (disabled || isDraggingRef.current) {
+      return;
     }
 
-    // Reset flags
-    cleanupInProgress.current = false;
-    isPointerLocked.current = false;
-    mouseEventListenerAdded.current = false;
-    requestPending.current = false;
+    // Prevent text selection during drag
+    e.preventDefault();
 
-    // First capture the starting coordinates and value
+    // Set initial state
     setIsDragging(true);
+    isDraggingRef.current = true;
     setStartX(e.clientX);
     setStartValue(currentValue);
     accumulatedMovementX.current = 0;
+    accumulatedMovementY.current = 0;
+
+    // Store the initial cursor position for virtual cursor
+    initialCursorX.current = e.clientX;
+    initialCursorY.current = e.clientY;
 
     // Store the initial cursor position for virtual cursor
     const initialPos = { x: e.clientX, y: e.clientY };
@@ -414,10 +470,6 @@ export function useFigmaDrag({
       // Immediately position and show the cursor
       positionVirtualCursor(initialPos.x, initialPos.y);
     }
-
-    // Prevent text selection during drag
-    e.preventDefault();
-    e.stopPropagation();
   };
 
   return {
@@ -430,6 +482,6 @@ export function useFigmaDrag({
       virtualCursorPos
     },
     handleDragStart,
-    cleanupPointerLock
+    cleanup
   };
 } 
