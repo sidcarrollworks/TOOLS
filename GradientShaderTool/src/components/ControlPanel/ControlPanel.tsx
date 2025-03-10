@@ -1,6 +1,6 @@
 import type { FunctionComponent } from "preact";
 import type { ShaderParams } from "../../lib/ShaderApp";
-import { useState, useEffect } from "preact/hooks";
+import { useState, useEffect, useRef } from "preact/hooks";
 import styles from "./ControlPanel.module.css";
 import { ShaderApp } from "../../lib/ShaderApp";
 import { NumericControl } from "./NumericControl";
@@ -12,6 +12,15 @@ interface ControlPanelProps {
 
 export const ControlPanel: FunctionComponent<ControlPanelProps> = ({ app }) => {
   const [params, setParams] = useState<ShaderParams | null>(null);
+  // Add debounce timer ref
+  const debounceTimerRef = useRef<number | null>(null);
+  // Add pending geometry updates ref
+  const pendingGeometryUpdates = useRef<{
+    key: keyof ShaderParams;
+    value: number;
+  } | null>(null);
+  // Add state for pending updates
+  const [hasPendingUpdates, setHasPendingUpdates] = useState(false);
 
   useEffect(() => {
     if (app) {
@@ -25,9 +34,42 @@ export const ControlPanel: FunctionComponent<ControlPanelProps> = ({ app }) => {
     }
   }, [app]);
 
+  // Cleanup debounce timer on unmount
+  useEffect(() => {
+    return () => {
+      if (debounceTimerRef.current !== null) {
+        window.clearTimeout(debounceTimerRef.current);
+      }
+    };
+  }, []);
+
   if (!app || !params) {
     return <div className={styles.controlPanel}>Loading controls...</div>;
   }
+
+  // Function to apply debounced geometry updates
+  const applyGeometryUpdate = () => {
+    if (!app || !pendingGeometryUpdates.current) return;
+    
+    // Apply the pending update
+    const { key, value } = pendingGeometryUpdates.current;
+    app.params[key] = value as never;
+    
+    // Recreate the plane with the new geometry
+    app.recreatePlane();
+    
+    // Reset pending updates
+    pendingGeometryUpdates.current = null;
+    setHasPendingUpdates(false);
+    
+    // Schedule a final high-quality update after interaction ends
+    setTimeout(() => {
+      if (app && !pendingGeometryUpdates.current) {
+        // Force a high-quality rebuild
+        app.recreatePlaneHighQuality();
+      }
+    }, 500); // Wait 500ms after the last update to ensure user has stopped interacting
+  };
 
   // Handle parameter changes
   const handleChange = (
@@ -49,9 +91,27 @@ export const ControlPanel: FunctionComponent<ControlPanelProps> = ({ app }) => {
 
     // Special handling for parameters that require recreation of the plane
     if (["planeWidth", "planeHeight", "planeSegments"].includes(key)) {
-      app.recreatePlane();
+      // Store the pending update
+      pendingGeometryUpdates.current = {
+        key: key as keyof ShaderParams,
+        value: value as number
+      };
+      
+      // Set pending updates flag
+      setHasPendingUpdates(true);
+      
+      // Clear any existing timer
+      if (debounceTimerRef.current !== null) {
+        window.clearTimeout(debounceTimerRef.current);
+      }
+      
+      // Set a new timer to apply the update after a delay
+      debounceTimerRef.current = window.setTimeout(() => {
+        applyGeometryUpdate();
+        debounceTimerRef.current = null;
+      }, 150); // 150ms debounce delay
     } else {
-      // Update other parameters
+      // Update other parameters immediately
       app.updateParams(key.toString().startsWith("camera"));
     }
   };
@@ -139,7 +199,19 @@ export const ControlPanel: FunctionComponent<ControlPanelProps> = ({ app }) => {
 
       {/* Plane Controls */}
       <div className={styles.controlGroup}>
-        <div className={styles.controlGroupTitle}>Geometry</div>
+        <div className={styles.controlGroupTitle}>
+          Geometry
+          {hasPendingUpdates && (
+            <span style={{ 
+              marginLeft: "8px", 
+              fontSize: "0.8em", 
+              color: "#ff9800",
+              fontStyle: "italic"
+            }}>
+              (updating...)
+            </span>
+          )}
+        </div>
         {createSlider("Width", "planeWidth", 0.5, 5, 0.1)}
         {createSlider("Height", "planeHeight", 0.5, 5, 0.1)}
         {createSlider("Segments", "planeSegments", 16, 256, 8, 0)}

@@ -208,12 +208,15 @@ export class SceneManager {
       this.app.geometry.dispose();
     }
 
+    // Get segment count with adaptive reduction for performance
+    const segmentCount = this.getAdaptiveSegmentCount();
+
     // Create new geometry
     this.app.geometry = new THREE.PlaneGeometry(
       this.app.params.planeWidth,
       this.app.params.planeHeight,
-      this.app.params.planeSegments,
-      this.app.params.planeSegments
+      segmentCount,
+      segmentCount
     );
 
     // Standard smooth shading
@@ -235,6 +238,59 @@ export class SceneManager {
     // Add to scene
     this.app.scene.add(this.app.plane);
   }
+
+  /**
+   * Get adaptive segment count based on performance considerations
+   * This reduces segment count during rapid changes to maintain performance
+   */
+  private getAdaptiveSegmentCount(): number {
+    const requestedSegments = this.app.params.planeSegments;
+    
+    // If we're in a high-performance context or segments are already low, use the requested value
+    if (requestedSegments <= 64) {
+      return requestedSegments;
+    }
+    
+    // Check if we're in a performance-critical situation (e.g., rapid slider changes)
+    const now = performance.now();
+    if (!this._lastGeometryUpdateTime) {
+      this._lastGeometryUpdateTime = now;
+      this._geometryUpdateCount = 0;
+      return requestedSegments;
+    }
+    
+    // Calculate time since last update and update the counter
+    const timeSinceLastUpdate = now - this._lastGeometryUpdateTime;
+    this._lastGeometryUpdateTime = now;
+    
+    // If updates are happening rapidly (less than 300ms apart), increment counter
+    if (timeSinceLastUpdate < 300) {
+      this._geometryUpdateCount++;
+    } else {
+      // Reset counter if updates are not rapid
+      this._geometryUpdateCount = 0;
+    }
+    
+    // Apply adaptive reduction based on update frequency
+    if (this._geometryUpdateCount > 3) {
+      // During rapid updates, reduce segments for better performance
+      // The more rapid updates, the more we reduce
+      const reductionFactor = Math.min(0.75, 0.25 * Math.min(this._geometryUpdateCount, 10) / 3);
+      const reducedSegments = Math.max(32, Math.floor(requestedSegments * (1 - reductionFactor)));
+      
+      // Log the reduction for debugging
+      console.log(`Performance optimization: Reducing segments from ${requestedSegments} to ${reducedSegments}`);
+      
+      return reducedSegments;
+    }
+    
+    // Use requested segments if not in a performance-critical situation
+    return requestedSegments;
+  }
+
+  // Add properties to track geometry updates
+  private _lastGeometryUpdateTime: number | null = null;
+  private _geometryUpdateCount: number = 0;
 
   /**
    * Update shader parameters
@@ -422,5 +478,56 @@ export class SceneManager {
     }
 
     console.log("SceneManager resources cleaned up");
+  }
+
+  /**
+   * Recreate the plane with full quality (no adaptive reduction)
+   * Used after rapid interactions end to restore full quality
+   */
+  recreatePlaneHighQuality(): void {
+    if (!this.app.scene) return;
+
+    // Only proceed if we're not already at full quality
+    if (this._geometryUpdateCount > 0) {
+      console.log("Restoring full quality geometry");
+      
+      // Reset the update counter
+      this._geometryUpdateCount = 0;
+      
+      if (this.app.plane) {
+        this.app.scene.remove(this.app.plane);
+      }
+
+      if (this.app.geometry) {
+        this.app.geometry.dispose();
+      }
+
+      // Create new geometry with full requested segments
+      this.app.geometry = new THREE.PlaneGeometry(
+        this.app.params.planeWidth,
+        this.app.params.planeHeight,
+        this.app.params.planeSegments,
+        this.app.params.planeSegments
+      );
+
+      // Standard smooth shading
+      this.app.geometry.computeVertexNormals();
+
+      if (!this.app.material) return;
+
+      // Apply wireframe property directly to the material
+      this.app.material.wireframe = this.app.params.showWireframe;
+
+      // Create the mesh with the geometry and material
+      this.app.plane = new THREE.Mesh(this.app.geometry, this.app.material);
+
+      // Set the rotation
+      this.app.plane.rotation.x = this.app.params.rotationX;
+      this.app.plane.rotation.y = this.app.params.rotationY;
+      this.app.plane.rotation.z = this.app.params.rotationZ;
+
+      // Add to scene
+      this.app.scene.add(this.app.plane);
+    }
   }
 }

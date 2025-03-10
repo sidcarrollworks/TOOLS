@@ -344,6 +344,18 @@ export class ShaderApp {
   }
 
   /**
+   * Recreate plane with full quality (used after rapid interactions end)
+   */
+  recreatePlaneHighQuality(): void {
+    this.sceneManager.recreatePlaneHighQuality();
+    
+    // Update the dev panel if it's been set up
+    if ("updateDevPanel" in this) {
+      (this as any).updateDevPanel();
+    }
+  }
+
+  /**
    * Animation loop
    */
   animate(): void {
