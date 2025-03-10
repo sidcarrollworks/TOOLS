@@ -159,6 +159,38 @@ export class SceneManager {
       this.app.params.cameraPosZ
     );
 
+    // Add event listener for camera changes
+    this.app.controls.addEventListener('change', () => {
+      if (!this.app.camera || !this.app.controls) return;
+      
+      // Update the camera distance parameter to match the actual camera distance
+      const distance = this.app.camera.position.distanceTo(this.app.controls.target);
+      
+      // Only update if the difference is significant to avoid feedback loops
+      if (Math.abs(distance - this.app.params.cameraDistance) > 0.01) {
+        this.app.params.cameraDistance = distance;
+        
+        // Update the control panel GUI if it's been set up
+        if ("updateGUI" in this.app) {
+          (this.app as any).updateGUI();
+        }
+      }
+      
+      // Save camera position and target to params
+      this.app.params.cameraPosX = this.app.camera.position.x;
+      this.app.params.cameraPosY = this.app.camera.position.y;
+      this.app.params.cameraPosZ = this.app.camera.position.z;
+      
+      this.app.params.cameraTargetX = this.app.controls.target.x;
+      this.app.params.cameraTargetY = this.app.controls.target.y;
+      this.app.params.cameraTargetZ = this.app.controls.target.z;
+      
+      // Update the dev panel if it's been set up
+      if ("updateDevPanel" in this.app) {
+        (this.app as any).updateDevPanel();
+      }
+    });
+
     this.app.controls.update();
   }
 

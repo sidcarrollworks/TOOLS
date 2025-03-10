@@ -324,6 +324,11 @@ export class ShaderApp {
     if ("updateDevPanel" in this) {
       (this as any).updateDevPanel();
     }
+    
+    // Update the control panel GUI if it's been set up
+    if ("updateGUI" in this) {
+      (this as any).updateGUI();
+    }
   }
 
   /**
