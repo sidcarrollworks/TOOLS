@@ -241,12 +241,12 @@ export class SceneManager {
 
   /**
    * Get adaptive segment count based on performance considerations
-   * This reduces segment count during rapid changes to maintain performance
+   * This reduces resolution during rapid changes to maintain performance
    */
   private getAdaptiveSegmentCount(): number {
     const requestedSegments = this.app.params.planeSegments;
     
-    // If we're in a high-performance context or segments are already low, use the requested value
+    // If we're in a high-performance context or resolution is already low, use the requested value
     if (requestedSegments <= 64) {
       return requestedSegments;
     }
@@ -273,18 +273,18 @@ export class SceneManager {
     
     // Apply adaptive reduction based on update frequency
     if (this._geometryUpdateCount > 3) {
-      // During rapid updates, reduce segments for better performance
+      // During rapid updates, reduce resolution for better performance
       // The more rapid updates, the more we reduce
       const reductionFactor = Math.min(0.75, 0.25 * Math.min(this._geometryUpdateCount, 10) / 3);
       const reducedSegments = Math.max(32, Math.floor(requestedSegments * (1 - reductionFactor)));
       
       // Log the reduction for debugging
-      console.log(`Performance optimization: Reducing segments from ${requestedSegments} to ${reducedSegments}`);
+      console.log(`Performance optimization: Reducing resolution from ${requestedSegments} to ${reducedSegments}`);
       
       return reducedSegments;
     }
     
-    // Use requested segments if not in a performance-critical situation
+    // Use requested resolution if not in a performance-critical situation
     return requestedSegments;
   }
 
@@ -502,7 +502,7 @@ export class SceneManager {
         this.app.geometry.dispose();
       }
 
-      // Create new geometry with full requested segments
+      // Create new geometry with full requested resolution
       this.app.geometry = new THREE.PlaneGeometry(
         this.app.params.planeWidth,
         this.app.params.planeHeight,

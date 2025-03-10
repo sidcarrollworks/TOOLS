@@ -54,7 +54,7 @@ export class GUIManager {
     this.app.controllers.push(
       planeFolder
         .add(this.app.params, "planeSegments", 16, 256, 8)
-        .name("Segments")
+        .name("Resolution")
         .onChange(() => this.app.recreatePlane())
     );
     planeFolder.open();

@@ -214,7 +214,7 @@ export const ControlPanel: FunctionComponent<ControlPanelProps> = ({ app }) => {
         </div>
         {createSlider("Width", "planeWidth", 0.5, 5, 0.1)}
         {createSlider("Height", "planeHeight", 0.5, 5, 0.1)}
-        {createSlider("Segments", "planeSegments", 16, 256, 8, 0)}
+        {createSlider("Resolution", "planeSegments", 16, 256, 8, 0)}
       </div>
 
       {/* Normal Noise Controls */}
