@@ -98,12 +98,18 @@
   padding: 6px;
   border-radius: 6px;
   font-size: 11px;
-  color: var(--text-primary);
-  backdrop-filter: blur(4px);
   font-family: monospace;
-  opacity: 0.5;
-  transition: opacity 0.2s ease, transform 0.3s ease;
+  color: var(--text-primary);
+  transition: transform 0.3s ease;
   transform: translateY(0);
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.separator {
+  margin: 0 4px;
+  color: var(--gray-a7);
 }
 
 .minimalHintHidden {

@@ -5,11 +5,13 @@ import { ShaderApp } from "./lib/ShaderApp";
 import ShaderCanvas from "./components/ShaderCanvas/ShaderCanvas";
 import ControlPanel from "./components/ControlPanel/ControlPanel";
 import Layout from "./components/Layout/Layout";
+import { DevPanel } from "./components/DevPanel";
 
 export const App: ComponentType = () => {
   const [app, setApp] = useState<ShaderApp | null>(null);
   const [showSettings, setShowSettings] = useState(true);
   const [showStats, setShowStats] = useState(false);
+  const [showDevPanel, setShowDevPanel] = useState(false);
 
   // Reference to the shader canvas container
   const shaderCanvasRef = useRef<HTMLDivElement | null>(null);
@@ -21,6 +23,10 @@ export const App: ComponentType = () => {
       // Update the GUI if it's been set up
       if ("updateGUI" in app) {
         (app as any).updateGUI();
+      }
+      // Update the dev panel if it's been set up
+      if ("updateDevPanel" in app) {
+        (app as any).updateDevPanel();
       }
     }
   }, [app]);
@@ -59,6 +65,11 @@ export const App: ComponentType = () => {
     }
   }, [app, showStats]);
 
+  // Toggle dev panel handler
+  const toggleDevPanel = useCallback(() => {
+    setShowDevPanel(!showDevPanel);
+  }, [showDevPanel]);
+
   // Set up keyboard shortcuts
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -79,6 +90,12 @@ export const App: ComponentType = () => {
         e.preventDefault(); // Prevent default behavior
         toggleStats();
       }
+
+      // 'Ctrl+I' to toggle dev panel
+      if ((e.key === "i" || e.key === "I") && e.ctrlKey) {
+        e.preventDefault(); // Prevent default behavior
+        toggleDevPanel();
+      }
     };
 
     window.addEventListener("keydown", handleKeyDown);
@@ -86,7 +103,7 @@ export const App: ComponentType = () => {
     return () => {
       window.removeEventListener("keydown", handleKeyDown);
     };
-  }, [toggleAnimation, toggleSettings, toggleStats, showSettings]);
+  }, [toggleAnimation, toggleSettings, toggleStats, toggleDevPanel, showSettings]);
 
   // Handle resize when settings panel is toggled
   useEffect(() => {
@@ -138,15 +155,22 @@ export const App: ComponentType = () => {
   const settingsContent = <ControlPanel app={app} />;
 
   return (
-    <Layout
-      viewportContent={viewportContent}
-      settingsContent={settingsContent}
-      isPaused={app?.params.pauseAnimation}
-      showSettings={showSettings}
-      onToggleSettings={toggleSettings}
-      onToggleStats={toggleStats}
-      showStats={showStats}
-    />
+    <>
+      <Layout
+        viewportContent={viewportContent}
+        settingsContent={settingsContent}
+        isPaused={app?.params.pauseAnimation}
+        showSettings={showSettings}
+        onToggleSettings={toggleSettings}
+        onToggleStats={toggleStats}
+        showStats={showStats}
+      />
+      <DevPanel 
+        app={app} 
+        visible={showDevPanel} 
+        onToggle={toggleDevPanel} 
+      />
+    </>
   );
 };
 

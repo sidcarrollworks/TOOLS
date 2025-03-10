@@ -262,7 +262,6 @@ export class SceneManager {
 
     // Update wireframe
     this.app.uniforms.uShowWireframe.value = this.app.params.showWireframe;
-    this.app.uniforms.uWireframeColor.value.set(this.app.params.wireframeColor);
 
     // Apply wireframe property directly to the material if it exists
     if (this.app.material) {

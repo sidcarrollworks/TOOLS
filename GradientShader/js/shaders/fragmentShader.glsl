@@ -16,7 +16,6 @@ uniform float uDiffuseIntensity;
 uniform float uAmbientIntensity;
 uniform float uRimLightIntensity;
 uniform bool uShowWireframe;
-uniform vec3 uWireframeColor;
 
 // We'll include the Perlin noise code via JavaScript
 
@@ -153,7 +152,7 @@ void main() {
     // Optional wireframe overlay
     if (uShowWireframe) {
         float gridPattern = grid(vUv, 64.0);
-        finalColor = mix(finalColor, uWireframeColor, gridPattern);
+        finalColor = mix(finalColor, gridPattern);
     }
 
     gl_FragColor = vec4(finalColor, 1.0);

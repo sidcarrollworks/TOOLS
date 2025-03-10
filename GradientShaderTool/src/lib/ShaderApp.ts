@@ -65,7 +65,6 @@ export interface ShaderParams {
   // Visualization
   backgroundColor: string;
   showWireframe: boolean;
-  wireframeColor: string;
   flatShading: boolean;
 
   // Animation
@@ -202,7 +201,6 @@ export class ShaderApp {
       // Visualization
       backgroundColor: "#111111",
       showWireframe: false,
-      wireframeColor: "#ffffff",
       flatShading: false,
 
       // Animation
@@ -253,7 +251,6 @@ export class ShaderApp {
       uAmbientIntensity: { value: this.params.ambientIntensity },
       uRimLightIntensity: { value: this.params.rimLightIntensity },
       uShowWireframe: { value: this.params.showWireframe },
-      uWireframeColor: { value: new THREE.Color(this.params.wireframeColor) },
     };
 
     // Initialize managers
@@ -322,6 +319,11 @@ export class ShaderApp {
   updateParams(updateCamera = false): void {
     // Call the update method in SceneManager
     this.sceneManager.updateParams(updateCamera);
+    
+    // Update the dev panel if it's been set up
+    if ("updateDevPanel" in this) {
+      (this as any).updateDevPanel();
+    }
   }
 
   /**
@@ -329,6 +331,11 @@ export class ShaderApp {
    */
   recreatePlane(): void {
     this.sceneManager.recreatePlane();
+    
+    // Update the dev panel if it's been set up
+    if ("updateDevPanel" in this) {
+      (this as any).updateDevPanel();
+    }
   }
 
   /**

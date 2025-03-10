@@ -145,10 +145,15 @@ export const Layout: FunctionComponent<LayoutProps> = ({
                 <span className={`dark ${styles.keyboardHint}`}>
                   <kbd>Space</kbd> Pause/Play
                 </span>
+                <span className={`dark ${styles.keyboardHint}`}>
+                  <kbd>Ctrl</kbd>+<kbd>I</kbd> Dev Panel
+                </span>
               </div>
             ) : (
               <div className={minimalHintClass}>
                 <kbd>H</kbd> Show UI
+                <span className={styles.separator}>|</span>
+                <kbd>Ctrl</kbd>+<kbd>I</kbd> Dev Panel
               </div>
             )}
           </div>

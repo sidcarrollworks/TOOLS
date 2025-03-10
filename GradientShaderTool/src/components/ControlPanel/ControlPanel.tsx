@@ -42,6 +42,11 @@ export const ControlPanel: FunctionComponent<ControlPanelProps> = ({ app }) => {
     // Update local state
     setParams({ ...app.params });
 
+    // Update the dev panel if it's been set up
+    if ("updateDevPanel" in app) {
+      (app as any).updateDevPanel();
+    }
+
     // Special handling for parameters that require recreation of the plane
     if (["planeWidth", "planeHeight", "planeSegments"].includes(key)) {
       app.recreatePlane();
@@ -65,6 +70,11 @@ export const ControlPanel: FunctionComponent<ControlPanelProps> = ({ app }) => {
 
       // Update local state
       setParams({ ...app.params });
+
+      // Update the dev panel if it's been set up
+      if ("updateDevPanel" in app) {
+        (app as any).updateDevPanel();
+      }
 
       // Set the preset application state back to false after a delay
       setTimeout(() => {
@@ -129,7 +139,7 @@ export const ControlPanel: FunctionComponent<ControlPanelProps> = ({ app }) => {
 
       {/* Plane Controls */}
       <div className={styles.controlGroup}>
-        <div className={styles.controlGroupTitle}>Mesh</div>
+        <div className={styles.controlGroupTitle}>Geometry</div>
         {createSlider("Width", "planeWidth", 0.5, 5, 0.1)}
         {createSlider("Height", "planeHeight", 0.5, 5, 0.1)}
         {createSlider("Segments", "planeSegments", 16, 256, 8, 0)}
@@ -311,21 +321,7 @@ export const ControlPanel: FunctionComponent<ControlPanelProps> = ({ app }) => {
           />
         </div>
 
-        <div className={styles.controlRow}>
-          <label className={styles.controlLabel}>Wireframe Color</label>
-          <input
-            type="color"
-            className={styles.colorPicker}
-            value={params.wireframeColor}
-            onChange={(e) =>
-              handleChange(
-                "wireframeColor",
-                (e.target as HTMLInputElement).value
-              )
-            }
-          />
-          <span className={styles.valueDisplay}>{params.wireframeColor}</span>
-        </div>
+        
       </div>
 
       {/* Camera Controls */}

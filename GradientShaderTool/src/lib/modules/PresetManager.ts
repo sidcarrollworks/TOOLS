@@ -85,7 +85,7 @@ export class PresetManager {
     // Reset visualization
     this.app.params.backgroundColor = "#fcfcfc";
     this.app.params.showWireframe = false;
-    this.app.params.wireframeColor = "#ffffff";
+
 
     // Reset animation
     this.app.params.animationSpeed = 0.01;
@@ -107,7 +107,7 @@ export class PresetManager {
     // Set plane dimensions - larger plane with more segments for detailed waves
     this.app.params.planeWidth = 4;
     this.app.params.planeHeight = 4;
-    this.app.params.planeSegments = 220;
+    this.app.params.planeSegments = 208;
 
     // Set rotation - slightly tilted for better wave visibility
     this.app.params.rotationX = -Math.PI / 3.5;
@@ -125,26 +125,26 @@ export class PresetManager {
     this.app.params.cameraTargetZ = 0;
 
     // Set normal noise - create more realistic wave patterns
-    this.app.params.normalNoiseScaleX = 6.5;
-    this.app.params.normalNoiseScaleY = 4.2;
-    this.app.params.normalNoiseSpeed = 0.4;
-    this.app.params.normalNoiseStrength = 0.18;
-    this.app.params.normalNoiseShiftX = 0.3;
-    this.app.params.normalNoiseShiftY = 0.2;
-    this.app.params.normalNoiseShiftSpeed = 0.12;
+    this.app.params.normalNoiseScaleX = 4.0;
+    this.app.params.normalNoiseScaleY = 2.4;
+    this.app.params.normalNoiseSpeed = 0.12;
+    this.app.params.normalNoiseStrength = 0.15;
+    this.app.params.normalNoiseShiftX = 0.33;
+    this.app.params.normalNoiseShiftY = 0.20;
+    this.app.params.normalNoiseShiftSpeed = 0.37;
 
     // Set color noise - create foam and depth variations
     this.app.params.colorNoiseScale = 5.0;
-    this.app.params.colorNoiseSpeed = 0.3;
+    this.app.params.colorNoiseSpeed = 0.04;
 
     // Set gradient shift - more dynamic color transitions
-    this.app.params.gradientShiftX = 0.6;
+    this.app.params.gradientShiftX = -0.36;
     this.app.params.gradientShiftY = 0.3;
-    this.app.params.gradientShiftSpeed = 0.12;
+    this.app.params.gradientShiftSpeed = 0.03;
 
     // Set colors - enhanced oceanic palette with deeper blues and foam highlights
     this.app.params.gradientMode = 1; // Linear interpolation
-    this.app.params.color1 = "#003366"; // Deep ocean blue
+    this.app.params.color1 = "#003b75"; // Deep ocean blue
     this.app.params.color2 = "#0066aa"; // Mid-ocean blue
     this.app.params.color3 = "#00bbee"; // Surface blue
     this.app.params.color4 = "#aaeeff"; // Foam/highlights
@@ -158,9 +158,8 @@ export class PresetManager {
     this.app.params.rimLightIntensity = 0.7;
 
     // Set visualization
-    this.app.params.backgroundColor = "#001840"; // Deeper sky blue
-    this.app.params.showWireframe = false;
-    this.app.params.wireframeColor = "#4488aa";
+    this.app.params.backgroundColor = "#00163d"; // Deeper sky blue
+    this.app.params.showWireframe = true;
 
     // Set animation - slightly faster for more dynamic waves
     this.app.params.animationSpeed = 0.009;
@@ -196,7 +195,7 @@ export class PresetManager {
 
     // Set color noise
     this.app.params.colorNoiseScale = 6.1;
-    this.app.params.colorNoiseSpeed = 0.15;
+    this.app.params.colorNoiseSpeed = 0.09;
 
     // Set gradient shift
     this.app.params.gradientShiftX = 0.1;
@@ -280,7 +279,7 @@ export class PresetManager {
     // Set visualization
     this.app.params.backgroundColor = "#000000";
     this.app.params.showWireframe = false;
-    this.app.params.wireframeColor = "#ffffff";
+
 
     // Set Camera
     this.app.params.cameraDistance = 0.9;
