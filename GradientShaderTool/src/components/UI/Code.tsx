@@ -63,13 +63,9 @@ export const Code: FunctionComponent<CodeProps> = ({
         onClick={handleCopy}
       >
         {copyButton ? (
-          <>
-            <Check width={14} height={14} /> Copied!
-          </>
+          <Check width={16} height={16} />
         ) : (
-          <>
-            <Copy width={14} height={14} /> Copy
-          </>
+          <Copy width={16} height={16} />
         )}
       </button>
       <div className={styles.codeBlock}>

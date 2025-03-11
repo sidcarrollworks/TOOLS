@@ -38,11 +38,11 @@
   position: absolute;
   top: 10px;
   right: 18px;
-  padding: 6px 8px 6px 6px;
+  padding: 6px;
   background-color: var(--gray-a3);
   color: var(--text-primary);
   font-size: 12px;
-  gap: 2px;
+  gap: 4px;
   border: none;
   border-radius: 4px;
   color: var(--gray-a11);
@@ -51,11 +51,16 @@
   z-index: 1;
 }
 
-.copied {
-  background-color: var(--green-a4);
-  color: var(--green-a11);
-}
-
 .copyButton:hover {
   background-color: var(--gray-7);
+}
+
+.copied {
+  background-color: var(--blue-a4);
+  color: var(--blue-a12);
+  cursor: default;
+}
+
+.copyButton.copied:hover {
+  background-color: var(--blue-a4);
 }
