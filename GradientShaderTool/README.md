@@ -10,6 +10,7 @@ A GLSL gradient shader generator built with Preact and Three.js. This tool allow
 - Customizable colors, lighting, and animation settings
 - Preset configurations for quick starting points
 - Export functionality for saving images and shader code
+- Radix UI color system for consistent and accessible design
 
 ## Project Structure
 
@@ -43,6 +44,35 @@ GradientShaderTool/
 - **Three.js**: 3D rendering library for WebGL
 - **TypeScript**: Type-safe JavaScript
 - **Vite**: Fast build tool and development server
+- **Radix UI Colors**: A comprehensive color system for consistent design
+
+## Radix UI Colors
+
+The project uses [Radix UI Colors](https://www.radix-ui.com/colors) for a consistent and accessible color system. The implementation includes:
+
+- Semantic color variables for light and dark themes
+- Gray scales with alpha channel support
+- Accent colors (blue, green, red, amber)
+
+To use these colors in your components:
+```css
+/* Example usage */
+.my-component {
+  background-color: var(--panel-bg);
+  color: var(--text-primary);
+  border: 1px solid var(--border-color);
+}
+
+/* Using accent colors */
+.primary-button {
+  background-color: var(--accent-primary);
+  color: white;
+}
+
+.primary-button:hover {
+  background-color: var(--accent-primary-hover);
+}
+```
 
 ## Development
 

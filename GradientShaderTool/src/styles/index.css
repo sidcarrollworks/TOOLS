@@ -1,4 +1,7 @@
-@import "./theme.css";
+@import "./radix-colors.css";
+
+/* Import Prism.js syntax highlighting theme */
+@import "./prism-theme.css";
 
 /* Base styles */
 * {

@@ -16,13 +16,13 @@
 }
 
 .content {
+  display: flex;
   background-color: var(--gray-2);
   border-radius: 8px;
-  width: 90%;
+  width: 100%;
   max-width: 800px;
   max-height: 900px;
   height: 90%;
-  overflow: auto;
   box-sizing: border-box;
   color: var(--text-primary);
   position: relative;
@@ -54,7 +54,6 @@
 .title {
   margin-top: 0;
   margin-bottom: 8px;
-  margin-left: 12px;
   color: var(--text-tertiary);
   font-size: 12px;
   font-weight: 500;
@@ -62,7 +61,7 @@
 
 .description {
   margin-bottom: 30px;
-  color: var(--text-secondary);
+  color: var(--text-primary);
   line-height: 1.5;
   font-size: 14px;
 }

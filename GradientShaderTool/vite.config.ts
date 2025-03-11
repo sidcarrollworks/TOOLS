@@ -1,10 +1,15 @@
 import { defineConfig } from "vite";
 import preact from "@preact/preset-vite";
+import prism from "vite-plugin-prismjs";
 import { resolve } from "path";
 
 export default defineConfig({
   plugins: [
     preact(),
+    prism({
+      languages: ["glsl", "javascript", "css", "markup"],
+      css: true,
+    }),
     {
       name: "glsl",
       transform(code, id) {

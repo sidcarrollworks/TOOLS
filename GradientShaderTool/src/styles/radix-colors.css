@@ -1,0 +1,104 @@
+/* Import Radix UI color scales */
+@import "@radix-ui/colors/gray.css";
+@import "@radix-ui/colors/gray-alpha.css";
+@import "@radix-ui/colors/gray-dark.css";
+@import "@radix-ui/colors/gray-dark-alpha.css";
+
+/* Import additional color scales as needed */
+@import "@radix-ui/colors/blue.css";
+@import "@radix-ui/colors/blue-alpha.css";
+@import "@radix-ui/colors/blue-dark.css";
+@import "@radix-ui/colors/blue-dark-alpha.css";
+
+@import "@radix-ui/colors/green.css";
+@import "@radix-ui/colors/green-alpha.css";
+@import "@radix-ui/colors/green-dark.css";
+@import "@radix-ui/colors/green-dark-alpha.css";
+
+@import "@radix-ui/colors/red.css";
+@import "@radix-ui/colors/red-alpha.css";
+@import "@radix-ui/colors/red-dark.css";
+@import "@radix-ui/colors/red-dark-alpha.css";
+
+@import "@radix-ui/colors/amber.css";
+@import "@radix-ui/colors/amber-alpha.css";
+@import "@radix-ui/colors/amber-dark.css";
+@import "@radix-ui/colors/amber-dark-alpha.css";
+
+/* Semantic color variables using Radix UI colors */
+:root {
+  /* Light theme semantic colors */
+  --app-bg: var(--gray-1);
+  --panel-bg: var(--gray-2);
+  --component-bg: var(--gray-3);
+  --border-color: var(--gray-a5);
+  --separator-color: var(--gray-a4);
+
+  --text-primary: var(--gray-12);
+  --text-secondary: var(--gray-11);
+  --text-tertiary: var(--gray-10);
+  --text-muted: var(--gray-9);
+
+  --control-bg: var(--gray-a3);
+  --control-hover: var(--gray-a4);
+  --control-active: var(--gray-a5);
+
+  --highlight: var(--gray-a7);
+  --highlight-hover: var(--gray-a8);
+
+  /* Accent colors */
+  --accent-primary: var(--blue-9);
+  --accent-primary-hover: var(--blue-10);
+  --accent-primary-active: var(--blue-11);
+
+  --accent-success: var(--green-9);
+  --accent-warning: var(--amber-9);
+  --accent-danger: var(--red-9);
+
+  /* Other UI elements */
+  --shadow-light: 0 1px 2px rgba(0, 0, 0, 0.2);
+  --shadow-medium: 0 2px 4px rgba(0, 0, 0, 0.3);
+  --shadow-strong: 0 4px 8px rgba(0, 0, 0, 0.4);
+
+  /* Viewport background */
+  --viewport-bg: #f5f5f5;
+
+  /* Animation presets */
+  --transition-fast: 0.1s ease;
+  --transition-normal: 0.2s ease;
+  --transition-slow: 0.3s ease;
+
+  /* Dark theme overrides */
+  .dark {
+    /* Dark theme semantic colors */
+    --app-bg: var(--gray-1);
+    --panel-bg: var(--gray-2);
+    --component-bg: var(--gray-3);
+    --border-color: var(--gray-a5);
+    --separator-color: var(--gray-a4);
+
+    --text-primary: var(--gray-12);
+    --text-secondary: var(--gray-11);
+    --text-tertiary: var(--gray-10);
+    --text-muted: var(--gray-9);
+
+    --control-bg: var(--gray-a3);
+    --control-hover: var(--gray-a4);
+    --control-active: var(--gray-a5);
+
+    --highlight: var(--gray-a7);
+    --highlight-hover: var(--gray-a8);
+
+    /* Accent colors */
+    --accent-primary: var(--blue-9);
+    --accent-primary-hover: var(--blue-10);
+    --accent-primary-active: var(--blue-11);
+
+    --accent-success: var(--green-9);
+    --accent-warning: var(--amber-9);
+    --accent-danger: var(--red-9);
+
+    /* Viewport background */
+    --viewport-bg: #090909;
+  }
+}

@@ -18,15 +18,19 @@
     "typescript": "^5.0.0"
   },
   "dependencies": {
+    "@radix-ui/colors": "^3.0.0",
     "@types/dat.gui": "^0.7.13",
+    "@types/prismjs": "^1.26.5",
     "@types/stats.js": "^0.17.3",
     "@types/three": "^0.174.0",
     "dat.gui": "^0.7.9",
     "preact": "10",
     "preact-render-to-string": "^6.2.1",
     "preact-router": "^4.1.2",
+    "prismjs": "^1.30.0",
     "stats.js": "^0.17.0",
     "terser": "^5.39.0",
-    "three": "^0.174.0"
+    "three": "^0.174.0",
+    "vite-plugin-prismjs": "^0.0.11"
   }
 }

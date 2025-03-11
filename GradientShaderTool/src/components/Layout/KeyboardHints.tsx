@@ -16,23 +16,23 @@ export const KeyboardHints: FunctionComponent<KeyboardHintsProps> = ({
   } ${disableTransitions ? styles.noTransition : ""}`;
 
   return (
-    <div className={`${keyboardHintsClass}`}>
-      <span className={`dark ${styles.keyboardHint}`}>
+    <div className={keyboardHintsClass}>
+      <span className={styles.keyboardHint}>
         <MouseLeftClick /> + drag to rotate
       </span>
-      <span className={`dark ${styles.keyboardHint}`}>
+      <span className={styles.keyboardHint}>
         <MouseRightClick /> + drag to pan
       </span>
-      <span className={`dark ${styles.keyboardHint}`}>
+      <span className={styles.keyboardHint}>
         <kbd>H</kbd> Hide UI
       </span>
-      <span className={`dark ${styles.keyboardHint}`}>
+      <span className={styles.keyboardHint}>
         <kbd>S</kbd> Show Stats
       </span>
-      <span className={`dark ${styles.keyboardHint}`}>
+      <span className={styles.keyboardHint}>
         <kbd>Space</kbd> Pause/Play
       </span>
-      <span className={`dark ${styles.keyboardHint}`}>
+      <span className={styles.keyboardHint}>
         <kbd>Ctrl</kbd>+<kbd>D</kbd> Dev Panel
       </span>
     </div>
@@ -53,7 +53,7 @@ export const MinimalHint: FunctionComponent<MinimalHintProps> = ({
   } ${disableTransitions ? styles.noTransition : ""}`;
 
   return (
-    <div className={`dark ${minimalHintClass}`}>
+    <div className={minimalHintClass}>
       <kbd>H</kbd> Show UI
     </div>
   );

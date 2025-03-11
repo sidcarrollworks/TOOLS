@@ -34,6 +34,14 @@
 14. ✅ Added Icons for improved visual interface
 15. ✅ Improved Layout components for better organization
 16. ✅ Rewritten app using Preact version 10 and TypeScript using the Bun package manager
+17. ✅ Integrated Radix UI colors for consistent design system
+   - ✅ Added @radix-ui/colors package
+   - ✅ Created radix-colors.css with semantic color variables
+   - ✅ Cleaned up legacy theme.css file
+18. ✅ Added syntax highlighting for code export
+   - ✅ Integrated Prism.js for syntax highlighting
+   - ✅ Created custom theme that matches the application design
+   - ✅ Added support for JavaScript, HTML, and GLSL languages
 
 ## In Progress
 

@@ -5,3 +5,4 @@ export * from "./Copy";
 export * from "./Check";
 export * from "./JS";
 export * from "./HTML";
+export * from "./OpenGL";

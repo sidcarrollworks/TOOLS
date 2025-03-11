@@ -1,20 +1,33 @@
 import type { FunctionComponent } from "preact";
-import { useState } from "preact/hooks";
+import { useState, useEffect, useRef } from "preact/hooks";
 import styles from "./Code.module.css";
 import { Copy, Check } from "../Icons";
 
+// Import Prism core and its CSS
+import Prism from "prismjs";
+
 interface CodeProps {
-  title?: string;
   code: string;
   language?: string;
 }
 
 export const Code: FunctionComponent<CodeProps> = ({
-  title,
   code,
   language = "javascript",
 }) => {
   const [copyButton, setCopyButton] = useState(false);
+  const codeRef = useRef<HTMLElement>(null);
+
+  // Apply syntax highlighting when component mounts or code/language changes
+  useEffect(() => {
+    if (codeRef.current) {
+      try {
+        Prism.highlightElement(codeRef.current);
+      } catch (err) {
+        console.error("Error highlighting code:", err);
+      }
+    }
+  }, [code, language]);
 
   const handleCopy = async () => {
     try {
@@ -28,22 +41,43 @@ export const Code: FunctionComponent<CodeProps> = ({
     }
   };
 
+  // Map language prop to Prism language class
+  const getLanguageClass = () => {
+    switch (language) {
+      case "html":
+        return "language-markup";
+      case "glsl":
+        return "language-glsl";
+      case "css":
+        return "language-css";
+      case "javascript":
+      default:
+        return "language-javascript";
+    }
+  };
+
   return (
     <div className={styles.container}>
-      {title && <h3 className={styles.title}>{title}</h3>}
+      <button
+        className={`${styles.copyButton} ${copyButton ? styles.copied : ""}`}
+        onClick={handleCopy}
+      >
+        {copyButton ? (
+          <>
+            <Check width={14} height={14} /> Copied!
+          </>
+        ) : (
+          <>
+            <Copy width={14} height={14} /> Copy
+          </>
+        )}
+      </button>
       <div className={styles.codeBlock}>
-        <pre>{code}</pre>
-        <button className={styles.copyButton} onClick={handleCopy}>
-          {copyButton ? (
-            <>
-              <Check width={14} height={14} /> Copied!
-            </>
-          ) : (
-            <>
-              <Copy width={14} height={14} /> Copy
-            </>
-          )}
-        </button>
+        <pre className={`${styles.pre} ${getLanguageClass()}`}>
+          <code ref={codeRef} className={getLanguageClass()}>
+            {code}
+          </code>
+        </pre>
       </div>
     </div>
   );

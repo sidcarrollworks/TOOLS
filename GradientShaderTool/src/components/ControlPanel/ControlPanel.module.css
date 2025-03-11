@@ -215,3 +215,6 @@
   cursor: not-allowed;
   pointer-events: none;
 }
+
+/* Remove tab styles */
+/* Tab styles are removed as they are no longer needed */

@@ -50,18 +50,18 @@ export const ControlPanel: FunctionComponent<ControlPanelProps> = ({ app }) => {
   // Function to apply debounced geometry updates
   const applyGeometryUpdate = () => {
     if (!app || !pendingGeometryUpdates.current) return;
-    
+
     // Apply the pending update
     const { key, value } = pendingGeometryUpdates.current;
     app.params[key] = value as never;
-    
+
     // Recreate the plane with the new geometry
     app.recreatePlane();
-    
+
     // Reset pending updates
     pendingGeometryUpdates.current = null;
     setHasPendingUpdates(false);
-    
+
     // Schedule a final high-quality update after interaction ends
     setTimeout(() => {
       if (app && !pendingGeometryUpdates.current) {
@@ -94,17 +94,17 @@ export const ControlPanel: FunctionComponent<ControlPanelProps> = ({ app }) => {
       // Store the pending update
       pendingGeometryUpdates.current = {
         key: key as keyof ShaderParams,
-        value: value as number
+        value: value as number,
       };
-      
+
       // Set pending updates flag
       setHasPendingUpdates(true);
-      
+
       // Clear any existing timer
       if (debounceTimerRef.current !== null) {
         window.clearTimeout(debounceTimerRef.current);
       }
-      
+
       // Set a new timer to apply the update after a delay
       debounceTimerRef.current = window.setTimeout(() => {
         applyGeometryUpdate();
@@ -202,12 +202,14 @@ export const ControlPanel: FunctionComponent<ControlPanelProps> = ({ app }) => {
         <div className={styles.controlGroupTitle}>
           Geometry
           {hasPendingUpdates && (
-            <span style={{ 
-              marginLeft: "8px", 
-              fontSize: "0.8em", 
-              color: "#ff9800",
-              fontStyle: "italic"
-            }}>
+            <span
+              style={{
+                marginLeft: "8px",
+                fontSize: "0.8em",
+                color: "#ff9800",
+                fontStyle: "italic",
+              }}
+            >
               (updating...)
             </span>
           )}
@@ -392,8 +394,6 @@ export const ControlPanel: FunctionComponent<ControlPanelProps> = ({ app }) => {
             }
           />
         </div>
-
-        
       </div>
 
       {/* Camera Controls */}

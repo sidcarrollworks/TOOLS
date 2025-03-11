@@ -11,7 +11,7 @@ import {
   Code,
 } from "../UI";
 import styles from "./Export.module.css";
-import { X, JS, HTML } from "../Icons";
+import { X, JS, HTML, OpenGL } from "../Icons";
 interface ExportPanelProps {
   app: ShaderApp;
   isOpen: boolean;
@@ -34,7 +34,7 @@ export const ExportPanel: FunctionComponent<ExportPanelProps> = ({
   const [codeTitle, setCodeTitle] = useState<string>("");
   const [codeDescription, setCodeDescription] = useState<string>("");
   const [codeSections, setCodeSections] = useState<
-    { title: string; code: string }[]
+    { title: string; code: string; language?: string }[]
   >([]);
   const [isLoading, setIsLoading] = useState<boolean>(false);
 
@@ -55,6 +55,7 @@ export const ExportPanel: FunctionComponent<ExportPanelProps> = ({
       id: "shader",
       name: "Shaders",
       description: "Export just the shader code",
+      icon: <OpenGL height={16} width={16} />,
     },
   ];
 
@@ -74,12 +75,12 @@ export const ExportPanel: FunctionComponent<ExportPanelProps> = ({
       if (methodId === "js") {
         setCodeTitle("JavaScript Export");
         setCodeDescription(
-          "Copy this code to use your gradient shader in an existing Three.js project. The code creates a function that sets up the scene and returns a dispose method."
+          "Copy this code to use your gradient shader in an existing Three.js project."
         );
 
         const jsCode =
           await app.exportManager.jsExporter.generateJavaScriptOnly();
-        setCodeSections([{ title: "", code: jsCode }]);
+        setCodeSections([{ title: "", code: jsCode, language: "javascript" }]);
       } else if (methodId === "html") {
         setCodeTitle("HTML Page Export");
         setCodeDescription(
@@ -105,7 +106,9 @@ ${geometryAndAnimation}
         `
         )}`;
 
-        setCodeSections([{ title: "", code: completeExample }]);
+        setCodeSections([
+          { title: "", code: completeExample, language: "html" },
+        ]);
       } else if (methodId === "shader") {
         setCodeTitle("Shaders only");
         setCodeDescription(
@@ -114,7 +117,7 @@ ${geometryAndAnimation}
 
         const shaderCode =
           await app.exportManager.shaderExporter.generateShaderCode();
-        setCodeSections([{ title: "", code: shaderCode }]);
+        setCodeSections([{ title: "", code: shaderCode, language: "glsl" }]);
       }
     } catch (error) {
       console.error("Error loading code:", error);
@@ -131,37 +134,41 @@ ${geometryAndAnimation}
             <X />
           </DialogClose>
 
-          <div style={{ display: "flex", height: "100%" }}>
-            <div className={styles.leftColumn}>
-              <DialogTitle>Export Options</DialogTitle>
+          {/* <div style={{ display: "flex", height: "100%", width: "100%" }}> */}
+          <div className={styles.leftColumn}>
+            <DialogTitle>Export Options</DialogTitle>
 
-              {exportMethods.map((method) => (
-                <div
-                  key={method.id}
-                  className={`${styles.tab} ${
-                    activeMethod === method.id ? styles.active : ""
-                  }`}
-                  onClick={() => setActiveMethod(method.id)}
-                >
-                  {method.icon ? method.icon : ""}
-                  {method.name}
-                </div>
-              ))}
-            </div>
-
-            <div className={styles.rightColumn}>
-              <DialogTitle>{codeTitle}</DialogTitle>
-              <DialogDescription>{codeDescription}</DialogDescription>
-
-              {isLoading ? (
-                <div>Loading code...</div>
-              ) : (
-                codeSections.map((section, index) => (
-                  <Code key={index} title={section.title} code={section.code} />
-                ))
-              )}
-            </div>
+            {exportMethods.map((method) => (
+              <div
+                key={method.id}
+                className={`${styles.tab} ${
+                  activeMethod === method.id ? styles.active : ""
+                }`}
+                onClick={() => setActiveMethod(method.id)}
+              >
+                {method.icon ? method.icon : ""}
+                {method.name}
+              </div>
+            ))}
           </div>
+
+          <div className={styles.rightColumn}>
+            <DialogTitle>{codeTitle}</DialogTitle>
+            <DialogDescription>{codeDescription}</DialogDescription>
+
+            {isLoading ? (
+              <div>Loading code...</div>
+            ) : (
+              codeSections.map((section, index) => (
+                <Code
+                  key={index}
+                  code={section.code}
+                  language={section.language}
+                />
+              ))
+            )}
+          </div>
+          {/* </div> */}
         </DialogContent>
       </DialogOverlay>
     </Dialog>
