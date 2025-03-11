@@ -1,26 +1,34 @@
-import type { FunctionComponent } from "preact";
+import type { FunctionComponent, JSX } from "preact";
 import { useState, useEffect } from "preact/hooks";
 import type { ShaderApp } from "../../lib/ShaderApp";
-import { Modal } from "./Modal";
-import { CodeSection } from "./CodeSection";
+import {
+  Dialog,
+  DialogOverlay,
+  DialogContent,
+  DialogClose,
+  DialogTitle,
+  DialogDescription,
+  Code,
+} from "../UI";
 import styles from "./Export.module.css";
-
+import { X, JS, HTML } from "../Icons";
 interface ExportPanelProps {
   app: ShaderApp;
   isOpen: boolean;
-  onClose: () => void;
+  onOpenChange: (open: boolean) => void;
 }
 
 interface ExportMethod {
   id: string;
   name: string;
   description: string;
+  icon?: JSX.Element;
 }
 
 export const ExportPanel: FunctionComponent<ExportPanelProps> = ({
   app,
   isOpen,
-  onClose,
+  onOpenChange,
 }) => {
   const [activeMethod, setActiveMethod] = useState<string>("js");
   const [codeTitle, setCodeTitle] = useState<string>("");
@@ -33,18 +41,19 @@ export const ExportPanel: FunctionComponent<ExportPanelProps> = ({
   const exportMethods: ExportMethod[] = [
     {
       id: "js",
-      name: "JavaScript Only",
-      description:
-        "Export the Three.js scene and shaders for use in existing projects",
+      name: "JavaScript",
+      description: "Use in existing Three.js projects.",
+      icon: <JS height={16} width={16} />,
     },
     {
       id: "html",
       name: "HTML Page",
-      description: "Export a complete HTML page with the scene",
+      description: "HTML page with the scene",
+      icon: <HTML height={16} width={16} />,
     },
     {
       id: "shader",
-      name: "Shader Code Only",
+      name: "Shaders",
       description: "Export just the shader code",
     },
   ];
@@ -70,7 +79,7 @@ export const ExportPanel: FunctionComponent<ExportPanelProps> = ({
 
         const jsCode =
           await app.exportManager.jsExporter.generateJavaScriptOnly();
-        setCodeSections([{ title: "JavaScript Code", code: jsCode }]);
+        setCodeSections([{ title: "", code: jsCode }]);
       } else if (methodId === "html") {
         setCodeTitle("HTML Page Export");
         setCodeDescription(
@@ -96,18 +105,16 @@ ${geometryAndAnimation}
         `
         )}`;
 
-        setCodeSections([
-          { title: "Complete HTML Page", code: completeExample },
-        ]);
+        setCodeSections([{ title: "", code: completeExample }]);
       } else if (methodId === "shader") {
-        setCodeTitle("Shader Code Export");
+        setCodeTitle("Shaders only");
         setCodeDescription(
           "Copy just the shader code for use in your own Three.js setup."
         );
 
         const shaderCode =
           await app.exportManager.shaderExporter.generateShaderCode();
-        setCodeSections([{ title: "Shader Code", code: shaderCode }]);
+        setCodeSections([{ title: "", code: shaderCode }]);
       }
     } catch (error) {
       console.error("Error loading code:", error);
@@ -117,42 +124,46 @@ ${geometryAndAnimation}
   };
 
   return (
-    <Modal isOpen={isOpen} onClose={onClose}>
-      <div className={styles.leftColumn}>
-        <h1 className={styles.title}>Export Options</h1>
+    <Dialog isOpen={isOpen} onOpenChange={onOpenChange}>
+      <DialogOverlay>
+        <DialogContent>
+          <DialogClose>
+            <X />
+          </DialogClose>
 
-        {exportMethods.map((method) => (
-          <div
-            key={method.id}
-            className={`${styles.exportButton} ${
-              activeMethod === method.id ? styles.active : ""
-            }`}
-            onClick={() => setActiveMethod(method.id)}
-          >
-            <div className={styles.exportButtonTitle}>{method.name}</div>
-            <div className={styles.exportButtonDescription}>
-              {method.description}
+          <div style={{ display: "flex", height: "100%" }}>
+            <div className={styles.leftColumn}>
+              <DialogTitle>Export Options</DialogTitle>
+
+              {exportMethods.map((method) => (
+                <div
+                  key={method.id}
+                  className={`${styles.tab} ${
+                    activeMethod === method.id ? styles.active : ""
+                  }`}
+                  onClick={() => setActiveMethod(method.id)}
+                >
+                  {method.icon ? method.icon : ""}
+                  {method.name}
+                </div>
+              ))}
+            </div>
+
+            <div className={styles.rightColumn}>
+              <DialogTitle>{codeTitle}</DialogTitle>
+              <DialogDescription>{codeDescription}</DialogDescription>
+
+              {isLoading ? (
+                <div>Loading code...</div>
+              ) : (
+                codeSections.map((section, index) => (
+                  <Code key={index} title={section.title} code={section.code} />
+                ))
+              )}
             </div>
           </div>
-        ))}
-      </div>
-
-      <div className={styles.rightColumn}>
-        <h1 className={styles.title}>{codeTitle}</h1>
-        <p className={styles.description}>{codeDescription}</p>
-
-        {isLoading ? (
-          <div>Loading code...</div>
-        ) : (
-          codeSections.map((section, index) => (
-            <CodeSection
-              key={index}
-              title={section.title}
-              code={section.code}
-            />
-          ))
-        )}
-      </div>
-    </Modal>
+        </DialogContent>
+      </DialogOverlay>
+    </Dialog>
   );
 };

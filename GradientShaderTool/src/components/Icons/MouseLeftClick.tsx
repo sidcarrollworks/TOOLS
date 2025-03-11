@@ -1,12 +1,12 @@
 import type { FunctionComponent } from "preact";
 
-interface MouseLeftClickProps {
+interface IconProps {
   width?: number;
   height?: number;
   className?: string;
 }
 
-export const MouseLeftClick: FunctionComponent<MouseLeftClickProps> = ({
+export const MouseLeftClick: FunctionComponent<IconProps> = ({
   width = 18,
   height = 18,
   className = "",

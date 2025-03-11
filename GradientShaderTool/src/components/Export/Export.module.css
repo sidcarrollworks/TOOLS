@@ -1,152 +1,65 @@
-.modal {
-  position: fixed;
-  top: 0;
-  left: 0;
-  width: 100%;
-  height: 100%;
-  background-color: rgba(0, 0, 0, 0.8);
+/* Layout styles */
+.leftColumn {
   display: flex;
   flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  z-index: 1000;
-  padding: 20px;
-  box-sizing: border-box;
-  overflow: auto;
-}
-
-.modalContent {
-  background-color: var(--panel-bg);
-  border-radius: 5px;
-  width: 90%;
-  max-width: 1200px;
-  max-height: 90%;
-  overflow: auto;
-  padding: 20px;
-  box-sizing: border-box;
-  color: var(--text-primary);
-  display: flex;
-  flex-direction: row;
-  position: relative;
-  border: 1px solid var(--border-color);
-}
-
-.closeButton {
-  position: absolute;
-  top: 20px;
-  right: 20px;
-  padding: 8px 16px;
-  background-color: var(--gray-7);
-  color: var(--text-primary);
-  border: none;
-  border-radius: 4px;
-  cursor: pointer;
-  font-size: 16px;
-  transition: background-color var(--transition-fast);
-}
-
-.closeButton:hover {
-  background-color: var(--gray-8);
-}
-
-.leftColumn {
-  width: 250px;
+  height: 100%;
+  width: 200px;
   border-right: 1px solid var(--border-color);
-  padding-right: 20px;
-  margin-right: 20px;
+  padding: 24px 12px;
 }
 
 .rightColumn {
   flex: 1;
   overflow: auto;
+  padding: 24px;
 }
 
-.title {
-  margin-bottom: 20px;
-  color: var(--text-primary);
-  font-size: 24px;
-  font-weight: bold;
-}
-
-.description {
-  margin-bottom: 30px;
-  color: var(--text-secondary);
-  line-height: 1.5;
-}
-
-.exportButton {
-  padding: 15px;
-  margin-bottom: 10px;
-  background-color: var(--component-bg);
-  border-radius: 4px;
+/* Tab styles */
+.tab {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  position: relative;
+  padding: 8px 12px;
   cursor: pointer;
   transition: background-color var(--transition-fast);
-  border: 1px solid var(--border-color);
+  border-radius: 4px;
+  margin-bottom: 4px;
+  font-size: 13px;
+  font-weight: 400;
+  color: var(--text-secondary);
+  width: fit-content;
 }
 
-.exportButton:hover {
-  background-color: var(--control-hover);
+/* .tab:hover::after {
+  content: "";
+  display: absolute;
+  bottom: 0;
+  left: 0;
+  width: 100%;
+  height: 1.5px;
+  background-color: var(--border-color);
+} */
+
+.tab:hover {
+  /* background-color: var(--control-hover); */
 }
 
-.exportButton.active {
-  background-color: var(--control-active);
-  border-color: var(--gray-8);
-}
-
-.exportButtonTitle {
-  font-weight: bold;
-  margin-bottom: 5px;
+.tab.active {
+  /* background-color: var(--control-active); */
   color: var(--text-primary);
+  font-weight: 600;
+}
+
+/* Tab content styles */
+.exportButtonTitle {
+  font-size: 13px;
+  font-weight: bold;
+  color: var(--text-primary);
+  margin-bottom: 2px;
 }
 
 .exportButtonDescription {
-  font-size: 0.9em;
+  font-size: 12px;
   color: var(--text-secondary);
 }
-
-.codeSection {
-  margin-bottom: 30px;
-}
-
-.codeSectionTitle {
-  border-bottom: 1px solid var(--border-color);
-  padding-bottom: 10px;
-  margin-bottom: 15px;
-  font-size: 20px;
-  color: var(--text-primary);
-}
-
-.codeContainer {
-  position: relative;
-  margin-bottom: 10px;
-}
-
-.codeBlock {
-  background-color: var(--gray-2);
-  padding: 15px;
-  border-radius: 4px;
-  overflow: auto;
-  font-size: 14px;
-  font-family: Consolas, Monaco, "Andale Mono", monospace;
-  white-space: pre-wrap;
-  max-height: 400px;
-  color: var(--text-primary);
-  border: 1px solid var(--border-color);
-}
-
-.copyButton {
-  position: absolute;
-  top: 10px;
-  right: 10px;
-  padding: 5px 10px;
-  background-color: var(--gray-6);
-  color: var(--text-primary);
-  border: none;
-  border-radius: 4px;
-  cursor: pointer;
-  transition: background-color var(--transition-fast);
-}
-
-.copyButton:hover {
-  background-color: var(--gray-7);
-} 

@@ -39,8 +39,8 @@ export class ExportUI {
   private renderExportPanel(): void {
     if (!this.modalContainer) return;
     
-    const handleClose = () => {
-      this.isOpen = false;
+    const handleOpenChange = (open: boolean) => {
+      this.isOpen = open;
       this.renderExportPanel();
     };
     
@@ -48,7 +48,7 @@ export class ExportUI {
       h(ExportPanel, { 
         app: this.app, 
         isOpen: this.isOpen, 
-        onClose: handleClose 
+        onOpenChange: handleOpenChange 
       }), 
       this.modalContainer
     );

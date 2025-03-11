@@ -65,8 +65,8 @@
   --text-muted: var(--gray-9);
 
   --control-bg: var(--gray-a3);
-  --control-hover: var(--gray-5);
-  --control-active: var(--gray-6);
+  --control-hover: var(--gray-a3);
+  --control-active: var(--gray-a4);
 
   --highlight: var(--gray-a7);
   --highlight-hover: var(--gray-a8);
@@ -125,8 +125,8 @@
     --text-muted: var(--gray-9);
 
     --control-bg: var(--gray-a3);
-    --control-hover: var(--gray-5);
-    --control-active: var(--gray-6);
+    --control-hover: var(--gray-a2);
+    --control-active: var(--gray-a3);
 
     --highlight: var(--gray-a7);
     --highlight-hover: var(--gray-a8);
