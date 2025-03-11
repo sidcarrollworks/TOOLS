@@ -18,10 +18,10 @@ export const KeyboardHints: FunctionComponent<KeyboardHintsProps> = ({
   return (
     <div className={`${keyboardHintsClass}`}>
       <span className={`dark ${styles.keyboardHint}`}>
-        <MouseLeftClick /> and drag to rotate
+        <MouseLeftClick /> + drag to rotate
       </span>
       <span className={`dark ${styles.keyboardHint}`}>
-        <MouseRightClick /> and drag to pan
+        <MouseRightClick /> + drag to pan
       </span>
       <span className={`dark ${styles.keyboardHint}`}>
         <kbd>H</kbd> Hide UI

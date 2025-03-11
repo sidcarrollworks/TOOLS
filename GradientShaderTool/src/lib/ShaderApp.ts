@@ -65,6 +65,7 @@ export interface ShaderParams {
   // Visualization
   backgroundColor: string;
   showWireframe: boolean;
+  wireframeColor: string;
   flatShading: boolean;
 
   // Animation
@@ -201,6 +202,7 @@ export class ShaderApp {
       // Visualization
       backgroundColor: "#111111",
       showWireframe: false,
+      wireframeColor: "#ffffff",
       flatShading: false,
 
       // Animation
@@ -251,6 +253,7 @@ export class ShaderApp {
       uAmbientIntensity: { value: this.params.ambientIntensity },
       uRimLightIntensity: { value: this.params.rimLightIntensity },
       uShowWireframe: { value: this.params.showWireframe },
+      uWireframeColor: { value: new THREE.Color(this.params.wireframeColor) },
     };
 
     // Initialize managers

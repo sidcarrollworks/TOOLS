@@ -3,9 +3,14 @@
  */
 import * as THREE from "three";
 import { ShaderApp } from "../ShaderApp";
+import { HTMLExporter, JSExporter, ShaderExporter, ExportUI } from "./export";
 
 export class ExportManager {
   private app: ShaderApp;
+  public htmlExporter: HTMLExporter;
+  public jsExporter: JSExporter;
+  public shaderExporter: ShaderExporter;
+  private exportUI: ExportUI;
 
   /**
    * Create an ExportManager
@@ -13,6 +18,12 @@ export class ExportManager {
    */
   constructor(app: ShaderApp) {
     this.app = app;
+    
+    // Initialize exporters
+    this.htmlExporter = new HTMLExporter(app);
+    this.jsExporter = new JSExporter(app);
+    this.shaderExporter = new ShaderExporter(app);
+    this.exportUI = new ExportUI(app);
   }
 
   /**
@@ -78,54 +89,14 @@ export class ExportManager {
    * Export code (shaders, parameters, etc.)
    */
   exportCode(): void {
-    if (
-      !this.app.shaders.vertex ||
-      !this.app.shaders.fragment ||
-      !this.app.shaders.perlinNoise
-    ) {
-      console.error("Shader sources not available");
-      alert("Shader sources not available for export.");
-      return;
-    }
-
-    try {
-      // Create code export
-      const exportData = {
-        shaders: {
-          vertex: this.app.shaders.vertex,
-          fragment: this.app.shaders.fragment,
-          perlinNoise: this.app.shaders.perlinNoise,
-        },
-        params: this.app.params,
-      };
-
-      // Convert to JSON
-      const jsonData = JSON.stringify(exportData, null, 2);
-
-      // Generate file name
-      const timestamp = new Date().toISOString().replace(/[:.]/g, "-");
-      const filename = `gradient-shader-export-${timestamp}.json`;
-
-      // Create blob and download link
-      const blob = new Blob([jsonData], { type: "application/json" });
-      const url = URL.createObjectURL(blob);
-
-      const link = document.createElement("a");
-      link.download = filename;
-      link.href = url;
-
-      // Trigger download
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
-
-      // Clean up URL object
-      URL.revokeObjectURL(url);
-
-      console.log("Code exported as", filename);
-    } catch (error) {
-      console.error("Error exporting code:", error);
-      alert("Failed to export code. See console for details.");
-    }
+    // Show the export UI modal instead of downloading JSON
+    this.exportUI.showExportCode();
+  }
+  
+  /**
+   * Clean up resources
+   */
+  dispose(): void {
+    this.exportUI.dispose();
   }
 }
