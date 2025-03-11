@@ -8,8 +8,9 @@ export {
   DialogContent,
   DialogClose,
   DialogTitle,
-  DialogDescription
-} from './Dialog';
+  DialogDescription,
+} from "./Dialog";
 
-export { Button } from './Button';
-export { Code } from './Code'; 
+export { Button } from "./Button";
+export { Code } from "./Code";
+export { default as Select } from "./Select";

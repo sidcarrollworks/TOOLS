@@ -45,9 +45,9 @@
   background-color: var(--border-color);
 } */
 
-.tab:hover {
-  /* background-color: var(--control-hover); */
-}
+/* .tab:hover {
+  background-color: var(--control-hover); 
+} */
 
 .tab.active {
   /* background-color: var(--control-active); */

@@ -5,6 +5,7 @@ import styles from "./ControlPanel.module.css";
 import { ShaderApp } from "../../lib/ShaderApp";
 import { NumericControl } from "./NumericControl";
 import { setPresetApplying } from "../FigmaInput/FigmaInput";
+import { Select } from "../UI";
 
 interface ControlPanelProps {
   app: ShaderApp | null;
@@ -250,22 +251,34 @@ export const ControlPanel: FunctionComponent<ControlPanelProps> = ({ app }) => {
 
         <div className={styles.controlRow}>
           <label className={styles.controlLabel}>Gradient Mode</label>
-          <select
-            value={params.gradientMode}
-            onChange={(e) =>
-              handleChange(
-                "gradientMode",
-                parseInt((e.target as HTMLSelectElement).value, 10)
-              )
-            }
-            className={styles.select}
-          >
-            <option value={0}>B-Spline</option>
-            <option value={1}>Linear</option>
-            <option value={2}>Step</option>
-            <option value={3}>Smooth Step</option>
-            <option value={4}>Direct Mapping</option>
-          </select>
+          <div style={{ flex: 1 }}>
+            <Select.Root
+              value={params.gradientMode.toString()}
+              onValueChange={(value) => {
+                console.log("Select value changed:", value);
+                handleChange("gradientMode", parseInt(value, 10));
+              }}
+            >
+              <Select.Trigger>
+                {
+                  [
+                    "B-Spline",
+                    "Linear",
+                    "Step",
+                    "Smooth Step",
+                    "Direct Mapping",
+                  ][params.gradientMode]
+                }
+              </Select.Trigger>
+              <Select.Content>
+                <Select.Item value="0">B-Spline</Select.Item>
+                <Select.Item value="1">Linear</Select.Item>
+                <Select.Item value="2">Step</Select.Item>
+                <Select.Item value="3">Smooth Step</Select.Item>
+                <Select.Item value="4">Direct Mapping</Select.Item>
+              </Select.Content>
+            </Select.Root>
+          </div>
         </div>
 
         <div className={styles.controlRow}>

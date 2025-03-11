@@ -35,20 +35,28 @@
 15. ✅ Improved Layout components for better organization
 16. ✅ Rewritten app using Preact version 10 and TypeScript using the Bun package manager
 17. ✅ Integrated Radix UI colors for consistent design system
-   - ✅ Added @radix-ui/colors package
-   - ✅ Created radix-colors.css with semantic color variables
-   - ✅ Cleaned up legacy theme.css file
+
+- ✅ Added @radix-ui/colors package
+- ✅ Created radix-colors.css with semantic color variables
+- ✅ Cleaned up legacy theme.css file
+
 18. ✅ Added syntax highlighting for code export
-   - ✅ Integrated Prism.js for syntax highlighting
-   - ✅ Created custom theme that matches the application design
-   - ✅ Added support for JavaScript, HTML, and GLSL languages
+
+- ✅ Integrated Prism.js for syntax highlighting
+- ✅ Created custom theme that matches the application design
+- ✅ Added support for JavaScript, HTML, and GLSL languages
+
+19. ✅ Completed export functionality:
+
+- ✅ Image export with transparent background option
+- ✅ Multiple code export formats (HTML, JS, GLSL)
+- ✅ Export UI for displaying and downloading code
 
 ## In Progress
 
 1. 🔄 Test and debug the Three.js integration
-2. 🔄 Fix export functionality
-3. 🔄 Optimize performance
-4. 🔄 Enhanced GUI organization:
+2. 🔄 Optimize performance
+3. 🔄 Enhanced GUI organization:
    - 🔄 Group related controls more logically
    - 🔄 Add collapsible sections for advanced options
 
