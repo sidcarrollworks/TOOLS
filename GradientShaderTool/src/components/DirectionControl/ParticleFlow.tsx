@@ -21,29 +21,35 @@ interface Particle {
   y: number;
   vx: number;
   vy: number;
+  targetVx: number; // Target velocity X component
+  targetVy: number; // Target velocity Y component
   size: number;
   speed: number;
   life: number;
   maxLife: number;
   trail: Array<{ x: number; y: number; age: number }>;
   trailLength: number;
+  id: number; // Add unique ID for each particle to help with distance checks
 }
 
 // Performance optimization constants
-const ACTIVE_PARTICLE_COUNT = 25; // Number of particles when actively interacting
-const IDLE_PARTICLE_COUNT = 15; // Reduced number when just hovering
+const ACTIVE_PARTICLE_COUNT = 100; // Increased from 60 for better grid coverage
+const IDLE_PARTICLE_COUNT = 60; // Increased from 35 for better grid coverage
 const MAX_TRAIL_POINTS = 20; // Maximum number of trail points to store
 const TRAIL_POINT_INTERVAL = 2; // Only add a trail point every N frames
 const LOW_PERFORMANCE_THRESHOLD = 30; // FPS threshold for low performance mode
 const PARTICLE_MOVEMENT_SCALE = 0.05; // Scale factor for particle movement speed
 const MAX_TRAIL_AGE = 800; // Maximum age for trail points in milliseconds
 const FPS_SAMPLE_SIZE = 10; // Number of frames to average for FPS calculation
+const DIRECTION_CHANGE_INERTIA = 0.02; // How quickly particles adjust to new direction (0-1)
+const MIN_PARTICLE_DISTANCE = 15; // Increased from 10 for better grid spacing
+const PARTICLE_SIZE = 2; // Adjusted for better circle appearance
 
 export const ParticleFlow: FunctionalComponent<ParticleFlowProps> = ({
   magnitude = 0.5,
   width = 100,
   height = 100,
-  particleCount = 25,
+  particleCount = 100,
   particleColor = "rgba(200, 200, 200, 0.6)",
   isVisible = false,
   directionX = 0,
@@ -64,14 +70,27 @@ export const ParticleFlow: FunctionalComponent<ParticleFlowProps> = ({
   const framesSinceLastTrailPointRef = useRef<number>(0);
   const isLowPerformanceModeRef = useRef<boolean>(false);
   const fpsHistoryRef = useRef<number[]>([]);
+  // Add refs to track current direction values
+  const currentDirectionXRef = useRef<number>(directionX);
+  const currentDirectionYRef = useRef<number>(directionY);
+
+  // Update direction refs when props change
+  useEffect(() => {
+    currentDirectionXRef.current = directionX;
+    currentDirectionYRef.current = directionY;
+  }, [directionX, directionY]);
 
   // Utility function to normalize direction vector
   const getNormalizedDirection = () => {
-    const dirLength =
-      Math.sqrt(directionX * directionX + directionY * directionY) || 1;
+    // If signals are available, use them directly for the most up-to-date values
+    // Otherwise fall back to refs which track the most recent prop values
+    const dx = signals ? -signals.valueX.value : currentDirectionXRef.current;
+    const dy = signals ? -signals.valueY.value : currentDirectionYRef.current;
+
+    const dirLength = Math.sqrt(dx * dx + dy * dy) || 1;
     return {
-      x: directionX / dirLength,
-      y: directionY / dirLength,
+      x: dx / dirLength,
+      y: -dy / dirLength, // Flip Y direction to match visual representation
     };
   };
 
@@ -111,6 +130,12 @@ export const ParticleFlow: FunctionalComponent<ParticleFlowProps> = ({
     if (targetCount > currentCount) {
       // Add more particles
       const newParticles = initializeNewParticles(targetCount - currentCount);
+
+      // Update IDs of new particles to ensure uniqueness
+      for (let i = 0; i < newParticles.length; i++) {
+        newParticles[i].id = currentCount + i;
+      }
+
       particlesRef.current = [...currentParticles, ...newParticles];
     } else {
       // Remove excess particles
@@ -124,48 +149,195 @@ export const ParticleFlow: FunctionalComponent<ParticleFlowProps> = ({
     const centerX = width / 2;
     const centerY = height / 2;
     const radius = Math.min(width, height) / 2 - 5;
-    const baseSpeed = baseSpeedRef.current;
-    // Use signal if available, otherwise use ref
-    const isAtOrigin = signals
-      ? signals.magnitude.value < 0.01
-      : currentMagnitudeRef.current < 0.01;
 
     // Calculate normalized direction vector
     const { x: normalizedDirX, y: normalizedDirY } = getNormalizedDirection();
 
-    for (let i = 0; i < count; i++) {
-      // Random position within the circular area
-      const angle = Math.random() * Math.PI * 2;
-      const distance = Math.random() * radius;
+    // Use the current base speed from the ref
+    const baseSpeed = baseSpeedRef.current;
 
-      const x = centerX + Math.cos(angle) * distance;
-      const y = centerY + Math.sin(angle) * distance;
+    // Always use the most current magnitude value - prefer signal if available
+    const isAtOrigin = signals
+      ? signals.magnitude.value < 0.01
+      : currentMagnitudeRef.current < 0.01;
 
-      // Add some randomness to speed
-      const speed = baseSpeed * (0.8 + Math.random() * 0.4);
+    // Create a grid of particles within the circle
+    // Calculate grid spacing based on the circle size and desired particle count
+    // This ensures we have enough grid points to accommodate all particles
+    const diameter = radius * 2;
+    const gridPointsPerSide = Math.ceil(Math.sqrt(count * 1.5)); // Add 50% more grid points than particles
+    const gridSpacing = diameter / gridPointsPerSide;
 
-      // Calculate velocity components - zero if at origin
+    // Calculate how many grid cells we need in each direction
+    // We'll create a square grid and then filter out points outside the circle
+    const gridSize = Math.ceil((radius * 2) / gridSpacing);
+
+    // Calculate the starting position for the grid (top-left corner)
+    const startX = centerX - (gridSize * gridSpacing) / 2;
+    const startY = centerY - (gridSize * gridSpacing) / 2;
+
+    // Calculate the angle of the control point direction
+    const controlAngle = Math.atan2(normalizedDirY, normalizedDirX);
+    // The opposite angle is controlAngle + PI
+    const oppositeAngle = controlAngle + Math.PI;
+
+    // Create a list of grid positions
+    const gridPositions: Array<{
+      x: number;
+      y: number;
+      distanceFromCenter: number;
+      oppositenessFactor: number;
+    }> = [];
+
+    // Generate all possible grid positions
+    for (let i = 0; i < gridSize; i++) {
+      for (let j = 0; j < gridSize; j++) {
+        const x = startX + i * gridSpacing;
+        const y = startY + j * gridSpacing;
+
+        // Calculate distance from center
+        const dx = x - centerX;
+        const dy = y - centerY;
+        const distanceFromCenter = Math.sqrt(dx * dx + dy * dy);
+
+        // Only include points inside the circle
+        if (distanceFromCenter <= radius) {
+          // Calculate angle from center
+          const angle = Math.atan2(dy, dx);
+
+          // Calculate how opposite this point is to the control direction
+          const angleDiff = Math.abs(
+            ((angle - oppositeAngle + Math.PI * 3) % (Math.PI * 2)) - Math.PI
+          );
+          const oppositenessFactor = 1 - angleDiff / Math.PI; // 1 when directly opposite, 0 when same direction
+
+          gridPositions.push({
+            x,
+            y,
+            distanceFromCenter,
+            oppositenessFactor,
+          });
+        }
+      }
+    }
+
+    // Sort grid positions by oppositenessFactor (higher values first)
+    // This ensures we prioritize positions opposite to the control direction
+    gridPositions.sort((a, b) => b.oppositenessFactor - a.oppositenessFactor);
+
+    // Take only the number of positions we need
+    const selectedPositions = gridPositions.slice(0, count);
+
+    // Create particles at the selected positions
+    for (let i = 0; i < selectedPositions.length; i++) {
+      const position = selectedPositions[i];
+
+      // Use consistent speed for all particles (no randomness)
+      const speed = baseSpeed;
+
+      // Initial velocity based on direction
       const vx = isAtOrigin ? 0 : normalizedDirX * speed;
       const vy = isAtOrigin ? 0 : normalizedDirY * speed;
 
-      // Random lifespan - significantly increased for longer trails
-      const maxLife = 500 + Math.random() * 150;
+      // Set target velocity same as initial velocity
+      const targetVx = vx;
+      const targetVy = vy;
+
+      // Random life duration
+      const maxLife = 8000 + Math.random() * 7000;
 
       particles.push({
-        x,
-        y,
+        x: position.x,
+        y: position.y,
         vx,
         vy,
-        size: 0.8 + Math.random() * 1.2,
+        targetVx,
+        targetVy,
+        size: PARTICLE_SIZE,
         speed,
-        life: Math.random() * maxLife,
+        life: 0,
         maxLife,
-        trail: [{ x, y, age: 0 }],
-        trailLength: Math.min(
-          15 + Math.floor(Math.random() * 5),
-          MAX_TRAIL_POINTS
-        ),
+        trail: [{ x: position.x, y: position.y, age: 0 }],
+        trailLength: Math.floor(8 + Math.random() * 12),
+        id: i,
       });
+    }
+
+    // If we couldn't create enough particles with the grid, add more randomly
+    if (particles.length < count) {
+      const remainingCount = count - particles.length;
+      console.log(
+        `Grid created ${particles.length} particles, adding ${remainingCount} more randomly`
+      );
+
+      // Helper function to check if a position is too close to existing particles
+      const isTooClose = (x: number, y: number): boolean => {
+        for (const particle of particles) {
+          const dx = particle.x - x;
+          const dy = particle.y - y;
+          const distSquared = dx * dx + dy * dy;
+          if (distSquared < MIN_PARTICLE_DISTANCE * MIN_PARTICLE_DISTANCE) {
+            return true;
+          }
+        }
+        return false;
+      };
+
+      for (let i = 0; i < remainingCount; i++) {
+        // Try to find a position that's not too close to other particles
+        let x = 0,
+          y = 0,
+          attempts = 0;
+        let validPosition = false;
+
+        // Maximum attempts to find a valid position
+        const maxAttempts = 10;
+
+        while (!validPosition && attempts < maxAttempts) {
+          // Generate a random angle
+          const angle = Math.random() * Math.PI * 2;
+
+          // Use square root distribution for radial gradient effect
+          const distance = Math.sqrt(Math.random()) * radius * 0.95;
+
+          x = centerX + Math.cos(angle) * distance;
+          y = centerY + Math.sin(angle) * distance;
+
+          // Check if this position is valid (not too close to other particles)
+          validPosition = !isTooClose(x, y);
+          attempts++;
+        }
+
+        // Use consistent speed for all particles (no randomness)
+        const speed = baseSpeed;
+
+        // Initial velocity based on direction
+        const vx = isAtOrigin ? 0 : normalizedDirX * speed;
+        const vy = isAtOrigin ? 0 : normalizedDirY * speed;
+
+        // Set target velocity same as initial velocity
+        const targetVx = vx;
+        const targetVy = vy;
+
+        // Random life duration
+        const maxLife = 8000 + Math.random() * 7000;
+
+        particles.push({
+          x,
+          y,
+          vx,
+          vy,
+          targetVx,
+          targetVy,
+          size: PARTICLE_SIZE,
+          speed,
+          life: 0,
+          maxLife,
+          trail: [{ x, y, age: 0 }],
+          trailLength: Math.floor(8 + Math.random() * 12),
+          id: particles.length,
+        });
+      }
     }
 
     return particles;
@@ -181,7 +353,7 @@ export const ParticleFlow: FunctionalComponent<ParticleFlowProps> = ({
 
     // Force immediate update of all particles when magnitude changes
     updateParticleVelocities();
-  }, [magnitude, directionX, directionY, signals]);
+  }, [magnitude, directionX, directionY, signals, isDragging]);
 
   // Helper function to update particle velocities based on current magnitude
   const updateParticleVelocities = () => {
@@ -197,19 +369,33 @@ export const ParticleFlow: FunctionalComponent<ParticleFlowProps> = ({
     // Calculate normalized direction vector
     const { x: normalizedDirX, y: normalizedDirY } = getNormalizedDirection();
 
-    // Update all particles with new velocity
-    particles.forEach((particle) => {
-      // Add some randomness to speed
-      particle.speed = baseSpeed * (0.8 + Math.random() * 0.4);
+    // Debug log to understand what's happening with direction values
+    console.log("Updating particle velocities:", {
+      propDirectionX: directionX,
+      propDirectionY: directionY,
+      signalValueX: signals?.valueX.value,
+      signalValueY: signals?.valueY.value,
+      normalizedDirX,
+      normalizedDirY,
+      isDragging,
+    });
 
-      // Set velocity to zero when at origin, otherwise update based on direction
+    // Update all particles with new target velocity
+    particles.forEach((particle) => {
+      // Use consistent speed for all particles (no randomness)
+      particle.speed = baseSpeed;
+
+      // Set target velocity to zero when at origin, otherwise update based on direction
       if (!isAtOrigin) {
-        particle.vx = normalizedDirX * particle.speed;
-        particle.vy = normalizedDirY * particle.speed;
+        particle.targetVx = normalizedDirX * particle.speed;
+        particle.targetVy = normalizedDirY * particle.speed;
       } else {
-        particle.vx = 0;
-        particle.vy = 0;
+        particle.targetVx = 0;
+        particle.targetVy = 0;
       }
+
+      // Note: We don't immediately update vx/vy here anymore
+      // That will happen gradually in updateParticles
     });
   };
 
@@ -226,7 +412,7 @@ export const ParticleFlow: FunctionalComponent<ParticleFlowProps> = ({
     const radius = Math.min(width, height) / 2 - 5;
     const radiusSquared = radius * radius; // Pre-calculate squared radius for performance
 
-    // Calculate normalized direction vector
+    // Recalculate normalized direction vector on every frame to ensure it's up-to-date
     const { x: normalizedDirX, y: normalizedDirY } = getNormalizedDirection();
 
     // Use the current base speed from the ref
@@ -236,6 +422,129 @@ export const ParticleFlow: FunctionalComponent<ParticleFlowProps> = ({
     const isAtOrigin = signals
       ? signals.magnitude.value < 0.01
       : currentMagnitudeRef.current < 0.01;
+
+    // If at origin, immediately stop all particle movement
+    if (isAtOrigin) {
+      particles.forEach((particle) => {
+        particle.vx = 0;
+        particle.vy = 0;
+        particle.targetVx = 0;
+        particle.targetVy = 0;
+
+        // Clear trails when at origin to prevent any visual artifacts
+        if (particle.trail.length > 1) {
+          particle.trail = [{ x: particle.x, y: particle.y, age: 0 }];
+        }
+      });
+    }
+
+    // Calculate grid parameters for respawning particles
+    const diameter = radius * 2;
+    const gridPointsPerSide = Math.ceil(Math.sqrt(particles.length * 1.5)); // Add 50% more grid points than particles
+    const gridSpacing = diameter / gridPointsPerSide;
+    const gridSize = Math.ceil((radius * 2) / gridSpacing);
+    const startX = centerX - (gridSize * gridSpacing) / 2;
+    const startY = centerY - (gridSize * gridSpacing) / 2;
+
+    // Calculate the angle of the control point direction
+    const controlAngle = Math.atan2(normalizedDirY, normalizedDirX);
+    // The opposite angle is controlAngle + PI
+    const oppositeAngle = controlAngle + Math.PI;
+
+    // Create a counter for respawned particles to distribute them evenly
+    let respawnCounter = 0;
+    // Calculate angle step based on estimated number of particles that might respawn
+    // Using a fraction of total particles as an estimate
+    const estimatedRespawnCount = Math.max(
+      5,
+      Math.floor(particles.length / 10)
+    );
+    const angleStep = (Math.PI * 2) / estimatedRespawnCount;
+
+    // Helper function to check if a position is too close to existing particles
+    const isTooClose = (
+      x: number,
+      y: number,
+      currentParticleId: number
+    ): boolean => {
+      for (const particle of particles) {
+        // Skip checking against itself
+        if (particle.id === currentParticleId) continue;
+
+        const dx = particle.x - x;
+        const dy = particle.y - y;
+        const distSquared = dx * dx + dy * dy;
+        if (distSquared < MIN_PARTICLE_DISTANCE * MIN_PARTICLE_DISTANCE) {
+          return true;
+        }
+      }
+      return false;
+    };
+
+    // Helper function to find the nearest available grid position
+    const findNearestGridPosition = (
+      particleId: number
+    ): { x: number; y: number } => {
+      // Generate all possible grid positions
+      const gridPositions: Array<{
+        x: number;
+        y: number;
+        distanceFromCenter: number;
+        oppositenessFactor: number;
+      }> = [];
+
+      for (let i = 0; i < gridSize; i++) {
+        for (let j = 0; j < gridSize; j++) {
+          const x = startX + i * gridSpacing;
+          const y = startY + j * gridSpacing;
+
+          // Calculate distance from center
+          const dx = x - centerX;
+          const dy = y - centerY;
+          const distanceFromCenter = Math.sqrt(dx * dx + dy * dy);
+
+          // Only include points inside the circle
+          if (distanceFromCenter <= radius) {
+            // Calculate angle from center
+            const angle = Math.atan2(dy, dx);
+
+            // Calculate how opposite this point is to the control direction
+            const angleDiff = Math.abs(
+              ((angle - oppositeAngle + Math.PI * 3) % (Math.PI * 2)) - Math.PI
+            );
+            const oppositenessFactor = 1 - angleDiff / Math.PI; // 1 when directly opposite, 0 when same direction
+
+            // Check if this position is available (not too close to other particles)
+            if (!isTooClose(x, y, particleId)) {
+              gridPositions.push({
+                x,
+                y,
+                distanceFromCenter,
+                oppositenessFactor,
+              });
+            }
+          }
+        }
+      }
+
+      // Sort grid positions by oppositenessFactor (higher values first)
+      // This ensures we prioritize positions opposite to the control direction
+      gridPositions.sort((a, b) => b.oppositenessFactor - a.oppositenessFactor);
+
+      // If we found any valid grid positions, return the first one (most opposite to control direction)
+      if (gridPositions.length > 0) {
+        return gridPositions[0];
+      }
+
+      // If no valid grid positions found, return a random position
+      // This is a fallback to ensure we always have a position
+      const angle = Math.random() * Math.PI * 2;
+      const distance = Math.random() * radius * 0.7;
+      return {
+        x: centerX + Math.cos(angle) * distance,
+        y: centerY + Math.sin(angle) * distance,
+      };
+    };
 
     // Increment frame counter for trail point throttling
     framesSinceLastTrailPointRef.current++;
@@ -249,25 +558,42 @@ export const ParticleFlow: FunctionalComponent<ParticleFlowProps> = ({
       framesSinceLastTrailPointRef.current = 0;
     }
 
+    // Scale deltaTime to ensure consistent movement speed regardless of frame rate
+    const timeScale = deltaTime / 16.67; // Normalized to 60fps
+
+    // Update each particle
     particles.forEach((particle) => {
+      // Skip position updates if at origin
+      if (!isAtOrigin) {
+        // Gradually adjust velocity toward target velocity (simulates inertia)
+        const inertiaFactor = DIRECTION_CHANGE_INERTIA;
+        particle.vx += (particle.targetVx - particle.vx) * inertiaFactor;
+        particle.vy += (particle.targetVy - particle.vy) * inertiaFactor;
+
+        // Update position based on velocity
+        particle.x += particle.vx * timeScale;
+        particle.y += particle.vy * timeScale;
+      }
+
       // Update life
       particle.life += deltaTime;
 
       // If particle has exceeded its lifespan, reset it
       if (particle.life > particle.maxLife) {
         if (!isAtOrigin) {
-          // Normal reset behavior - new random position
-          const angle = Math.random() * Math.PI * 2;
-          const distance = Math.random() * radius;
+          // Find a new grid position for this particle
+          const newPosition = findNearestGridPosition(particle.id);
 
-          particle.x = centerX + Math.cos(angle) * distance;
-          particle.y = centerY + Math.sin(angle) * distance;
+          // Update particle position with the new position
+          particle.x = newPosition.x;
+          particle.y = newPosition.y;
+
+          // Set fixed particle size
+          particle.size = PARTICLE_SIZE;
         } else {
           // When at origin, keep current position but refresh trail
-          // Small random offset for visual interest
-          const smallOffset = 2; // 2px max offset
-          particle.x += (Math.random() * 2 - 1) * smallOffset;
-          particle.y += (Math.random() * 2 - 1) * smallOffset;
+          // No need for random movement when at origin
+          // Just keep the particle in place
 
           // Keep particles within the circle
           const dx = particle.x - centerX;
@@ -285,14 +611,19 @@ export const ParticleFlow: FunctionalComponent<ParticleFlowProps> = ({
           }
         }
 
-        // Add some randomness to speed
-        particle.speed = baseSpeed * (0.8 + Math.random() * 0.4);
+        // Use consistent speed for all particles (no randomness)
+        particle.speed = baseSpeed;
 
         // Update velocity components - zero velocity when at origin
         if (!isAtOrigin) {
-          particle.vx = normalizedDirX * particle.speed;
-          particle.vy = normalizedDirY * particle.speed;
+          particle.targetVx = normalizedDirX * particle.speed;
+          particle.targetVy = normalizedDirY * particle.speed;
+          // Reset actual velocity to match target for immediate response after reset
+          particle.vx = particle.targetVx;
+          particle.vy = particle.targetVy;
         } else {
+          particle.targetVx = 0;
+          particle.targetVy = 0;
           particle.vx = 0;
           particle.vy = 0;
         }
@@ -302,18 +633,15 @@ export const ParticleFlow: FunctionalComponent<ParticleFlowProps> = ({
       } else {
         // When magnitude is near zero, we want particles to stay in place
         if (!isAtOrigin) {
-          // Update position - slower movement for more visible trails
-          particle.x += particle.vx * deltaTime * PARTICLE_MOVEMENT_SCALE;
-          particle.y += particle.vy * deltaTime * PARTICLE_MOVEMENT_SCALE;
+          // Position updates are now handled at the beginning of updateParticles
+          // No need to update position here as it's already done
         } else {
-          // Add barely perceptible random movement for visual interest
-          const microMovement = 0.002; // Very small movement
-          particle.x += (Math.random() * 2 - 1) * microMovement * deltaTime;
-          particle.y += (Math.random() * 2 - 1) * microMovement * deltaTime;
+          // No random movement when at origin - keep particles completely still
         }
 
         // Only add trail points periodically to reduce memory usage
-        if (shouldAddTrailPoint) {
+        if (shouldAddTrailPoint && !isAtOrigin) {
+          // Only add trail points when not at origin
           // Add current position to trail
           particle.trail.push({
             x: particle.x,
@@ -352,23 +680,29 @@ export const ParticleFlow: FunctionalComponent<ParticleFlowProps> = ({
         const distSquared = dx * dx + dy * dy;
 
         if (distSquared > radiusSquared) {
-          // Random position within the circular area
-          const angle = Math.random() * Math.PI * 2;
-          const distance = Math.random() * radius * 0.5; // Start closer to center
+          // Find a new grid position for this particle
+          const newPosition = findNearestGridPosition(particle.id);
 
-          particle.x = centerX + Math.cos(angle) * distance;
-          particle.y = centerY + Math.sin(angle) * distance;
+          // Update particle position with the new position
+          particle.x = newPosition.x;
+          particle.y = newPosition.y;
+          particle.size = PARTICLE_SIZE; // Set fixed particle size
 
           particle.trail = [{ x: particle.x, y: particle.y, age: 0 }];
 
-          // Also update the particle speed with the current base speed when it resets
-          particle.speed = baseSpeed * (0.8 + Math.random() * 0.4);
+          // Use consistent speed for all particles (no randomness)
+          particle.speed = baseSpeed;
 
           // Update velocity components - zero velocity when at origin
           if (!isAtOrigin) {
-            particle.vx = normalizedDirX * particle.speed;
-            particle.vy = normalizedDirY * particle.speed;
+            particle.targetVx = normalizedDirX * particle.speed;
+            particle.targetVy = normalizedDirY * particle.speed;
+            // Reset actual velocity to match target for immediate response after reset
+            particle.vx = particle.targetVx;
+            particle.vy = particle.targetVy;
           } else {
+            particle.targetVx = 0;
+            particle.targetVy = 0;
             particle.vx = 0;
             particle.vy = 0;
           }
@@ -419,48 +753,75 @@ export const ParticleFlow: FunctionalComponent<ParticleFlowProps> = ({
       }
     }
 
+    // Get the magnitude to determine if we're at origin
+    const isAtOrigin = signals
+      ? signals.magnitude.value < 0.01
+      : currentMagnitudeRef.current < 0.01;
+
     // Draw particles
     particlesRef.current.forEach((particle) => {
-      if (particle.trail.length < 2) return;
+      // When at origin or when particle has no movement, draw a full circle
+      if (
+        isAtOrigin ||
+        (Math.abs(particle.vx) < 0.01 && Math.abs(particle.vy) < 0.01)
+      ) {
+        // Draw a full circle for stationary particles
+        ctx.beginPath();
+        ctx.arc(particle.x, particle.y, PARTICLE_SIZE / 2, 0, Math.PI * 2);
+        ctx.fillStyle = particleColor;
+        ctx.fill();
+      } else if (particle.trail.length >= 2) {
+        // For moving particles, draw a trail with a circle at the end
+        // Draw trail
+        ctx.beginPath();
 
-      // Draw trail
-      ctx.beginPath();
+        // Start from the oldest point
+        const startIndex = Math.max(
+          0,
+          particle.trail.length - particle.trailLength
+        );
 
-      // Start from the oldest point
-      const startIndex = Math.max(
-        0,
-        particle.trail.length - particle.trailLength
-      );
+        ctx.moveTo(particle.trail[startIndex].x, particle.trail[startIndex].y);
 
-      ctx.moveTo(particle.trail[startIndex].x, particle.trail[startIndex].y);
+        // Draw line through all points
+        for (let i = startIndex + 1; i < particle.trail.length; i++) {
+          const point = particle.trail[i];
+          ctx.lineTo(point.x, point.y);
+        }
 
-      // Draw line through all points
-      for (let i = startIndex + 1; i < particle.trail.length; i++) {
-        const point = particle.trail[i];
-        ctx.lineTo(point.x, point.y);
+        // Create gradient for trail
+        const gradient = ctx.createLinearGradient(
+          particle.trail[startIndex].x,
+          particle.trail[startIndex].y,
+          particle.x,
+          particle.y
+        );
+
+        // Fade from transparent to the particle color with improved gradient
+        gradient.addColorStop(0, `rgba(${r}, ${g}, ${b}, 0)`);
+        gradient.addColorStop(0.3, `rgba(${r}, ${g}, ${b}, 0.05)`);
+        gradient.addColorStop(0.6, `rgba(${r}, ${g}, ${b}, 0.2)`);
+        gradient.addColorStop(0.9, `rgba(${r}, ${g}, ${b}, 0.4)`);
+        gradient.addColorStop(1, particleColor);
+
+        ctx.strokeStyle = gradient;
+        ctx.lineWidth = PARTICLE_SIZE;
+        ctx.lineCap = "round";
+        ctx.lineJoin = "round";
+        ctx.stroke();
+
+        // Draw a circle at the current position
+        ctx.beginPath();
+        ctx.arc(particle.x, particle.y, PARTICLE_SIZE / 2, 0, Math.PI * 2);
+        ctx.fillStyle = particleColor;
+        ctx.fill();
+      } else {
+        // Fallback for particles with insufficient trail points
+        ctx.beginPath();
+        ctx.arc(particle.x, particle.y, PARTICLE_SIZE / 2, 0, Math.PI * 2);
+        ctx.fillStyle = particleColor;
+        ctx.fill();
       }
-
-      // Create gradient for trail
-      const gradient = ctx.createLinearGradient(
-        particle.trail[startIndex].x,
-        particle.trail[startIndex].y,
-        particle.x,
-        particle.y
-      );
-
-      // Fade from transparent to the particle color with improved gradient
-      gradient.addColorStop(0, `rgba(${r}, ${g}, ${b}, 0)`);
-      gradient.addColorStop(0.3, `rgba(${r}, ${g}, ${b}, 0.05)`);
-      gradient.addColorStop(0.6, `rgba(${r}, ${g}, ${b}, 0.2)`);
-      gradient.addColorStop(0.9, `rgba(${r}, ${g}, ${b}, 0.4)`);
-      gradient.addColorStop(1, particleColor);
-
-      ctx.strokeStyle = gradient;
-      ctx.lineWidth =
-        particle.size * (0.5 + (particle.life / particle.maxLife) * 0.5); // Thinner at the end of life
-      ctx.lineCap = "round";
-      ctx.lineJoin = "round";
-      ctx.stroke();
     });
 
     ctx.restore();
@@ -554,6 +915,9 @@ export const ParticleFlow: FunctionalComponent<ParticleFlowProps> = ({
       // Reset time tracking
       lastTimeRef.current = 0;
 
+      // Update particle velocities with current direction values
+      updateParticleVelocities();
+
       // Start animation
       animationFrameRef.current = requestAnimationFrame(animate);
     } else if (!isVisible && animationFrameRef.current) {
@@ -561,6 +925,27 @@ export const ParticleFlow: FunctionalComponent<ParticleFlowProps> = ({
       animationFrameRef.current = 0;
     }
   }, [isVisible]);
+
+  // Ensure particle velocities are updated when dragging stops
+  useEffect(() => {
+    // Only run this effect when transitioning from dragging to not dragging
+    if (!isDragging && particlesRef.current.length > 0) {
+      // Update particle velocities with the final direction values
+      updateParticleVelocities();
+    }
+  }, [isDragging]);
+
+  // Update particle velocities when signals change
+  useEffect(() => {
+    if (signals && particlesRef.current.length > 0) {
+      // Use a timeout to ensure this runs after the signal values have been updated
+      const timeoutId = setTimeout(() => {
+        updateParticleVelocities();
+      }, 0);
+
+      return () => clearTimeout(timeoutId);
+    }
+  }, [signals?.valueX.value, signals?.valueY.value, signals?.magnitude.value]);
 
   return (
     <div

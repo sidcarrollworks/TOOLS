@@ -336,9 +336,10 @@ export const DirectionControl: FunctionalComponent<DirectionControlProps> = ({
   // Calculate rotation style for the canvas container
   // We rotate in the opposite direction of the angle to make particles flow in the direction of the control point
   const canvasRotationStyle = {
-    transform:
-      signals.magnitude.value > 0.01 ? `rotate(${angle}deg)` : "rotate(90deg)", // Default to downward flow when magnitude is near zero
-    transition: isDragging ? "none" : "transform 0.2s ease-out", // Add smooth transition except when dragging
+    // Remove the rotation transform
+    // transform:
+    //   signals.magnitude.value > 0.01 ? `rotate(${angle}deg)` : "rotate(90deg)", // Default to downward flow when magnitude is near zero
+    // transition: isDragging ? "none" : "transform 0.2s ease-out", // Add smooth transition except when dragging
   };
 
   return (
@@ -375,8 +376,8 @@ export const DirectionControl: FunctionalComponent<DirectionControlProps> = ({
               height={120} // Match the control area size
               isVisible={isHovered || isDragging} // Visible when hovered or dragging
               particleCount={25} // Moderate particle count for performance
-              directionX={0} // Fixed direction - always downward
-              directionY={1} // Fixed direction - always downward
+              directionX={-signals.valueX.value} // Negate again to get the original direction
+              directionY={-signals.valueY.value} // Negate Y again for consistency with our new approach
               particleColor="rgba(180, 180, 180, 0.7)" // Light gray color with slightly more opacity
               isDragging={signals.isDragging.value} // Pass dragging state for performance optimization
               signals={signals} // Pass signals to ParticleFlow
