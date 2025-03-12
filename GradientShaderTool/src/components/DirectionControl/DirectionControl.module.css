@@ -1,0 +1,269 @@
+.directionControl {
+  font-family: "Inter", sans-serif;
+  margin-bottom: 16px;
+  position: relative;
+}
+
+.label {
+  font-size: 12px;
+  margin-bottom: 4px;
+  color: var(--text-secondary);
+}
+
+.controlContainer {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.controlArea {
+  position: relative;
+  width: 120px;
+  height: 120px;
+  background-color: var(--gray-a1);
+  border: 1px solid var(--gray-a5);
+  border-radius: 50%;
+  cursor: grab;
+  transition: border-color var(--transition-fast);
+}
+
+.controlArea:hover {
+  border-color: var(--gray-a7);
+}
+
+.controlArea.dragging {
+  border-color: var(--blue-a8);
+  cursor: grabbing;
+}
+
+@keyframes pulse {
+  0% {
+    opacity: 0.5;
+  }
+  50% {
+    opacity: 1;
+  }
+  100% {
+    opacity: 0.5;
+  }
+}
+
+@keyframes glowPulse {
+  0% {
+    filter: brightness(0.9);
+  }
+  50% {
+    filter: brightness(1.1);
+  }
+  100% {
+    filter: brightness(0.9);
+  }
+}
+
+.gridLines {
+  position: absolute;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+}
+
+.horizontalLine,
+.verticalLine {
+  position: absolute;
+  background-color: var(--gray-a5);
+  transition: background-color var(--transition-fast);
+}
+
+.directionControl:hover .horizontalLine,
+.directionControl:hover .verticalLine {
+  background-color: var(--gray-a7);
+}
+
+.horizontalLine {
+  width: 100%;
+  height: 1px;
+  top: calc(50% - 0.5px);
+}
+
+.verticalLine {
+  width: 1px;
+  height: 100%;
+  left: calc(50% - 0.5px);
+}
+
+.circle {
+  position: absolute;
+  width: 80%;
+  height: 80%;
+  top: 10%;
+  left: 10%;
+  border: 1px dashed var(--gray-a4);
+  border-radius: 50%;
+  transition: border-color var(--transition-fast);
+}
+
+.directionControl:hover .circle {
+  border-color: var(--gray-a5);
+}
+
+.centerPoint {
+  position: absolute;
+  width: 6px;
+  height: 6px;
+  background-color: var(--gray-7);
+  border-radius: 50%;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  z-index: 5;
+  box-shadow: 0 0 4px var(--gray-a5);
+  transition: background-color var(--transition-fast),
+    box-shadow var(--transition-fast);
+}
+
+.directionControl:hover .centerPoint {
+  background-color: var(--gray-a9);
+  box-shadow: 0 0 4px var(--gray-a7);
+}
+
+.controlPoint {
+  position: absolute;
+  width: 16px;
+  height: 16px;
+  background-color: var(--gray-1);
+  border-radius: 50%;
+  transform: translate(-50%, -50%);
+  box-shadow: inset 0 0 0 1px currentColor;
+  z-index: 2;
+  transition: width var(--transition-normal), height var(--transition-normal),
+    box-shadow var(--transition-normal), transform var(--transition-normal),
+    background-color var(--transition-normal), color var(--transition-normal);
+}
+
+/* .controlPoint::before {
+  content: "";
+  position: absolute;
+  width: 100%;
+  height: 100%;
+  top: 50%;
+  left: 50%;
+  background-color: var(--gray-1);
+  border-radius: 50%;
+  transform: translate(-50%, -50%);
+
+  z-index: 5;
+} */
+
+.directionControl:hover .controlPoint {
+  background-color: var(--gray-2);
+  box-shadow: inset 0 0 0 2px currentColor !important;
+  width: 16px;
+  height: 16px;
+}
+
+.controlPoint {
+  width: 10px;
+  height: 10px;
+}
+
+.dragging .controlPoint {
+  /* We're now setting the box-shadow dynamically in the component */
+  transform: translate(-50%, -50%) scale(1.1);
+}
+
+.valueDisplay {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 4px;
+  margin-top: 8px;
+  font-size: 10px;
+  color: var(--text-muted);
+  text-align: center;
+  width: 100%;
+}
+
+.tooltip {
+  position: absolute;
+  bottom: 100%;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 200px;
+  background-color: var(--panel-bg);
+  border: 1px solid var(--border-color);
+  border-radius: 4px;
+  padding: 8px;
+  margin-bottom: 8px;
+  box-shadow: var(--shadow-medium);
+  z-index: 10;
+  pointer-events: none;
+}
+
+.tooltipPreview {
+  width: 100%;
+  height: 100px;
+  background-color: var(--component-bg);
+  margin-bottom: 8px;
+  border-radius: 2px;
+}
+
+.tooltipText {
+  font-size: 11px;
+  color: var(--text-primary);
+  text-align: center;
+}
+
+.tooltipHint {
+  font-size: 9px;
+  color: var(--text-tertiary);
+  font-style: italic;
+}
+
+/* Disabled state */
+.disabled {
+  opacity: 0.5;
+  pointer-events: none;
+}
+
+.directionSvg {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+  z-index: 1;
+}
+
+.directionSvg line {
+  transition: all var(--transition-fast);
+  stroke-linecap: round;
+}
+
+/* Gray line (visible when not hovered) */
+.grayLine {
+  opacity: 0.5;
+}
+
+.directionControl:hover .grayLine {
+  opacity: 0;
+}
+
+/* Colored line (visible on hover) */
+.colorLine {
+  opacity: 0;
+}
+
+.directionControl:hover .colorLine {
+  opacity: 1;
+}
+
+.dragging .grayLine {
+  opacity: 0;
+}
+
+.dragging .colorLine {
+  opacity: 1;
+  transition: none; /* Disable transitions during dragging for smoother updates */
+}
+
+/* Remove the old directionLine styles since we're using SVG now */

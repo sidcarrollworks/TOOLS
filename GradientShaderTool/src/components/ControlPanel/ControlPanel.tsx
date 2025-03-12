@@ -6,6 +6,7 @@ import { ShaderApp } from "../../lib/ShaderApp";
 import { NumericControl } from "./NumericControl";
 import { setPresetApplying } from "../FigmaInput/FigmaInput";
 import { Select } from "../UI";
+import { DirectionControl } from "../DirectionControl";
 
 interface ControlPanelProps {
   app: ShaderApp | null;
@@ -227,10 +228,22 @@ export const ControlPanel: FunctionComponent<ControlPanelProps> = ({ app }) => {
         {createSlider("Scale Y", "normalNoiseScaleY", 0.1, 10, 0.1)}
         {createSlider("Speed", "normalNoiseSpeed", 0, 1, 0.01, 2)}
         {createSlider("Strength", "normalNoiseStrength", 0, 1, 0.01, 2)}
-        <div className={styles.controlGroupSubtitle}>Shift</div>
-        {createSlider("X", "normalNoiseShiftX", -1, 1, 0.01, 2)}
-        {createSlider("Y", "normalNoiseShiftY", -1, 1, 0.01, 2)}
-        {createSlider("Speed", "normalNoiseShiftSpeed", 0, 1, 0.01, 2)}
+        <div className={styles.controlGroupSubtitle}>Direction</div>
+        <DirectionControl
+          valueX={params.normalNoiseShiftX}
+          valueY={params.normalNoiseShiftY}
+          speed={params.normalNoiseShiftSpeed}
+          min={-1}
+          max={1}
+          minSpeed={0}
+          maxSpeed={1}
+          step={0.01}
+          onChangeX={(value) => handleChange("normalNoiseShiftX", value)}
+          onChangeY={(value) => handleChange("normalNoiseShiftY", value)}
+          onChangeSpeed={(value) =>
+            handleChange("normalNoiseShiftSpeed", value)
+          }
+        />
       </div>
 
       {/* Color Noise Controls */}
@@ -238,11 +251,20 @@ export const ControlPanel: FunctionComponent<ControlPanelProps> = ({ app }) => {
         <div className={styles.controlGroupTitle}>Color Noise</div>
         {createSlider("Scale", "colorNoiseScale", 0.1, 10, 0.1)}
         {createSlider("Speed", "colorNoiseSpeed", 0, 1, 0.01, 2)}
-        <div className={styles.controlGroupSubtitle}>Shift</div>
-
-        {createSlider("Shift X", "gradientShiftX", -1, 1, 0.01, 2)}
-        {createSlider("Shift Y", "gradientShiftY", -1, 1, 0.01, 2)}
-        {createSlider("Shift Speed", "gradientShiftSpeed", 0, 0.5, 0.01, 2)}
+        <div className={styles.controlGroupSubtitle}>Direction</div>
+        <DirectionControl
+          valueX={params.gradientShiftX}
+          valueY={params.gradientShiftY}
+          speed={params.gradientShiftSpeed}
+          min={-1}
+          max={1}
+          minSpeed={0}
+          maxSpeed={0.5}
+          step={0.01}
+          onChangeX={(value) => handleChange("gradientShiftX", value)}
+          onChangeY={(value) => handleChange("gradientShiftY", value)}
+          onChangeSpeed={(value) => handleChange("gradientShiftSpeed", value)}
+        />
       </div>
 
       {/* Colors Controls */}
