@@ -1,6 +1,7 @@
 import { useRef, useEffect, useState } from "preact/hooks";
 import type { FunctionalComponent } from "preact";
 import styles from "./ParticleFlow.module.css";
+import type { DirectionSignals } from "./";
 
 interface ParticleFlowProps {
   magnitude: number; // Magnitude of the flow (0 to 1)
@@ -12,6 +13,7 @@ interface ParticleFlowProps {
   directionX?: number; // Direction X component (-1 to 1)
   directionY?: number; // Direction Y component (-1 to 1)
   isDragging?: boolean; // Whether the user is dragging the control point
+  signals?: DirectionSignals; // Signals from DirectionControl
 }
 
 interface Particle {
@@ -33,6 +35,9 @@ const IDLE_PARTICLE_COUNT = 15; // Reduced number when just hovering
 const MAX_TRAIL_POINTS = 20; // Maximum number of trail points to store
 const TRAIL_POINT_INTERVAL = 2; // Only add a trail point every N frames
 const LOW_PERFORMANCE_THRESHOLD = 30; // FPS threshold for low performance mode
+const PARTICLE_MOVEMENT_SCALE = 0.05; // Scale factor for particle movement speed
+const MAX_TRAIL_AGE = 800; // Maximum age for trail points in milliseconds
+const FPS_SAMPLE_SIZE = 10; // Number of frames to average for FPS calculation
 
 export const ParticleFlow: FunctionalComponent<ParticleFlowProps> = ({
   magnitude = 0.5,
@@ -44,6 +49,7 @@ export const ParticleFlow: FunctionalComponent<ParticleFlowProps> = ({
   directionX = 0,
   directionY = 1, // Default direction is downward
   isDragging = false,
+  signals,
 }) => {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const particlesRef = useRef<Particle[]>([]);
@@ -51,23 +57,38 @@ export const ParticleFlow: FunctionalComponent<ParticleFlowProps> = ({
   const lastTimeRef = useRef<number>(0);
   const frameCountRef = useRef<number>(0);
   const baseSpeedRef = useRef<number>(0.3 + magnitude * 1.7);
+  // Use signals if available, otherwise fall back to ref
   const currentMagnitudeRef = useRef<number>(magnitude);
   const fpsRef = useRef<number>(60);
   const lastFpsUpdateRef = useRef<number>(0);
   const framesSinceLastTrailPointRef = useRef<number>(0);
   const isLowPerformanceModeRef = useRef<boolean>(false);
+  const fpsHistoryRef = useRef<number[]>([]);
+
+  // Utility function to normalize direction vector
+  const getNormalizedDirection = () => {
+    const dirLength =
+      Math.sqrt(directionX * directionX + directionY * directionY) || 1;
+    return {
+      x: directionX / dirLength,
+      y: directionY / dirLength,
+    };
+  };
 
   // Track actual particle count based on interaction state
   const [actualParticleCount, setActualParticleCount] = useState(
-    isDragging ? ACTIVE_PARTICLE_COUNT : IDLE_PARTICLE_COUNT
+    isDragging
+      ? Math.min(particleCount, ACTIVE_PARTICLE_COUNT)
+      : Math.min(particleCount, IDLE_PARTICLE_COUNT)
   );
 
   // Update particle count based on interaction state
   useEffect(() => {
     // Use more particles when dragging, fewer when just hovering
+    // But respect the particleCount prop as an upper limit
     const targetCount = isDragging
-      ? ACTIVE_PARTICLE_COUNT
-      : IDLE_PARTICLE_COUNT;
+      ? Math.min(particleCount, ACTIVE_PARTICLE_COUNT)
+      : Math.min(particleCount, IDLE_PARTICLE_COUNT);
 
     // Only update if different to avoid unnecessary re-initializations
     if (targetCount !== actualParticleCount) {
@@ -78,7 +99,7 @@ export const ParticleFlow: FunctionalComponent<ParticleFlowProps> = ({
         adjustParticleCount(targetCount);
       }
     }
-  }, [isDragging]);
+  }, [isDragging, particleCount]);
 
   // Adjust the number of particles without full reinitialization
   const adjustParticleCount = (targetCount: number) => {
@@ -104,13 +125,13 @@ export const ParticleFlow: FunctionalComponent<ParticleFlowProps> = ({
     const centerY = height / 2;
     const radius = Math.min(width, height) / 2 - 5;
     const baseSpeed = baseSpeedRef.current;
-    const isAtOrigin = currentMagnitudeRef.current < 0.01;
+    // Use signal if available, otherwise use ref
+    const isAtOrigin = signals
+      ? signals.magnitude.value < 0.01
+      : currentMagnitudeRef.current < 0.01;
 
     // Calculate normalized direction vector
-    const dirLength =
-      Math.sqrt(directionX * directionX + directionY * directionY) || 1;
-    const normalizedDirX = directionX / dirLength;
-    const normalizedDirY = directionY / dirLength;
+    const { x: normalizedDirX, y: normalizedDirY } = getNormalizedDirection();
 
     for (let i = 0; i < count; i++) {
       // Random position within the circular area
@@ -152,26 +173,29 @@ export const ParticleFlow: FunctionalComponent<ParticleFlowProps> = ({
 
   // Update the refs when magnitude changes
   useEffect(() => {
-    currentMagnitudeRef.current = magnitude;
+    // If using signals, we don't need to update the ref as we'll read directly from the signal
+    if (!signals) {
+      currentMagnitudeRef.current = magnitude;
+    }
     baseSpeedRef.current = 0.3 + magnitude * 1.7;
 
     // Force immediate update of all particles when magnitude changes
     updateParticleVelocities();
-  }, [magnitude]);
+  }, [magnitude, directionX, directionY, signals]);
 
   // Helper function to update particle velocities based on current magnitude
   const updateParticleVelocities = () => {
     const particles = particlesRef.current;
     if (particles.length === 0) return;
 
-    const isAtOrigin = currentMagnitudeRef.current < 0.01;
+    // Use signal if available, otherwise use ref
+    const isAtOrigin = signals
+      ? signals.magnitude.value < 0.01
+      : currentMagnitudeRef.current < 0.01;
     const baseSpeed = baseSpeedRef.current;
 
     // Calculate normalized direction vector
-    const dirLength =
-      Math.sqrt(directionX * directionX + directionY * directionY) || 1;
-    const normalizedDirX = directionX / dirLength;
-    const normalizedDirY = directionY / dirLength;
+    const { x: normalizedDirX, y: normalizedDirY } = getNormalizedDirection();
 
     // Update all particles with new velocity
     particles.forEach((particle) => {
@@ -200,18 +224,18 @@ export const ParticleFlow: FunctionalComponent<ParticleFlowProps> = ({
     const centerX = width / 2;
     const centerY = height / 2;
     const radius = Math.min(width, height) / 2 - 5;
+    const radiusSquared = radius * radius; // Pre-calculate squared radius for performance
 
     // Calculate normalized direction vector
-    const dirLength =
-      Math.sqrt(directionX * directionX + directionY * directionY) || 1;
-    const normalizedDirX = directionX / dirLength;
-    const normalizedDirY = directionY / dirLength;
+    const { x: normalizedDirX, y: normalizedDirY } = getNormalizedDirection();
 
     // Use the current base speed from the ref
     const baseSpeed = baseSpeedRef.current;
 
-    // Always use the most current magnitude value
-    const isAtOrigin = currentMagnitudeRef.current < 0.01;
+    // Always use the most current magnitude value - prefer signal if available
+    const isAtOrigin = signals
+      ? signals.magnitude.value < 0.01
+      : currentMagnitudeRef.current < 0.01;
 
     // Increment frame counter for trail point throttling
     framesSinceLastTrailPointRef.current++;
@@ -246,19 +270,18 @@ export const ParticleFlow: FunctionalComponent<ParticleFlowProps> = ({
           particle.y += (Math.random() * 2 - 1) * smallOffset;
 
           // Keep particles within the circle
-          const distFromCenter = Math.sqrt(
-            Math.pow(particle.x - centerX, 2) +
-              Math.pow(particle.y - centerY, 2)
-          );
+          const dx = particle.x - centerX;
+          const dy = particle.y - centerY;
+          const distSquared = dx * dx + dy * dy;
+          const radiusThreshold = radius * 0.9;
+          const radiusThresholdSquared = radiusThreshold * radiusThreshold;
 
-          if (distFromCenter > radius * 0.9) {
+          if (distSquared > radiusThresholdSquared) {
             // Move back toward center if getting too close to edge
-            const angle = Math.atan2(
-              particle.y - centerY,
-              particle.x - centerX
-            );
-            particle.x = centerX + Math.cos(angle) * (radius * 0.8);
-            particle.y = centerY + Math.sin(angle) * (radius * 0.8);
+            const angle = Math.atan2(dy, dx);
+            const safeRadius = radius * 0.8;
+            particle.x = centerX + Math.cos(angle) * safeRadius;
+            particle.y = centerY + Math.sin(angle) * safeRadius;
           }
         }
 
@@ -280,8 +303,8 @@ export const ParticleFlow: FunctionalComponent<ParticleFlowProps> = ({
         // When magnitude is near zero, we want particles to stay in place
         if (!isAtOrigin) {
           // Update position - slower movement for more visible trails
-          particle.x += particle.vx * deltaTime * 0.05;
-          particle.y += particle.vy * deltaTime * 0.05;
+          particle.x += particle.vx * deltaTime * PARTICLE_MOVEMENT_SCALE;
+          particle.y += particle.vy * deltaTime * PARTICLE_MOVEMENT_SCALE;
         } else {
           // Add barely perceptible random movement for visual interest
           const microMovement = 0.002; // Very small movement
@@ -309,22 +332,26 @@ export const ParticleFlow: FunctionalComponent<ParticleFlowProps> = ({
           point.age += deltaTime;
         });
 
-        // Remove old trail points
-        particle.trail = particle.trail.filter(
-          (point) =>
-            point.age < 800 && // Maximum age - increased for longer trails
-            // Check if point is within the circular boundary
-            Math.sqrt(
-              Math.pow(point.x - centerX, 2) + Math.pow(point.y - centerY, 2)
-            ) <= radius
-        );
+        // Remove old trail points - optimize by avoiding sqrt for distance check
+        particle.trail = particle.trail.filter((point) => {
+          // Check age first as it's a cheaper operation
+          if (point.age >= MAX_TRAIL_AGE) return false;
+
+          // Calculate squared distance from center (avoid sqrt for performance)
+          const dx = point.x - centerX;
+          const dy = point.y - centerY;
+          const distSquared = dx * dx + dy * dy;
+
+          // Compare with squared radius
+          return distSquared <= radiusSquared;
+        });
 
         // If particle goes outside the circular boundary, reset it
-        const distFromCenter = Math.sqrt(
-          Math.pow(particle.x - centerX, 2) + Math.pow(particle.y - centerY, 2)
-        );
+        const dx = particle.x - centerX;
+        const dy = particle.y - centerY;
+        const distSquared = dx * dx + dy * dy;
 
-        if (distFromCenter > radius) {
+        if (distSquared > radiusSquared) {
           // Random position within the circular area
           const angle = Math.random() * Math.PI * 2;
           const distance = Math.random() * radius * 0.5; // Start closer to center
@@ -377,6 +404,21 @@ export const ParticleFlow: FunctionalComponent<ParticleFlowProps> = ({
     // Clear the clipped area completely
     ctx.clearRect(0, 0, width, height);
 
+    // Parse the particleColor to extract RGB values
+    let r = 200,
+      g = 200,
+      b = 200;
+    if (particleColor) {
+      const rgbaMatch = particleColor.match(
+        /rgba?\((\d+),\s*(\d+),\s*(\d+)(?:,\s*[\d.]+)?\)/
+      );
+      if (rgbaMatch) {
+        r = parseInt(rgbaMatch[1], 10);
+        g = parseInt(rgbaMatch[2], 10);
+        b = parseInt(rgbaMatch[3], 10);
+      }
+    }
+
     // Draw particles
     particlesRef.current.forEach((particle) => {
       if (particle.trail.length < 2) return;
@@ -398,7 +440,7 @@ export const ParticleFlow: FunctionalComponent<ParticleFlowProps> = ({
         ctx.lineTo(point.x, point.y);
       }
 
-      // Create gradient for trail - reuse gradients for better performance
+      // Create gradient for trail
       const gradient = ctx.createLinearGradient(
         particle.trail[startIndex].x,
         particle.trail[startIndex].y,
@@ -407,10 +449,10 @@ export const ParticleFlow: FunctionalComponent<ParticleFlowProps> = ({
       );
 
       // Fade from transparent to the particle color with improved gradient
-      gradient.addColorStop(0, "rgba(200, 200, 200, 0)");
-      gradient.addColorStop(0.3, "rgba(200, 200, 200, 0.05)");
-      gradient.addColorStop(0.6, "rgba(200, 200, 200, 0.2)");
-      gradient.addColorStop(0.9, "rgba(200, 200, 200, 0.4)");
+      gradient.addColorStop(0, `rgba(${r}, ${g}, ${b}, 0)`);
+      gradient.addColorStop(0.3, `rgba(${r}, ${g}, ${b}, 0.05)`);
+      gradient.addColorStop(0.6, `rgba(${r}, ${g}, ${b}, 0.2)`);
+      gradient.addColorStop(0.9, `rgba(${r}, ${g}, ${b}, 0.4)`);
       gradient.addColorStop(1, particleColor);
 
       ctx.strokeStyle = gradient;
@@ -426,14 +468,29 @@ export const ParticleFlow: FunctionalComponent<ParticleFlowProps> = ({
 
   // Calculate and update FPS
   const updateFPS = (timestamp: number) => {
+    // Calculate current frame's FPS
+    const currentFps = 1000 / (timestamp - lastTimeRef.current);
+
+    // Add to history
+    fpsHistoryRef.current.push(currentFps);
+
+    // Keep history at desired size
+    if (fpsHistoryRef.current.length > FPS_SAMPLE_SIZE) {
+      fpsHistoryRef.current.shift();
+    }
+
     // Only update FPS every 500ms to avoid excessive calculations
     if (timestamp - lastFpsUpdateRef.current > 500) {
-      const fps = 1000 / (timestamp - lastTimeRef.current);
-      fpsRef.current = fps;
+      // Calculate average FPS from history
+      const avgFps =
+        fpsHistoryRef.current.reduce((sum, fps) => sum + fps, 0) /
+        fpsHistoryRef.current.length;
+
+      fpsRef.current = avgFps;
       lastFpsUpdateRef.current = timestamp;
 
       // Check if we should enter low performance mode
-      isLowPerformanceModeRef.current = fps < LOW_PERFORMANCE_THRESHOLD;
+      isLowPerformanceModeRef.current = avgFps < LOW_PERFORMANCE_THRESHOLD;
     }
   };
 
@@ -470,6 +527,9 @@ export const ParticleFlow: FunctionalComponent<ParticleFlowProps> = ({
     // Set canvas dimensions
     canvasRef.current.width = width;
     canvasRef.current.height = height;
+
+    // Initialize FPS history
+    fpsHistoryRef.current = Array(FPS_SAMPLE_SIZE).fill(60);
 
     // Initialize particles with current direction values
     initParticles();

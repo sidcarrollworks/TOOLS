@@ -1,7 +1,22 @@
 import { useRef, useState, useEffect } from "preact/hooks";
 import type { FunctionalComponent } from "preact";
+import {
+  signal,
+  computed,
+  type Signal,
+  type ReadonlySignal,
+} from "@preact/signals";
 import styles from "./DirectionControl.module.css";
 import { ParticleFlow } from "./ParticleFlow";
+
+// Create signal types for the component
+export interface DirectionSignals {
+  valueX: Signal<number>;
+  valueY: Signal<number>;
+  magnitude: ReadonlySignal<number>;
+  isDragging: Signal<boolean>;
+  isHovered: Signal<boolean>;
+}
 
 interface DirectionControlProps {
   label?: string;
@@ -44,28 +59,65 @@ export const DirectionControl: FunctionalComponent<DirectionControlProps> = ({
     `direction-control-${Math.random().toString(36).substr(2, 9)}`
   ).current;
 
-  // State for internal tracking
+  // Create signals for the component state
+  const signalsRef = useRef<DirectionSignals | null>(null);
+
+  // Initialize signals if not already done
+  if (!signalsRef.current) {
+    const valueXSignal = signal(valueX);
+    const valueYSignal = signal(valueY);
+    const isDraggingSignal = signal(false);
+    const isHoveredSignal = signal(false);
+
+    signalsRef.current = {
+      valueX: valueXSignal,
+      valueY: valueYSignal,
+      isDragging: isDraggingSignal,
+      isHovered: isHoveredSignal,
+      magnitude: computed(() => {
+        return Math.sqrt(
+          valueXSignal.value * valueXSignal.value +
+            valueYSignal.value * valueYSignal.value
+        );
+      }),
+    };
+  }
+
+  // Get signals from ref for easier access
+  const signals = signalsRef.current;
+
+  // State for internal tracking (keeping for backward compatibility)
   const [isDragging, setIsDragging] = useState(false);
   const [showTooltip, setShowTooltip] = useState(false);
   const [isHovered, setIsHovered] = useState(false);
 
+  // Sync props with signals
+  useEffect(() => {
+    signals.valueX.value = valueX;
+  }, [valueX]);
+
+  useEffect(() => {
+    signals.valueY.value = valueY;
+  }, [valueY]);
+
+  // Sync signals with state
+  useEffect(() => {
+    signals.isDragging.value = isDragging;
+  }, [isDragging]);
+
+  useEffect(() => {
+    signals.isHovered.value = isHovered;
+  }, [isHovered]);
+
   // Derived values
-  const magnitude = Math.sqrt(valueX * valueX + valueY * valueY);
+  const magnitude = signals.magnitude.value;
   // Calculate the angle for rotation (in degrees)
   // We use atan2 to get the angle, and convert from radians to degrees
   // Note: We use -valueY because the Y-axis is inverted in the DOM
   // Subtract 90 degrees to make particles flow downward in the direction of the control point
-  const angle = Math.atan2(valueY, -valueX) * (180 / Math.PI) - 90;
-
-  // For debugging cardinal direction issues
-  useEffect(() => {
-    // No longer needed - removing debug logs
-  }, [valueX, valueY, magnitude, angle]);
-
-  // Monitor magnitude changes during dragging
-  useEffect(() => {
-    // No longer needed - removing debug logs
-  }, [magnitude, isDragging]);
+  const angle =
+    Math.atan2(signals.valueY.value, -signals.valueX.value) * (180 / Math.PI) -
+    90;
 
   // Update the ref when state changes
   useEffect(() => {
@@ -128,7 +180,7 @@ export const DirectionControl: FunctionalComponent<DirectionControlProps> = ({
   const updateValuesFromPointerPosition = (
     e: MouseEvent,
     isShiftKey = false
-  ) => {
+  ): void => {
     if (!controlAreaRef.current) return;
 
     // Get control area dimensions and position
@@ -183,16 +235,25 @@ export const DirectionControl: FunctionalComponent<DirectionControlProps> = ({
     const roundToStep = (value: number) => Math.round(value / step) * step;
 
     // Update values
-    onChangeX(roundToStep(newX));
-    onChangeY(roundToStep(newY));
-    onChangeSpeed(roundToStep(newSpeed));
+    const roundedX = roundToStep(newX);
+    const roundedY = roundToStep(newY);
+    const roundedSpeed = roundToStep(newSpeed);
+
+    // Update signals directly for immediate effect
+    signals.valueX.value = roundedX;
+    signals.valueY.value = roundedY;
+
+    // Also call the callbacks for parent component updates
+    onChangeX(roundedX);
+    onChangeY(roundedY);
+    onChangeSpeed(roundedSpeed);
 
     // Force re-render of the component to ensure animation continues
     setIsHovered(true);
   };
 
   // Get color based on magnitude for intensity visualization
-  const getIntensityColor = (magnitude: number, hovered: boolean) => {
+  const getIntensityColor = (magnitude: number, hovered: boolean): string => {
     // Use grayscale when not hovered
     if (!hovered && !isDragging) {
       if (magnitude < 0.3) return "var(--gray-8)";
@@ -228,17 +289,17 @@ export const DirectionControl: FunctionalComponent<DirectionControlProps> = ({
   // Note: We use -valueX and -valueY here to flip the visual representation
   // to match the actual flow direction in the shader
   const controlPointStyle = {
-    left: `${50 + (-valueX / max) * 50}%`,
-    top: `${50 - (-valueY / max) * 50}%`,
-    color: getIntensityColor(magnitude, isHovered || isDragging),
+    left: `${50 + (-signals.valueX.value / max) * 50}%`,
+    top: `${50 - (-signals.valueY.value / max) * 50}%`,
+    color: getIntensityColor(signals.magnitude.value, isHovered || isDragging),
     // Add a dynamic box-shadow that matches the color for a glow effect
     boxShadow:
       isHovered || isDragging
         ? `0 0 2px ${getIntensityColor(
-            magnitude,
+            signals.magnitude.value,
             true
           )}, 0 0 8px -6px ${getIntensityColor(
-            Math.min(1, magnitude * 0.7),
+            Math.min(1, signals.magnitude.value * 0.7),
             true
           )}`
         : undefined,
@@ -251,17 +312,32 @@ export const DirectionControl: FunctionalComponent<DirectionControlProps> = ({
     x1: 60 - 0.5, // Center X (120px / 2) with 0.5px adjustment for precise centering
     y1: 60 - 0.5, // Center Y (120px / 2) with 0.5px adjustment for precise centering
     // Add a tiny offset (0.0001) to prevent exact zero values which can cause rendering issues
-    x2: 60 - 0.5 + (Math.abs(-valueX) < 0.001 ? 0.0001 : (-valueX / max) * 60),
-    y2: 60 - 0.5 - (Math.abs(-valueY) < 0.001 ? 0.0001 : (-valueY / max) * 60),
+    x2:
+      60 -
+      0.5 +
+      (Math.abs(-signals.valueX.value) < 0.001
+        ? 0.0001
+        : (-signals.valueX.value / max) * 60),
+    y2:
+      60 -
+      0.5 -
+      (Math.abs(-signals.valueY.value) < 0.001
+        ? 0.0001
+        : (-signals.valueY.value / max) * 60),
     strokeWidth: 1, // Line width
     // Only hide the line when both X and Y are exactly 0 (center position)
-    opacity: Math.abs(valueX) < 0.001 && Math.abs(valueY) < 0.001 ? 0 : 1,
+    opacity:
+      Math.abs(signals.valueX.value) < 0.001 &&
+      Math.abs(signals.valueY.value) < 0.001
+        ? 0
+        : 1,
   };
 
   // Calculate rotation style for the canvas container
   // We rotate in the opposite direction of the angle to make particles flow in the direction of the control point
   const canvasRotationStyle = {
-    transform: magnitude > 0.01 ? `rotate(${angle}deg)` : "rotate(90deg)", // Default to downward flow when magnitude is near zero
+    transform:
+      signals.magnitude.value > 0.01 ? `rotate(${angle}deg)` : "rotate(90deg)", // Default to downward flow when magnitude is near zero
     transition: isDragging ? "none" : "transform 0.2s ease-out", // Add smooth transition except when dragging
   };
 
@@ -294,7 +370,7 @@ export const DirectionControl: FunctionalComponent<DirectionControlProps> = ({
           {/* Particle flow visualization with rotation container */}
           <div className={styles.canvasContainer} style={canvasRotationStyle}>
             <ParticleFlow
-              magnitude={magnitude}
+              magnitude={signals.magnitude.value}
               width={120} // Match the control area size
               height={120} // Match the control area size
               isVisible={isHovered || isDragging} // Visible when hovered or dragging
@@ -302,7 +378,8 @@ export const DirectionControl: FunctionalComponent<DirectionControlProps> = ({
               directionX={0} // Fixed direction - always downward
               directionY={1} // Fixed direction - always downward
               particleColor="rgba(180, 180, 180, 0.7)" // Light gray color with slightly more opacity
-              isDragging={isDragging} // Pass dragging state for performance optimization
+              isDragging={signals.isDragging.value} // Pass dragging state for performance optimization
+              signals={signals} // Pass signals to ParticleFlow
             />
           </div>
 
@@ -383,9 +460,9 @@ export const DirectionControl: FunctionalComponent<DirectionControlProps> = ({
 
         {/* Value display */}
         <div className={styles.valueDisplay}>
-          <div>X: {(-valueX).toFixed(2)}</div>
-          <div>Y: {(-valueY).toFixed(2)}</div>
-          <div>Mag: {magnitude.toFixed(2)}</div>
+          <div>X: {(-signals.valueX.value).toFixed(2)}</div>
+          <div>Y: {(-signals.valueY.value).toFixed(2)}</div>
+          <div>Mag: {signals.magnitude.value.toFixed(2)}</div>
           <div>Angle: {Math.round(angle)}°</div>
         </div>
       </div>
