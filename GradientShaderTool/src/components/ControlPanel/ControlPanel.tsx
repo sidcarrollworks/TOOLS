@@ -228,7 +228,7 @@ export const ControlPanel: FunctionComponent<ControlPanelProps> = ({ app }) => {
         {createSlider("Scale Y", "normalNoiseScaleY", 0.1, 10, 0.1)}
         {createSlider("Speed", "normalNoiseSpeed", 0, 1, 0.01, 2)}
         {createSlider("Strength", "normalNoiseStrength", 0, 1, 0.01, 2)}
-        <div className={styles.controlGroupSubtitle}>Direction</div>
+        {/* <div className={styles.controlGroupSubtitle}>Direction</div> */}
         <DirectionControl
           valueX={params.normalNoiseShiftX}
           valueY={params.normalNoiseShiftY}
@@ -251,7 +251,7 @@ export const ControlPanel: FunctionComponent<ControlPanelProps> = ({ app }) => {
         <div className={styles.controlGroupTitle}>Color Noise</div>
         {createSlider("Scale", "colorNoiseScale", 0.1, 10, 0.1)}
         {createSlider("Speed", "colorNoiseSpeed", 0, 1, 0.01, 2)}
-        <div className={styles.controlGroupSubtitle}>Direction</div>
+        {/* <div className={styles.controlGroupSubtitle}>Direction</div> */}
         <DirectionControl
           valueX={params.gradientShiftX}
           valueY={params.gradientShiftY}

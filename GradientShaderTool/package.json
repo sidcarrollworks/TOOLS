@@ -18,6 +18,7 @@
     "typescript": "^5.0.0"
   },
   "dependencies": {
+    "@preact/signals": "^2.0.1",
     "@radix-ui/colors": "^3.0.0",
     "@types/dat.gui": "^0.7.13",
     "@types/prismjs": "^1.26.5",

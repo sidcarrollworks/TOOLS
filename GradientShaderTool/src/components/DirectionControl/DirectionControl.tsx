@@ -1,6 +1,7 @@
 import { useRef, useState, useEffect } from "preact/hooks";
 import type { FunctionalComponent } from "preact";
 import styles from "./DirectionControl.module.css";
+import { ParticleFlow } from "./ParticleFlow";
 
 interface DirectionControlProps {
   label?: string;
@@ -19,7 +20,7 @@ interface DirectionControlProps {
 }
 
 export const DirectionControl: FunctionalComponent<DirectionControlProps> = ({
-  label = "Direction",
+  label = "Flow",
   valueX,
   valueY,
   speed,
@@ -50,24 +51,26 @@ export const DirectionControl: FunctionalComponent<DirectionControlProps> = ({
 
   // Derived values
   const magnitude = Math.sqrt(valueX * valueX + valueY * valueY);
-  const angle = Math.atan2(-valueY, -valueX) * (180 / Math.PI);
+  // Calculate the angle for rotation (in degrees)
+  // We use atan2 to get the angle, and convert from radians to degrees
+  // Note: We use -valueY because the Y-axis is inverted in the DOM
+  // Subtract 90 degrees to make particles flow downward in the direction of the control point
+  const angle = Math.atan2(valueY, -valueX) * (180 / Math.PI) - 90;
 
   // For debugging cardinal direction issues
   useEffect(() => {
-    if (Math.abs(valueX) < 0.01 || Math.abs(valueY) < 0.01) {
-      console.log("Near cardinal direction:", {
-        valueX,
-        valueY,
-        magnitude,
-        angle,
-      });
-    }
+    // No longer needed - removing debug logs
   }, [valueX, valueY, magnitude, angle]);
+
+  // Monitor magnitude changes during dragging
+  useEffect(() => {
+    // No longer needed - removing debug logs
+  }, [magnitude, isDragging]);
 
   // Update the ref when state changes
   useEffect(() => {
     isDraggingRef.current = isDragging;
-  }, [isDragging]);
+  }, [isDragging, magnitude]);
 
   // Mouse event handlers
   const handleMouseDown = (e: MouseEvent) => {
@@ -104,6 +107,9 @@ export const DirectionControl: FunctionalComponent<DirectionControlProps> = ({
     // End dragging
     setIsDragging(false);
     isDraggingRef.current = false;
+
+    // Make sure to update values one last time to ensure we have the final position
+    updateValuesFromPointerPosition(e, e.shiftKey);
 
     // Remove global event listeners
     window.removeEventListener("mousemove", handleMouseMove);
@@ -180,6 +186,9 @@ export const DirectionControl: FunctionalComponent<DirectionControlProps> = ({
     onChangeX(roundToStep(newX));
     onChangeY(roundToStep(newY));
     onChangeSpeed(roundToStep(newSpeed));
+
+    // Force re-render of the component to ensure animation continues
+    setIsHovered(true);
   };
 
   // Get color based on magnitude for intensity visualization
@@ -249,6 +258,13 @@ export const DirectionControl: FunctionalComponent<DirectionControlProps> = ({
     opacity: Math.abs(valueX) < 0.001 && Math.abs(valueY) < 0.001 ? 0 : 1,
   };
 
+  // Calculate rotation style for the canvas container
+  // We rotate in the opposite direction of the angle to make particles flow in the direction of the control point
+  const canvasRotationStyle = {
+    transform: magnitude > 0.01 ? `rotate(${angle}deg)` : "rotate(90deg)", // Default to downward flow when magnitude is near zero
+    transition: isDragging ? "none" : "transform 0.2s ease-out", // Add smooth transition except when dragging
+  };
+
   return (
     <div
       className={`${styles.directionControl} ${
@@ -275,6 +291,21 @@ export const DirectionControl: FunctionalComponent<DirectionControlProps> = ({
           onMouseDown={handleMouseDown}
           onDblClick={handleDoubleClick}
         >
+          {/* Particle flow visualization with rotation container */}
+          <div className={styles.canvasContainer} style={canvasRotationStyle}>
+            <ParticleFlow
+              magnitude={magnitude}
+              width={120} // Match the control area size
+              height={120} // Match the control area size
+              isVisible={isHovered || isDragging} // Visible when hovered or dragging
+              particleCount={25} // Moderate particle count for performance
+              directionX={0} // Fixed direction - always downward
+              directionY={1} // Fixed direction - always downward
+              particleColor="rgba(180, 180, 180, 0.7)" // Light gray color with slightly more opacity
+              isDragging={isDragging} // Pass dragging state for performance optimization
+            />
+          </div>
+
           {/* Grid lines and indicators */}
           <div className={styles.gridLines}>
             <div className={styles.horizontalLine}></div>
