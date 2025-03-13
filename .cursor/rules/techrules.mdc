@@ -1,0 +1,10 @@
+---
+description: The tech stack we are using
+globs: 
+alwaysApply: false
+---
+
+Use:
+Preact (Prioritize using signals)
+Typescript
+Bun for the package manager

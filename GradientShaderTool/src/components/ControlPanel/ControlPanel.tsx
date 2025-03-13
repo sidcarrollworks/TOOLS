@@ -1,6 +1,7 @@
 import type { FunctionComponent } from "preact";
 import type { ShaderParams } from "../../lib/ShaderApp";
-import { useState, useEffect, useRef } from "preact/hooks";
+import { useEffect, useRef } from "preact/hooks";
+import { signal, effect, batch, computed } from "@preact/signals";
 import styles from "./ControlPanel.module.css";
 import { ShaderApp } from "../../lib/ShaderApp";
 import { NumericControl } from "./NumericControl";
@@ -8,12 +9,20 @@ import { setPresetApplying } from "../FigmaInput/FigmaInput";
 import { Select } from "../UI";
 import { DirectionControl } from "../DirectionControl";
 
+// Create a signal for the shader parameters
+const paramsSignal = signal<ShaderParams | null>(null);
+// Signal for pending geometry updates
+const hasPendingUpdatesSignal = signal(false);
+// Signal to track initialization status
+const isInitializedSignal = signal(false);
+// Signal to track the current app instance
+const currentAppSignal = signal<ShaderApp | null>(null);
+
 interface ControlPanelProps {
   app: ShaderApp | null;
 }
 
 export const ControlPanel: FunctionComponent<ControlPanelProps> = ({ app }) => {
-  const [params, setParams] = useState<ShaderParams | null>(null);
   // Add debounce timer ref
   const debounceTimerRef = useRef<number | null>(null);
   // Add pending geometry updates ref
@@ -21,45 +30,116 @@ export const ControlPanel: FunctionComponent<ControlPanelProps> = ({ app }) => {
     key: keyof ShaderParams;
     value: number;
   } | null>(null);
-  // Add state for pending updates
-  const [hasPendingUpdates, setHasPendingUpdates] = useState(false);
+  // Track initialization attempts
+  const initAttemptRef = useRef(0);
 
   // Initialize params when app changes or component mounts
   useEffect(() => {
     // Safety check - app should always be provided based on parent component logic
     if (!app) {
       console.error("ControlPanel received null app prop");
+      // Don't reset the params if we already have them - this prevents flickering
+      // when the component temporarily receives a null app during re-renders
+      if (paramsSignal.value) {
+        console.log("Keeping existing params despite null app prop");
+        return;
+      }
       return;
     }
 
-    console.log("Initializing params from app in ControlPanel");
+    // Check if this is the same app instance we already processed
+    if (currentAppSignal.value === app && paramsSignal.value) {
+      console.log("Same app instance, skipping re-initialization");
+      return;
+    }
 
-    // Set initial params
-    setParams({ ...app.params });
+    // Update the current app signal
+    currentAppSignal.value = app;
+
+    // Increment initialization attempt counter
+    initAttemptRef.current += 1;
+    console.log(
+      `Initializing params from app in ControlPanel (attempt ${initAttemptRef.current})`
+    );
+    console.log("App params available:", !!app.params);
+
+    // Set initial params - make a deep copy to ensure we don't have reference issues
+    try {
+      const paramsClone = JSON.parse(JSON.stringify(app.params));
+      batch(() => {
+        paramsSignal.value = paramsClone;
+        isInitializedSignal.value = true;
+      });
+      console.log(
+        "Successfully initialized params signal:",
+        paramsSignal.value
+      );
+    } catch (error) {
+      console.error("Error initializing params signal:", error);
+    }
 
     // Set up the updateGUI method on the app
     (app as any).updateGUI = () => {
       console.log("updateGUI called in ControlPanel");
-      setParams({ ...app.params });
+      // Make a deep copy to ensure we don't have reference issues
+      try {
+        paramsSignal.value = JSON.parse(JSON.stringify(app.params));
+      } catch (error) {
+        console.error("Error updating params signal:", error);
+      }
     };
 
     // Call updateGUI once to ensure params are up to date
     (app as any).updateGUI();
-  }, [app]); // Only re-run when app changes
 
-  // Cleanup debounce timer on unmount
-  useEffect(() => {
+    // Set up an effect to sync app params with our signal
+    const cleanup = effect(() => {
+      if (app && paramsSignal.value) {
+        // This effect will run whenever paramsSignal changes
+        // We don't need to do anything here as we update the app directly in handleChange
+      }
+    });
+
+    // Set up a retry mechanism if params aren't loaded correctly
+    if (!paramsSignal.value && initAttemptRef.current < 3) {
+      console.log("Params not loaded correctly, scheduling retry...");
+      const retryTimer = setTimeout(() => {
+        if (!paramsSignal.value && app.params) {
+          console.log("Retrying params initialization...");
+          try {
+            paramsSignal.value = JSON.parse(JSON.stringify(app.params));
+            isInitializedSignal.value = true;
+            console.log(
+              "Successfully initialized params on retry:",
+              paramsSignal.value
+            );
+          } catch (error) {
+            console.error("Error initializing params on retry:", error);
+          }
+        }
+      }, 500);
+
+      return () => {
+        clearTimeout(retryTimer);
+        cleanup();
+
+        // Clean up debounce timer
+        if (debounceTimerRef.current !== null) {
+          window.clearTimeout(debounceTimerRef.current);
+        }
+      };
+    }
+
     return () => {
+      // Clean up the effect
+      cleanup();
+
+      // Clean up debounce timer
       if (debounceTimerRef.current !== null) {
         window.clearTimeout(debounceTimerRef.current);
       }
     };
-  }, []);
-
-  // Show loading state if params aren't loaded yet
-  if (!params) {
-    return <div className={styles.controlPanel}>Loading controls...</div>;
-  }
+  }, [app]); // Only re-run when app changes
 
   // Function to apply debounced geometry updates
   const applyGeometryUpdate = () => {
@@ -74,7 +154,7 @@ export const ControlPanel: FunctionComponent<ControlPanelProps> = ({ app }) => {
 
     // Reset pending updates
     pendingGeometryUpdates.current = null;
-    setHasPendingUpdates(false);
+    hasPendingUpdatesSignal.value = false;
 
     // Schedule a final high-quality update after interaction ends
     setTimeout(() => {
@@ -90,13 +170,20 @@ export const ControlPanel: FunctionComponent<ControlPanelProps> = ({ app }) => {
     key: keyof ShaderParams,
     value: number | string | boolean
   ) => {
-    if (!app) return;
+    if (!app || !paramsSignal.value) return;
 
-    // Update the app parameter
-    app.params[key] = value as never; // Type assertion needed due to complex type constraints
+    // Use batch to group multiple signal updates
+    batch(() => {
+      // Create a new params object with the updated value
+      const newParams = { ...paramsSignal.value! };
+      newParams[key] = value as never;
 
-    // Update local state
-    setParams({ ...app.params });
+      // Update the app parameter directly
+      app.params[key] = value as never;
+
+      // Update the signal with the new params
+      paramsSignal.value = newParams;
+    });
 
     // Update the dev panel if it's been set up
     if ("updateDevPanel" in app) {
@@ -125,7 +212,7 @@ export const ControlPanel: FunctionComponent<ControlPanelProps> = ({ app }) => {
       };
 
       // Set pending updates flag
-      setHasPendingUpdates(true);
+      hasPendingUpdatesSignal.value = true;
 
       // Clear any existing timer
       if (debounceTimerRef.current !== null) {
@@ -159,7 +246,7 @@ export const ControlPanel: FunctionComponent<ControlPanelProps> = ({ app }) => {
       app.presets[presetName]();
 
       // Update local state
-      setParams({ ...app.params });
+      paramsSignal.value = JSON.parse(JSON.stringify(app.params));
 
       // Update the dev panel if it's been set up
       if ("updateDevPanel" in app) {
@@ -181,18 +268,84 @@ export const ControlPanel: FunctionComponent<ControlPanelProps> = ({ app }) => {
     max: number,
     step: number,
     decimals: number = 1
-  ) => (
-    <NumericControl
-      label={label}
-      paramKey={key}
-      value={params[key] as number}
-      min={min}
-      max={max}
-      step={step}
-      decimals={decimals}
-      onChange={handleChange}
-    />
-  );
+  ) => {
+    const params = paramsSignal.value;
+    if (!params) return null;
+
+    return (
+      <NumericControl
+        label={label}
+        paramKey={key}
+        value={params[key] as number}
+        min={min}
+        max={max}
+        step={step}
+        decimals={decimals}
+        onChange={handleChange}
+      />
+    );
+  };
+
+  // Show loading state if params aren't loaded yet
+  if (!paramsSignal.value) {
+    return (
+      <div className={styles.controlPanel}>
+        <div style={{ padding: "20px", textAlign: "center" }}>
+          <div>Loading controls...</div>
+          {initAttemptRef.current > 1 && (
+            <div
+              style={{ marginTop: "10px", fontSize: "0.8em", color: "#888" }}
+            >
+              Attempt {initAttemptRef.current} - Please wait
+            </div>
+          )}
+
+          {initAttemptRef.current >= 2 && (
+            <div style={{ marginTop: "20px" }}>
+              <button
+                onClick={() => {
+                  console.log("Manual initialization attempt");
+                  if (app && app.params) {
+                    try {
+                      console.log("App params available:", app.params);
+                      paramsSignal.value = JSON.parse(
+                        JSON.stringify(app.params)
+                      );
+                      console.log(
+                        "Manually set params signal:",
+                        paramsSignal.value
+                      );
+                    } catch (error) {
+                      console.error("Error in manual initialization:", error);
+                    }
+                  } else {
+                    console.error(
+                      "App or app.params is null in manual initialization"
+                    );
+                  }
+                }}
+                style={{
+                  padding: "8px 16px",
+                  background: "#333",
+                  color: "white",
+                  border: "none",
+                  borderRadius: "4px",
+                  cursor: "pointer",
+                  fontSize: "14px",
+                }}
+              >
+                Debug: Force Initialize
+              </button>
+            </div>
+          )}
+        </div>
+      </div>
+    );
+  }
+
+  // Get the current params from the signal
+  const params = paramsSignal.value;
+  const hasPendingUpdates = hasPendingUpdatesSignal.value;
 
   return (
     <div className={styles.controlPanel}>
@@ -561,13 +714,21 @@ export const ControlPanel: FunctionComponent<ControlPanelProps> = ({ app }) => {
         <div className={styles.controlGroupTitle}>Export</div>
 
         <div className={styles.controlRow}>
-          <button className={styles.button} onClick={() => app?.saveAsImage()}>
+          <button
+            className={styles.button}
+            onClick={() => app?.saveAsImage()}
+            disabled={!app}
+          >
             Save as Image
           </button>
         </div>
 
         <div className={styles.controlRow}>
-          <button className={styles.button} onClick={() => app?.exportCode()}>
+          <button
+            className={styles.button}
+            onClick={() => app?.exportCode()}
+            disabled={!app}
+          >
             Export Code
           </button>
         </div>
