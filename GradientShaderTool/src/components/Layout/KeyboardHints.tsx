@@ -5,11 +5,13 @@ import styles from "./Layout.module.css";
 interface KeyboardHintsProps {
   visible: boolean;
   disableTransitions: boolean;
+  isFullscreen?: boolean;
 }
 
 export const KeyboardHints: FunctionComponent<KeyboardHintsProps> = ({
   visible,
   disableTransitions,
+  isFullscreen = false,
 }) => {
   const keyboardHintsClass = `${styles.keyboardHints} ${
     !visible ? styles.keyboardHintsHidden : ""
@@ -33,6 +35,9 @@ export const KeyboardHints: FunctionComponent<KeyboardHintsProps> = ({
         <kbd>Space</kbd> Pause/Play
       </span>
       <span className={styles.keyboardHint}>
+        <kbd>F</kbd> {isFullscreen ? "Exit" : "Enter"} Fullscreen
+      </span>
+      <span className={styles.keyboardHint}>
         <kbd>Ctrl</kbd>+<kbd>D</kbd> Dev Panel
       </span>
     </div>
@@ -42,11 +47,13 @@ export const KeyboardHints: FunctionComponent<KeyboardHintsProps> = ({
 interface MinimalHintProps {
   visible: boolean;
   disableTransitions: boolean;
+  isFullscreen?: boolean;
 }
 
 export const MinimalHint: FunctionComponent<MinimalHintProps> = ({
   visible,
   disableTransitions,
+  isFullscreen = false,
 }) => {
   const minimalHintClass = `${styles.minimalHint} ${
     !visible ? styles.minimalHintHidden : ""
@@ -55,6 +62,8 @@ export const MinimalHint: FunctionComponent<MinimalHintProps> = ({
   return (
     <div className={minimalHintClass}>
       <kbd>H</kbd> Show UI
+      <span className={styles.minimalHintSeparator}>|</span>
+      <kbd>F</kbd> {isFullscreen ? "Exit" : "Enter"} Fullscreen
     </div>
   );
 };

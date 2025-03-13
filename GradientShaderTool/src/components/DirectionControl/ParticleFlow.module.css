@@ -7,7 +7,7 @@
   border-radius: 50%;
   pointer-events: none; /* Make sure it doesn't interfere with mouse events */
   z-index: 0; /* Place it behind other elements */
-  mask-image: radial-gradient(circle, black 30%, transparent 80%);
+  mask-image: radial-gradient(circle, black 30%, transparent 50%);
 }
 /* C
   ontainer for the canvas with a subtle fade transition */

@@ -33,21 +33,21 @@ interface Particle {
 }
 
 // Performance optimization constants
-const ACTIVE_PARTICLE_COUNT = 100;
-const IDLE_PARTICLE_COUNT = 60;
+const ACTIVE_PARTICLE_COUNT = 400;
+const IDLE_PARTICLE_COUNT = 280;
 const TRAIL_POINT_INTERVAL = 2;
 const LOW_PERFORMANCE_THRESHOLD = 30;
 const MAX_TRAIL_AGE = 800;
 const FPS_SAMPLE_SIZE = 10;
 const DIRECTION_CHANGE_INERTIA = 0.02;
-const MIN_PARTICLE_DISTANCE = 15;
+const MIN_PARTICLE_DISTANCE = 6;
 const PARTICLE_SIZE = 2;
 
 export const ParticleFlow: FunctionalComponent<ParticleFlowProps> = ({
   magnitude = 0.5,
   width = 100,
   height = 100,
-  particleCount = 100,
+  particleCount = 250,
   particleColor = "rgba(200, 200, 200, 0.6)",
   isVisible = false,
   directionX = 0,
@@ -109,7 +109,7 @@ export const ParticleFlow: FunctionalComponent<ParticleFlowProps> = ({
       : currentMagnitudeRef.current < 0.01;
   };
 
-  // Update particle count based on interaction state
+  // Update particle count based on interaction state and particleCount changes
   useEffect(() => {
     const targetCount = isDragging
       ? Math.min(particleCount, ACTIVE_PARTICLE_COUNT)
@@ -123,55 +123,61 @@ export const ParticleFlow: FunctionalComponent<ParticleFlowProps> = ({
     }
   }, [isDragging, particleCount, actualParticleCount]);
 
+  // Initialize particles
+  const initParticles = () => {
+    particlesRef.current = initializeNewParticles(actualParticleCount);
+  };
+
   // Initialize a specific number of new particles
   const initializeNewParticles = (count: number): Particle[] => {
     const particles: Particle[] = [];
     const diameter = radius * 2;
-    const gridPointsPerSide = Math.ceil(Math.sqrt(count * 1.5));
+
+    // Calculate appropriate grid size to fit more particles
+    const gridPointsPerSide = Math.ceil(Math.sqrt(count * 3)); // Increased multiplier for denser grid
     const gridSpacing = diameter / gridPointsPerSide;
     const gridSize = Math.ceil((radius * 2) / gridSpacing);
     const startX = centerX - (gridSize * gridSpacing) / 2;
     const startY = centerY - (gridSize * gridSpacing) / 2;
 
-    // Calculate direction for positioning
+    // Calculate direction for positioning - only used for velocity, not positioning
     const { x: normalizedDirX, y: normalizedDirY } = getNormalizedDirection();
-    const controlAngle = Math.atan2(normalizedDirY, normalizedDirX);
-    const oppositeAngle = controlAngle + Math.PI;
     const baseSpeed = baseSpeedRef.current;
     const atOrigin = isAtOrigin();
 
-    // Create grid positions
+    // Create grid positions with uniform distribution
     const gridPositions = [];
+
+    // Collect all valid grid positions within the circle - no jitter for perfect grid
     for (let i = 0; i < gridSize; i++) {
       for (let j = 0; j < gridSize; j++) {
-        const x = startX + i * gridSpacing;
-        const y = startY + j * gridSpacing;
+        const x = startX + i * gridSpacing; // Removed jitter for perfect grid
+        const y = startY + j * gridSpacing; // Removed jitter for perfect grid
         const dx = x - centerX;
         const dy = y - centerY;
         const distanceFromCenter = Math.sqrt(dx * dx + dy * dy);
 
         if (distanceFromCenter <= radius) {
-          const angle = Math.atan2(dy, dx);
-          const angleDiff = Math.abs(
-            ((angle - oppositeAngle + Math.PI * 3) % (Math.PI * 2)) - Math.PI
-          );
-          const oppositenessFactor = 1 - angleDiff / Math.PI;
-
+          // Only consider position within the circle
           gridPositions.push({
             x,
             y,
             distanceFromCenter,
-            oppositenessFactor,
           });
         }
       }
     }
 
-    // Sort and select positions
-    gridPositions.sort((a, b) => b.oppositenessFactor - a.oppositenessFactor);
-    const selectedPositions = gridPositions.slice(0, count);
+    // Shuffle all positions for randomness while maintaining grid structure
+    shuffleArray(gridPositions);
 
-    // Create particles
+    // Take as many positions as needed, up to the count or available positions
+    const selectedPositions = gridPositions.slice(
+      0,
+      Math.min(count, gridPositions.length)
+    );
+
+    // Create particles from the selected positions
     for (let i = 0; i < selectedPositions.length; i++) {
       const position = selectedPositions[i];
       const speed = baseSpeed;
@@ -196,7 +202,7 @@ export const ParticleFlow: FunctionalComponent<ParticleFlowProps> = ({
       });
     }
 
-    // Add additional particles if needed
+    // Add additional particles if needed - this is our fallback
     if (particles.length < count) {
       const remainingCount = count - particles.length;
 
@@ -214,14 +220,15 @@ export const ParticleFlow: FunctionalComponent<ParticleFlowProps> = ({
       };
 
       for (let i = 0; i < remainingCount; i++) {
-        let x = 0,
-          y = 0,
-          attempts = 0,
-          validPosition = false;
+        let x = centerX;
+        let y = centerY;
+        let attempts = 0;
+        let validPosition = false;
 
         while (!validPosition && attempts < 10) {
           const angle = Math.random() * Math.PI * 2;
-          const distance = Math.sqrt(Math.random()) * radius * 0.95;
+          const normalizedRadius = Math.sqrt(Math.random()); // Uniform by area
+          const distance = normalizedRadius * radius * 0.95;
           x = centerX + Math.cos(angle) * distance;
           y = centerY + Math.sin(angle) * distance;
           validPosition = !isTooClose(x, y);
@@ -252,6 +259,36 @@ export const ParticleFlow: FunctionalComponent<ParticleFlowProps> = ({
     }
 
     return particles;
+  };
+
+  // Initialize and start animation - update to include particleCount as a dependency
+  useEffect(() => {
+    if (!canvasRef.current) return;
+
+    canvasRef.current.width = width;
+    canvasRef.current.height = height;
+    fpsHistoryRef.current = Array(FPS_SAMPLE_SIZE).fill(60);
+    initParticles();
+
+    if (isVisible) {
+      animationFrameRef.current = requestAnimationFrame(animate);
+    }
+
+    return () => {
+      if (animationFrameRef.current) {
+        cancelAnimationFrame(animationFrameRef.current);
+        animationFrameRef.current = 0;
+      }
+    };
+  }, [width, height, isVisible, particleCount]);
+
+  // Helper function to shuffle an array (Fisher-Yates algorithm)
+  const shuffleArray = <T,>(array: T[]): T[] => {
+    for (let i = array.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [array[i], array[j]] = [array[j], array[i]];
+    }
+    return array;
   };
 
   // Adjust particle count without full reinitialization
@@ -302,11 +339,6 @@ export const ParticleFlow: FunctionalComponent<ParticleFlowProps> = ({
     });
   };
 
-  // Initialize particles
-  const initParticles = () => {
-    particlesRef.current = initializeNewParticles(actualParticleCount);
-  };
-
   // Find new position for respawning particles
   const findRespawnPosition = (
     particleId: number
@@ -314,17 +346,12 @@ export const ParticleFlow: FunctionalComponent<ParticleFlowProps> = ({
     // Calculate grid parameters
     const diameter = radius * 2;
     const gridPointsPerSide = Math.ceil(
-      Math.sqrt(particlesRef.current.length * 1.5)
+      Math.sqrt(particlesRef.current.length * 3)
     );
     const gridSpacing = diameter / gridPointsPerSide;
     const gridSize = Math.ceil((radius * 2) / gridSpacing);
     const startX = centerX - (gridSize * gridSpacing) / 2;
     const startY = centerY - (gridSize * gridSpacing) / 2;
-
-    // Get direction info
-    const { x: normalizedDirX, y: normalizedDirY } = getNormalizedDirection();
-    const controlAngle = Math.atan2(normalizedDirY, normalizedDirX);
-    const oppositeAngle = controlAngle + Math.PI;
 
     // Helper to check proximity
     const isTooClose = (x: number, y: number, currentId: number): boolean => {
@@ -340,42 +367,59 @@ export const ParticleFlow: FunctionalComponent<ParticleFlowProps> = ({
       return false;
     };
 
-    // Generate possible positions
+    // Generate possible positions uniformly across the circle - no jitter for perfect grid
     const positions = [];
     for (let i = 0; i < gridSize; i++) {
       for (let j = 0; j < gridSize; j++) {
-        const x = startX + i * gridSpacing;
-        const y = startY + j * gridSpacing;
+        const x = startX + i * gridSpacing; // Removed jitter for perfect grid
+        const y = startY + j * gridSpacing; // Removed jitter for perfect grid
         const dx = x - centerX;
         const dy = y - centerY;
         const distanceFromCenter = Math.sqrt(dx * dx + dy * dy);
 
         if (distanceFromCenter <= radius && !isTooClose(x, y, particleId)) {
-          const angle = Math.atan2(dy, dx);
-          const angleDiff = Math.abs(
-            ((angle - oppositeAngle + Math.PI * 3) % (Math.PI * 2)) - Math.PI
-          );
-          const oppositenessFactor = 1 - angleDiff / Math.PI;
-
+          // Only consider position within the circle
           positions.push({
             x,
             y,
             distanceFromCenter,
-            oppositenessFactor,
           });
         }
       }
     }
 
-    positions.sort((a, b) => b.oppositenessFactor - a.oppositenessFactor);
-
+    // Shuffle and select a random position
     if (positions.length > 0) {
+      shuffleArray(positions);
       return positions[0];
     }
 
-    // Fallback to random position
+    // Fallback to random position with collision avoidance
+    let attempts = 0;
+    let x = centerX;
+    let y = centerY;
+    let validPosition = false;
+
+    while (!validPosition && attempts < 15) {
+      attempts++;
+      const angle = Math.random() * Math.PI * 2;
+      // Use uniform distribution across the entire circle area
+      const normalizedRadius = Math.sqrt(Math.random()); // Square root for uniform area distribution
+      const distance = normalizedRadius * radius * 0.9;
+      x = centerX + Math.cos(angle) * distance;
+      y = centerY + Math.sin(angle) * distance;
+
+      validPosition = !isTooClose(x, y, particleId);
+    }
+
+    if (validPosition) {
+      return { x, y };
+    }
+
+    // Last resort - just pick a random position and force it
     const angle = Math.random() * Math.PI * 2;
-    const distance = Math.random() * radius * 0.7;
+    const normalizedRadius = Math.sqrt(Math.random());
+    const distance = normalizedRadius * radius * 0.8;
     return {
       x: centerX + Math.cos(angle) * distance,
       y: centerY + Math.sin(angle) * distance,
@@ -660,27 +704,6 @@ export const ParticleFlow: FunctionalComponent<ParticleFlowProps> = ({
 
     animationFrameRef.current = requestAnimationFrame(animate);
   };
-
-  // Initialize and start animation
-  useEffect(() => {
-    if (!canvasRef.current) return;
-
-    canvasRef.current.width = width;
-    canvasRef.current.height = height;
-    fpsHistoryRef.current = Array(FPS_SAMPLE_SIZE).fill(60);
-    initParticles();
-
-    if (isVisible) {
-      animationFrameRef.current = requestAnimationFrame(animate);
-    }
-
-    return () => {
-      if (animationFrameRef.current) {
-        cancelAnimationFrame(animationFrameRef.current);
-        animationFrameRef.current = 0;
-      }
-    };
-  }, [width, height, isVisible, actualParticleCount]);
 
   // Handle visibility changes
   useEffect(() => {

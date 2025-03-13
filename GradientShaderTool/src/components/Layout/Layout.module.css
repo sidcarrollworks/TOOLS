@@ -22,7 +22,7 @@
   height: 100%;
   overflow: hidden;
   width: 100%;
-  padding: 6px;
+  padding: 2px;
 }
 
 .fullWidth .viewportContainer {
@@ -108,6 +108,11 @@
 }
 
 .separator {
+  margin: 0 4px;
+  color: var(--gray-a7);
+}
+
+.minimalHintSeparator {
   margin: 0 4px;
   color: var(--gray-a7);
 }

@@ -12,6 +12,7 @@ export const App: ComponentType = () => {
   const [showSettings, setShowSettings] = useState(true);
   const [showStats, setShowStats] = useState(false);
   const [showDevPanel, setShowDevPanel] = useState(false);
+  const [isFullscreen, setIsFullscreen] = useState(false);
 
   // Reference to the shader canvas container
   const shaderCanvasRef = useRef<HTMLDivElement | null>(null);
@@ -70,6 +71,33 @@ export const App: ComponentType = () => {
     setShowDevPanel(!showDevPanel);
   }, [showDevPanel]);
 
+  // Toggle fullscreen handler
+  const toggleFullscreen = useCallback(() => {
+    if (!document.fullscreenElement) {
+      // Enter fullscreen
+      document.documentElement
+        .requestFullscreen()
+        .then(() => {
+          setIsFullscreen(true);
+        })
+        .catch((err) => {
+          console.error(
+            `Error attempting to enable fullscreen: ${err.message}`
+          );
+        });
+    } else {
+      // Exit fullscreen
+      document
+        .exitFullscreen()
+        .then(() => {
+          setIsFullscreen(false);
+        })
+        .catch((err) => {
+          console.error(`Error attempting to exit fullscreen: ${err.message}`);
+        });
+    }
+  }, []);
+
   // Set up keyboard shortcuts
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -96,6 +124,12 @@ export const App: ComponentType = () => {
         e.preventDefault(); // Prevent default behavior
         toggleDevPanel();
       }
+
+      // 'F' to toggle fullscreen
+      if (e.key === "f" || e.key === "F") {
+        e.preventDefault(); // Prevent default behavior
+        toggleFullscreen();
+      }
     };
 
     window.addEventListener("keydown", handleKeyDown);
@@ -108,6 +142,7 @@ export const App: ComponentType = () => {
     toggleSettings,
     toggleStats,
     toggleDevPanel,
+    toggleFullscreen,
     showSettings,
   ]);
 
@@ -170,6 +205,7 @@ export const App: ComponentType = () => {
         onToggleSettings={toggleSettings}
         onToggleStats={toggleStats}
         showStats={showStats}
+        isFullscreen={isFullscreen}
       />
       <DevPanel app={app} visible={showDevPanel} onToggle={toggleDevPanel} />
     </>

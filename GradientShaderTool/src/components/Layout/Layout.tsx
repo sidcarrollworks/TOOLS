@@ -9,6 +9,7 @@ interface LayoutProps {
   isPaused?: boolean;
   showSettings?: boolean;
   showStats?: boolean;
+  isFullscreen?: boolean;
   onToggleSettings?: () => void;
   onToggleStats?: () => void;
 }
@@ -19,6 +20,7 @@ export const Layout: FunctionComponent<LayoutProps> = ({
   isPaused = false,
   showSettings = true,
   showStats = true,
+  isFullscreen = false,
   onToggleSettings,
   onToggleStats,
 }) => {
@@ -111,11 +113,13 @@ export const Layout: FunctionComponent<LayoutProps> = ({
               <KeyboardHints
                 visible={hintsVisible}
                 disableTransitions={disableTransitions}
+                isFullscreen={isFullscreen}
               />
             ) : (
               <MinimalHint
                 visible={hintsVisible}
                 disableTransitions={disableTransitions}
+                isFullscreen={isFullscreen}
               />
             )}
           </div>
