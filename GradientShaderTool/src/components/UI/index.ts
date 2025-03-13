@@ -14,3 +14,5 @@ export {
 export { Button } from "./Button";
 export { Code } from "./Code";
 export { default as Select } from "./Select";
+export { Tooltip } from "./Tooltip";
+export { TooltipPortal } from "./TooltipPortal";

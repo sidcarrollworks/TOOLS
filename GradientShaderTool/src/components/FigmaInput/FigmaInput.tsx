@@ -14,7 +14,7 @@ export const setPresetApplying = (applying: boolean) => {
 };
 
 interface FigmaInputProps {
-  label?: string;
+  label?: string | preact.JSX.Element;
   value: number;
   min: number;
   max: number;
@@ -38,6 +38,17 @@ export const FigmaInput: FunctionComponent<FigmaInputProps> = ({
   className = "",
   usePointerLock = true,
 }) => {
+  // Add an ID for debugging
+  const inputId = useRef(
+    `figma-input-${Math.random().toString(36).substring(2, 9)}`
+  ).current;
+
+  console.log(`[${inputId}] Rendering FigmaInput with label:`, label);
+  console.log(
+    `[${inputId}] Label is JSX:`,
+    typeof label !== "string" && label !== undefined
+  );
+
   // Initialize refs
   const inputRef = useRef<HTMLInputElement>(null);
   const dragIconRef = useRef<HTMLDivElement>(null);
@@ -124,7 +135,11 @@ export const FigmaInput: FunctionComponent<FigmaInputProps> = ({
         disabled ? styles.disabled : ""
       }`}
     >
-      {label && <label className={styles.label}>{label}</label>}
+      {label && (
+        <label className={styles.label} data-figma-input-id={inputId}>
+          {label}
+        </label>
+      )}
       <div className={styles.inputWrapper}>
         <div
           ref={dragIconRef}

@@ -6,7 +6,7 @@ import styles from "./ControlPanel.module.css";
 import { ShaderApp } from "../../lib/ShaderApp";
 import { NumericControl } from "./NumericControl";
 import { setPresetApplying } from "../FigmaInput/FigmaInput";
-import { Select } from "../UI";
+import { Select, Tooltip } from "../UI";
 import { DirectionControl } from "../DirectionControl";
 
 // Create a signal for the shader parameters
@@ -37,11 +37,9 @@ export const ControlPanel: FunctionComponent<ControlPanelProps> = ({ app }) => {
   useEffect(() => {
     // Safety check - app should always be provided based on parent component logic
     if (!app) {
-      console.error("ControlPanel received null app prop");
       // Don't reset the params if we already have them - this prevents flickering
       // when the component temporarily receives a null app during re-renders
       if (paramsSignal.value) {
-        console.log("Keeping existing params despite null app prop");
         return;
       }
       return;
@@ -49,7 +47,6 @@ export const ControlPanel: FunctionComponent<ControlPanelProps> = ({ app }) => {
 
     // Check if this is the same app instance we already processed
     if (currentAppSignal.value === app && paramsSignal.value) {
-      console.log("Same app instance, skipping re-initialization");
       return;
     }
 
@@ -58,10 +55,6 @@ export const ControlPanel: FunctionComponent<ControlPanelProps> = ({ app }) => {
 
     // Increment initialization attempt counter
     initAttemptRef.current += 1;
-    console.log(
-      `Initializing params from app in ControlPanel (attempt ${initAttemptRef.current})`
-    );
-    console.log("App params available:", !!app.params);
 
     // Set initial params - make a deep copy to ensure we don't have reference issues
     try {
@@ -70,17 +63,12 @@ export const ControlPanel: FunctionComponent<ControlPanelProps> = ({ app }) => {
         paramsSignal.value = paramsClone;
         isInitializedSignal.value = true;
       });
-      console.log(
-        "Successfully initialized params signal:",
-        paramsSignal.value
-      );
     } catch (error) {
       console.error("Error initializing params signal:", error);
     }
 
     // Set up the updateGUI method on the app
     (app as any).updateGUI = () => {
-      console.log("updateGUI called in ControlPanel");
       // Make a deep copy to ensure we don't have reference issues
       try {
         paramsSignal.value = JSON.parse(JSON.stringify(app.params));
@@ -102,17 +90,11 @@ export const ControlPanel: FunctionComponent<ControlPanelProps> = ({ app }) => {
 
     // Set up a retry mechanism if params aren't loaded correctly
     if (!paramsSignal.value && initAttemptRef.current < 3) {
-      console.log("Params not loaded correctly, scheduling retry...");
       const retryTimer = setTimeout(() => {
         if (!paramsSignal.value && app.params) {
-          console.log("Retrying params initialization...");
           try {
             paramsSignal.value = JSON.parse(JSON.stringify(app.params));
             isInitializedSignal.value = true;
-            console.log(
-              "Successfully initialized params on retry:",
-              paramsSignal.value
-            );
           } catch (error) {
             console.error("Error initializing params on retry:", error);
           }
@@ -267,7 +249,8 @@ export const ControlPanel: FunctionComponent<ControlPanelProps> = ({ app }) => {
     min: number,
     max: number,
     step: number,
-    decimals: number = 1
+    decimals: number = 1,
+    tooltip?: string
   ) => {
     const params = paramsSignal.value;
     if (!params) return null;
@@ -281,6 +264,7 @@ export const ControlPanel: FunctionComponent<ControlPanelProps> = ({ app }) => {
         max={max}
         step={step}
         decimals={decimals}
+        tooltip={tooltip}
         onChange={handleChange}
       />
     );
@@ -400,7 +384,12 @@ export const ControlPanel: FunctionComponent<ControlPanelProps> = ({ app }) => {
 
         {/* Geometry Type Selector */}
         <div className={styles.controlRow}>
-          <label className={styles.controlLabel}>Type</label>
+          <Tooltip
+            content="Choose the 3D shape to apply the gradient shader to"
+            position="top"
+          >
+            <label className={styles.controlLabel}>Type</label>
+          </Tooltip>
           <div style={{ flex: 1 }}>
             <Select.Root
               value={params.geometryType}
@@ -431,23 +420,56 @@ export const ControlPanel: FunctionComponent<ControlPanelProps> = ({ app }) => {
         {/* Plane-specific controls */}
         {params.geometryType === "plane" && (
           <>
-            {createSlider("Width", "planeWidth", 0.5, 5, 0.1)}
-            {createSlider("Height", "planeHeight", 0.5, 5, 0.1)}
-            {createSlider("Resolution", "planeSegments", 16, 256, 8, 0)}
+            {createSlider(
+              "Width",
+              "planeWidth",
+              0.5,
+              5,
+              0.1,
+              1,
+              "Width of the plane in 3D space"
+            )}
+            {createSlider(
+              "Height",
+              "planeHeight",
+              0.5,
+              5,
+              0.1,
+              1,
+              "Height of the plane in 3D space"
+            )}
+            {createSlider(
+              "Resolution",
+              "planeSegments",
+              16,
+              256,
+              8,
+              0,
+              "Number of segments in the plane mesh. Higher values create a smoother surface but may impact performance."
+            )}
           </>
         )}
 
         {/* Sphere-specific controls */}
         {params.geometryType === "sphere" && (
           <>
-            {createSlider("Radius", "sphereRadius", 0.5, 3, 0.1)}
+            {createSlider(
+              "Radius",
+              "sphereRadius",
+              0.5,
+              3,
+              0.1,
+              1,
+              "Radius of the sphere in 3D space"
+            )}
             {createSlider(
               "Width Segments",
               "sphereWidthSegments",
               8,
               128,
               4,
-              0
+              0,
+              "Number of horizontal segments in the sphere mesh. Higher values create a smoother surface but may impact performance."
             )}
             {createSlider(
               "Height Segments",
@@ -455,7 +477,8 @@ export const ControlPanel: FunctionComponent<ControlPanelProps> = ({ app }) => {
               8,
               128,
               4,
-              0
+              0,
+              "Number of vertical segments in the sphere mesh. Higher values create a smoother surface but may impact performance."
             )}
           </>
         )}
@@ -463,10 +486,42 @@ export const ControlPanel: FunctionComponent<ControlPanelProps> = ({ app }) => {
         {/* Cube-specific controls */}
         {params.geometryType === "cube" && (
           <>
-            {createSlider("Size", "cubeSize", 0.5, 3, 0.1)}
-            {createSlider("Width Segments", "cubeWidthSegments", 1, 32, 1, 0)}
-            {createSlider("Height Segments", "cubeHeightSegments", 1, 32, 1, 0)}
-            {createSlider("Depth Segments", "cubeDepthSegments", 1, 32, 1, 0)}
+            {createSlider(
+              "Size",
+              "cubeSize",
+              0.5,
+              3,
+              0.1,
+              1,
+              "Size of the cube in 3D space"
+            )}
+            {createSlider(
+              "Width Segments",
+              "cubeWidthSegments",
+              1,
+              32,
+              1,
+              0,
+              "Number of segments along the width of the cube. Higher values create a smoother surface but may impact performance."
+            )}
+            {createSlider(
+              "Height Segments",
+              "cubeHeightSegments",
+              1,
+              32,
+              1,
+              0,
+              "Number of segments along the height of the cube. Higher values create a smoother surface but may impact performance."
+            )}
+            {createSlider(
+              "Depth Segments",
+              "cubeDepthSegments",
+              1,
+              32,
+              1,
+              0,
+              "Number of segments along the depth of the cube. Higher values create a smoother surface but may impact performance."
+            )}
           </>
         )}
       </div>
@@ -474,10 +529,42 @@ export const ControlPanel: FunctionComponent<ControlPanelProps> = ({ app }) => {
       {/* Normal Noise Controls */}
       <div className={styles.controlGroup}>
         <div className={styles.controlGroupTitle}>Normal Noise</div>
-        {createSlider("Scale X", "normalNoiseScaleX", 0.1, 10, 0.1)}
-        {createSlider("Scale Y", "normalNoiseScaleY", 0.1, 10, 0.1)}
-        {createSlider("Speed", "normalNoiseSpeed", 0, 1, 0.01, 2)}
-        {createSlider("Strength", "normalNoiseStrength", 0, 1, 0.01, 2)}
+        {createSlider(
+          "Scale X",
+          "normalNoiseScaleX",
+          0.1,
+          10,
+          0.1,
+          1,
+          "Controls the horizontal scale of the noise pattern. Lower values create larger patterns, higher values create more detailed patterns."
+        )}
+        {createSlider(
+          "Scale Y",
+          "normalNoiseScaleY",
+          0.1,
+          10,
+          0.1,
+          1,
+          "Controls the vertical scale of the noise pattern. Lower values create larger patterns, higher values create more detailed patterns."
+        )}
+        {createSlider(
+          "Speed",
+          "normalNoiseSpeed",
+          0,
+          1,
+          0.01,
+          2,
+          "Controls how fast the noise pattern changes over time."
+        )}
+        {createSlider(
+          "Strength",
+          "normalNoiseStrength",
+          0,
+          1,
+          0.01,
+          2,
+          "Controls how much the noise affects the surface normals. Higher values create more pronounced effects."
+        )}
         {/* <div className={styles.controlGroupSubtitle}>Direction</div> */}
         <DirectionControl
           valueX={params.normalNoiseShiftX}
@@ -501,7 +588,12 @@ export const ControlPanel: FunctionComponent<ControlPanelProps> = ({ app }) => {
         <div className={styles.controlGroupTitle}>Colors</div>
 
         <div className={styles.controlRow}>
-          <label className={styles.controlLabel}>Gradient Mode</label>
+          <Tooltip
+            content="Choose how colors are interpolated between the color stops"
+            position="top"
+          >
+            <label className={styles.controlLabel}>Gradient Mode</label>
+          </Tooltip>
           <div style={{ flex: 1 }}>
             <Select.Root
               value={params.gradientMode.toString()}
@@ -533,7 +625,9 @@ export const ControlPanel: FunctionComponent<ControlPanelProps> = ({ app }) => {
         </div>
 
         <div className={styles.controlRow}>
-          <label className={styles.controlLabel}>Color 1</label>
+          <Tooltip content="First color in the gradient" position="top">
+            <label className={styles.controlLabel}>Color 1</label>
+          </Tooltip>
           <input
             type="color"
             className={styles.colorPicker}
@@ -546,7 +640,9 @@ export const ControlPanel: FunctionComponent<ControlPanelProps> = ({ app }) => {
         </div>
 
         <div className={styles.controlRow}>
-          <label className={styles.controlLabel}>Color 2</label>
+          <Tooltip content="Second color in the gradient" position="top">
+            <label className={styles.controlLabel}>Color 2</label>
+          </Tooltip>
           <input
             type="color"
             className={styles.colorPicker}
@@ -559,7 +655,9 @@ export const ControlPanel: FunctionComponent<ControlPanelProps> = ({ app }) => {
         </div>
 
         <div className={styles.controlRow}>
-          <label className={styles.controlLabel}>Color 3</label>
+          <Tooltip content="Third color in the gradient" position="top">
+            <label className={styles.controlLabel}>Color 3</label>
+          </Tooltip>
           <input
             type="color"
             className={styles.colorPicker}
@@ -572,7 +670,9 @@ export const ControlPanel: FunctionComponent<ControlPanelProps> = ({ app }) => {
         </div>
 
         <div className={styles.controlRow}>
-          <label className={styles.controlLabel}>Color 4</label>
+          <Tooltip content="Fourth color in the gradient" position="top">
+            <label className={styles.controlLabel}>Color 4</label>
+          </Tooltip>
           <input
             type="color"
             className={styles.colorPicker}

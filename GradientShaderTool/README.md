@@ -17,25 +17,47 @@ A GLSL gradient shader generator built with Preact and Three.js. This tool allow
 ```
 GradientShaderTool/
 ├── src/
-│   ├── components/    # Preact UI components
-│   │   ├── ControlPanel/    # UI controls using Preact
-│   │   └── ShaderCanvas/    # Three.js canvas wrapper
-│   ├── lib/           # Core functionality
-│   │   ├── modules/        # Core modules
-│   │   │   ├── SceneManager.ts
-│   │   │   ├── PresetManager.ts
-│   │   │   ├── ShaderLoader.ts
-│   │   │   ├── ExportManager.ts
-│   │   │   └── Utils.ts
-│   │   ├── shaders/        # GLSL shader files
-│   │   └── ShaderApp.ts    # Main app class
-│   ├── types/         # TypeScript type definitions
-│   ├── styles/        # CSS styles
-│   ├── app.tsx        # Main Preact app container
-│   └── main.tsx       # Entry point
-├── public/            # Static files
-├── index.html         # Main HTML
-└── package.json       # Dependencies and scripts
+│   ├── components/           # Preact UI components
+│   │   ├── ControlPanel/     # Parameter control components
+│   │   ├── DevPanel/         # Development-specific controls
+│   │   ├── DirectionControl/ # Direction control component
+│   │   ├── Export/           # Export functionality components
+│   │   ├── FigmaInput/       # Custom Figma-inspired input components
+│   │   ├── Icons/            # SVG icons for the UI
+│   │   ├── Layout/           # Layout components
+│   │   ├── Performance/      # Performance monitoring components
+│   │   ├── ShaderCanvas/     # Three.js canvas wrapper
+│   │   └── UI/               # Reusable UI components
+│   ├── lib/                  # Core functionality
+│   │   ├── modules/          # Core modules
+│   │   │   ├── SceneManager.ts     # Manages Three.js scene
+│   │   │   ├── PresetManager.ts    # Handles shader presets
+│   │   │   ├── ShaderLoader.ts     # Loads GLSL shaders
+│   │   │   ├── ExportManager.ts    # Handles export functionality
+│   │   │   └── Utils.ts            # Utility functions
+│   │   ├── shaders/          # GLSL shader files
+│   │   │   ├── fragmentShader.glsl    # Main fragment shader
+│   │   │   ├── vertexShader.glsl      # Main vertex shader
+│   │   │   ├── sphereFragmentShader.glsl # Sphere-specific fragment shader
+│   │   │   ├── sphereVertexShader.glsl   # Sphere-specific vertex shader
+│   │   │   ├── cubeFragmentShader.glsl   # Cube-specific fragment shader
+│   │   │   ├── cubeVertexShader.glsl     # Cube-specific vertex shader
+│   │   │   └── perlinNoise.glsl          # Perlin noise implementation
+│   │   └── ShaderApp.ts      # Main app class
+│   ├── styles/               # CSS styles
+│   │   ├── index.css         # Main styles
+│   │   ├── radix-colors.css  # Radix UI color variables
+│   │   └── prism-theme.css   # Syntax highlighting theme
+│   ├── types/                # TypeScript type definitions
+│   ├── assets/               # Static assets
+│   ├── app.tsx               # Main Preact app container
+│   └── main.tsx              # Entry point
+├── public/                   # Static files
+├── dist/                     # Build output
+├── index.html                # Main HTML
+├── vite.config.ts            # Vite configuration
+├── tsconfig.json             # TypeScript configuration
+└── package.json              # Dependencies and scripts
 ```
 
 ## Technology Stack
@@ -55,6 +77,7 @@ The project uses [Radix UI Colors](https://www.radix-ui.com/colors) for a consis
 - Accent colors (blue, green, red, amber)
 
 To use these colors in your components:
+
 ```css
 /* Example usage */
 .my-component {

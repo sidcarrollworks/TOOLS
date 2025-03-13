@@ -51,10 +51,10 @@ export const App: ComponentType = () => {
   // Toggle settings handler
   const toggleSettings = useCallback(() => {
     const newShowSettings = !showSettingsSignal.value;
-    console.log("Toggling settings:", {
-      newShowSettings,
-      appExists: !!appSignal.value,
-    });
+    // console.log("Toggling settings:", {
+    //   newShowSettings,
+    //   appExists: !!appSignal.value,
+    // });
     showSettingsSignal.value = newShowSettings;
 
     // If we're hiding the UI, always hide the stats
@@ -180,13 +180,13 @@ export const App: ComponentType = () => {
   useEffect(() => {
     // Prevent multiple simultaneous initialization attempts
     if (isInitializingRef.current) {
-      console.log("Initialization already in progress, skipping");
+      // console.log("Initialization already in progress, skipping");
       return;
     }
 
     // Don't re-initialize if we already have an app
     if (appSignal.value) {
-      console.log("App already initialized, skipping");
+      // console.log("App already initialized, skipping");
       return;
     }
 
@@ -198,9 +198,9 @@ export const App: ComponentType = () => {
     if (!appSignal.value && shaderCanvasRef.current) {
       isInitializingRef.current = true;
       initAttemptSignal.value += 1;
-      console.log(
-        `Initializing ShaderApp (attempt ${initAttemptSignal.value})`
-      );
+      // console.log(
+      //   `Initializing ShaderApp (attempt ${initAttemptSignal.value})`
+      // );
 
       const shaderApp = new ShaderApp();
 
@@ -208,7 +208,7 @@ export const App: ComponentType = () => {
         shaderApp
           .init(shaderCanvasRef.current.parentElement as HTMLElement)
           .then(() => {
-            console.log("ShaderApp initialized successfully");
+            // console.log("ShaderApp initialized successfully");
             // Batch the signal updates together to prevent intermediate renders with inconsistent state
             batch(() => {
               appSignal.value = shaderApp;
@@ -237,7 +237,7 @@ export const App: ComponentType = () => {
 
             // Retry initialization if we haven't tried too many times
             if (initAttemptSignal.value < 3) {
-              console.log("Scheduling retry...");
+              // console.log("Scheduling retry...");
               setTimeout(() => {
                 // Increment the trigger signal to force a re-initialization
                 triggerInitSignal.value += 1;
@@ -258,13 +258,13 @@ export const App: ComponentType = () => {
     return () => {
       // Prevent multiple cleanup operations
       if (cleanupInProgressRef.current) {
-        console.log("Cleanup already in progress, skipping");
+        // console.log("Cleanup already in progress, skipping");
         return;
       }
 
       const app = appSignal.value;
       if (app) {
-        console.log("Cleaning up ShaderApp resources");
+        // console.log("Cleaning up ShaderApp resources");
         cleanupInProgressRef.current = true;
 
         try {

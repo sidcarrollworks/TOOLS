@@ -8,6 +8,7 @@ import {
 } from "@preact/signals";
 import styles from "./DirectionControl.module.css";
 import { ParticleFlow } from "./ParticleFlow";
+import { Tooltip } from "../UI";
 
 // Create signal types for the component
 export interface DirectionSignals {
@@ -88,7 +89,6 @@ export const DirectionControl: FunctionalComponent<DirectionControlProps> = ({
 
   // State for internal tracking (keeping for backward compatibility)
   const [isDragging, setIsDragging] = useState(false);
-  const [showTooltip, setShowTooltip] = useState(false);
   const [isHovered, setIsHovered] = useState(false);
 
   // Sync props with signals
@@ -342,21 +342,32 @@ export const DirectionControl: FunctionalComponent<DirectionControlProps> = ({
     // transition: isDragging ? "none" : "transform 0.2s ease-out", // Add smooth transition except when dragging
   };
 
+  // Tooltip content
+  const tooltipContent = (
+    <>
+      Controls the direction and intensity of the effect. The noise will flow in
+      the direction of the line.
+      <br />
+      <span className={styles.tooltipHint}>
+        Double-click to reset. Hold Shift for 22.5° angles and 25% magnitude
+        increments.
+      </span>
+    </>
+  );
+
   return (
     <div
       className={`${styles.directionControl} ${
         disabled ? styles.disabled : ""
       }`}
-      onMouseEnter={() => {
-        setShowTooltip(true);
-        setIsHovered(true);
-      }}
-      onMouseLeave={() => {
-        setShowTooltip(false);
-        setIsHovered(false);
-      }}
+      onMouseEnter={() => setIsHovered(true)}
+      onMouseLeave={() => setIsHovered(false)}
     >
-      {label && <div className={styles.label}>{label}</div>}
+      {label && (
+        <Tooltip content={tooltipContent} position="top" delay={300}>
+          <div className={styles.label}>{label}</div>
+        </Tooltip>
+      )}
 
       <div className={styles.controlContainer}>
         {/* Main control area */}
@@ -467,24 +478,6 @@ export const DirectionControl: FunctionalComponent<DirectionControlProps> = ({
           <div>Angle: {Math.round(angle)}°</div>
         </div>
       </div>
-
-      {/* Tooltip */}
-      {showTooltip && (
-        <div className={styles.tooltip}>
-          <div className={styles.tooltipPreview}>
-            {/* Mini animation canvas would go here */}
-          </div>
-          <div className={styles.tooltipText}>
-            Controls the direction and intensity of the effect. The noise will
-            flow in the direction of the line.
-            <br />
-            <span className={styles.tooltipHint}>
-              Double-click to reset. Hold Shift for 22.5° angles and 25%
-              magnitude increments.
-            </span>
-          </div>
-        </div>
-      )}
     </div>
   );
 };
