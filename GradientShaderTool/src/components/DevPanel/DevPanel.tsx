@@ -11,7 +11,19 @@ interface DevPanelProps {
 
 // Group parameters by category for better organization
 const paramCategories = {
-  geometry: ["planeWidth", "planeHeight", "planeSegments"],
+  geometry: [
+    "geometryType",
+    "planeWidth",
+    "planeHeight",
+    "planeSegments",
+    "sphereRadius",
+    "sphereWidthSegments",
+    "sphereHeightSegments",
+    "cubeSize",
+    "cubeWidthSegments",
+    "cubeHeightSegments",
+    "cubeDepthSegments",
+  ],
   rotation: ["rotationX", "rotationY", "rotationZ"],
   camera: [
     "cameraDistance",
@@ -65,9 +77,17 @@ const generatePresetCode = (params: ShaderParams): string => {
   return `// Preset: Custom Preset
 const customPreset = () => {
   // Geometry
+  this.params.geometryType = "${params.geometryType}";
   this.params.planeWidth = ${params.planeWidth};
   this.params.planeHeight = ${params.planeHeight};
   this.params.planeSegments = ${params.planeSegments};
+  this.params.sphereRadius = ${params.sphereRadius};
+  this.params.sphereWidthSegments = ${params.sphereWidthSegments};
+  this.params.sphereHeightSegments = ${params.sphereHeightSegments};
+  this.params.cubeSize = ${params.cubeSize};
+  this.params.cubeWidthSegments = ${params.cubeWidthSegments};
+  this.params.cubeHeightSegments = ${params.cubeHeightSegments};
+  this.params.cubeDepthSegments = ${params.cubeDepthSegments};
 
   // Rotation
   this.params.rotationX = ${params.rotationX};

@@ -2,9 +2,13 @@
  * ShaderLoader - Loads GLSL shader files from the server
  */
 // Import shader files directly
-import perlinNoiseShader from '../shaders/perlinNoise.glsl';
-import vertexShader from '../shaders/vertexShader.glsl';
-import fragmentShader from '../shaders/fragmentShader.glsl';
+import perlinNoiseShader from "../shaders/perlinNoise.glsl";
+import vertexShader from "../shaders/vertexShader.glsl";
+import sphereVertexShader from "../shaders/sphereVertexShader.glsl";
+import cubeVertexShader from "../shaders/cubeVertexShader.glsl";
+import fragmentShader from "../shaders/fragmentShader.glsl";
+import sphereFragmentShader from "../shaders/sphereFragmentShader.glsl";
+import cubeFragmentShader from "../shaders/cubeFragmentShader.glsl";
 
 export class ShaderLoader {
   /**
@@ -14,7 +18,11 @@ export class ShaderLoader {
   async loadShaders(shaders: {
     perlinNoise: string;
     vertex: string;
+    sphereVertex: string;
+    cubeVertex: string;
     fragment: string;
+    sphereFragment: string;
+    cubeFragment: string;
   }): Promise<void> {
     try {
       // Store the raw shader content directly from imports
@@ -28,7 +36,27 @@ export class ShaderLoader {
         perlinNoiseShader
       );
 
+      shaders.sphereVertex = sphereVertexShader.replace(
+        "// We'll include the Perlin noise code via JavaScript",
+        perlinNoiseShader
+      );
+
+      shaders.cubeVertex = cubeVertexShader.replace(
+        "// We'll include the Perlin noise code via JavaScript",
+        perlinNoiseShader
+      );
+
       shaders.fragment = fragmentShader.replace(
+        "// We'll include the Perlin noise code via JavaScript",
+        perlinNoiseShader
+      );
+
+      shaders.sphereFragment = sphereFragmentShader.replace(
+        "// We'll include the Perlin noise code via JavaScript",
+        perlinNoiseShader
+      );
+
+      shaders.cubeFragment = cubeFragmentShader.replace(
         "// We'll include the Perlin noise code via JavaScript",
         perlinNoiseShader
       );

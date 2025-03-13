@@ -13,7 +13,7 @@ export class ShaderExporter {
   constructor(app: ShaderApp) {
     this.app = app;
   }
-  
+
   /**
    * Generate shader code
    * @returns Shader code as a string
@@ -22,20 +22,23 @@ export class ShaderExporter {
     try {
       // Use the shader code already loaded in the app
       const perlinCode = this.app.shaders.perlinNoise;
-      const vertexCode = this.app.shaders.vertex;
+      const vertexCode =
+        this.app.params.geometryType === "sphere"
+          ? this.app.shaders.sphereVertex
+          : this.app.shaders.vertex;
       const fragmentCode = this.app.shaders.fragment;
-      
+
       // Insert Perlin noise code into shaders if needed
       const processedVertexCode = vertexCode.replace(
         "// We'll include the Perlin noise code via JavaScript",
         perlinCode
       );
-      
+
       const processedFragmentCode = fragmentCode.replace(
         "// We'll include the Perlin noise code via JavaScript",
         perlinCode
       );
-      
+
       return `// Vertex Shader
 const vertexShader = \`
 ${processedVertexCode}
@@ -51,7 +54,8 @@ const material = new THREE.ShaderMaterial({
   vertexShader,
   fragmentShader,
   uniforms,
-  side: THREE.DoubleSide
+  side: THREE.DoubleSide,
+  wireframe: ${this.app.params.showWireframe}
 });`;
     } catch (error) {
       console.error("Error generating shader code:", error);

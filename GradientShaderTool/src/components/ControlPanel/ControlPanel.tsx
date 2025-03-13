@@ -24,17 +24,28 @@ export const ControlPanel: FunctionComponent<ControlPanelProps> = ({ app }) => {
   // Add state for pending updates
   const [hasPendingUpdates, setHasPendingUpdates] = useState(false);
 
+  // Initialize params when app changes or component mounts
   useEffect(() => {
-    if (app) {
-      // Initialize params from app
-      setParams({ ...app.params });
-
-      // Add a method to update the GUI from the app
-      (app as any).updateGUI = () => {
-        setParams({ ...app.params });
-      };
+    // Safety check - app should always be provided based on parent component logic
+    if (!app) {
+      console.error("ControlPanel received null app prop");
+      return;
     }
-  }, [app]);
+
+    console.log("Initializing params from app in ControlPanel");
+
+    // Set initial params
+    setParams({ ...app.params });
+
+    // Set up the updateGUI method on the app
+    (app as any).updateGUI = () => {
+      console.log("updateGUI called in ControlPanel");
+      setParams({ ...app.params });
+    };
+
+    // Call updateGUI once to ensure params are up to date
+    (app as any).updateGUI();
+  }, [app]); // Only re-run when app changes
 
   // Cleanup debounce timer on unmount
   useEffect(() => {
@@ -45,7 +56,8 @@ export const ControlPanel: FunctionComponent<ControlPanelProps> = ({ app }) => {
     };
   }, []);
 
-  if (!app || !params) {
+  // Show loading state if params aren't loaded yet
+  if (!params) {
     return <div className={styles.controlPanel}>Loading controls...</div>;
   }
 
@@ -57,8 +69,8 @@ export const ControlPanel: FunctionComponent<ControlPanelProps> = ({ app }) => {
     const { key, value } = pendingGeometryUpdates.current;
     app.params[key] = value as never;
 
-    // Recreate the plane with the new geometry
-    app.recreatePlane();
+    // Recreate the geometry with the new parameters
+    app.recreateGeometry();
 
     // Reset pending updates
     pendingGeometryUpdates.current = null;
@@ -68,7 +80,7 @@ export const ControlPanel: FunctionComponent<ControlPanelProps> = ({ app }) => {
     setTimeout(() => {
       if (app && !pendingGeometryUpdates.current) {
         // Force a high-quality rebuild
-        app.recreatePlaneHighQuality();
+        app.recreateGeometryHighQuality();
       }
     }, 500); // Wait 500ms after the last update to ensure user has stopped interacting
   };
@@ -91,8 +103,21 @@ export const ControlPanel: FunctionComponent<ControlPanelProps> = ({ app }) => {
       (app as any).updateDevPanel();
     }
 
-    // Special handling for parameters that require recreation of the plane
-    if (["planeWidth", "planeHeight", "planeSegments"].includes(key)) {
+    // Special handling for parameters that require recreation of the geometry
+    if (
+      [
+        "planeWidth",
+        "planeHeight",
+        "planeSegments",
+        "sphereRadius",
+        "sphereWidthSegments",
+        "sphereHeightSegments",
+        "cubeSize",
+        "cubeWidthSegments",
+        "cubeHeightSegments",
+        "cubeDepthSegments",
+      ].includes(key)
+    ) {
       // Store the pending update
       pendingGeometryUpdates.current = {
         key: key as keyof ShaderParams,
@@ -112,6 +137,9 @@ export const ControlPanel: FunctionComponent<ControlPanelProps> = ({ app }) => {
         applyGeometryUpdate();
         debounceTimerRef.current = null;
       }, 150); // 150ms debounce delay
+    } else if (key === "geometryType") {
+      // Geometry type changes are handled directly in the UI component
+      // No need for debouncing here
     } else {
       // Update other parameters immediately
       app.updateParams(key.toString().startsWith("camera"));
@@ -199,7 +227,7 @@ export const ControlPanel: FunctionComponent<ControlPanelProps> = ({ app }) => {
         </div>
       </div>
 
-      {/* Plane Controls */}
+      {/* Geometry Controls */}
       <div className={styles.controlGroup}>
         <div className={styles.controlGroupTitle}>
           Geometry
@@ -216,9 +244,78 @@ export const ControlPanel: FunctionComponent<ControlPanelProps> = ({ app }) => {
             </span>
           )}
         </div>
-        {createSlider("Width", "planeWidth", 0.5, 5, 0.1)}
-        {createSlider("Height", "planeHeight", 0.5, 5, 0.1)}
-        {createSlider("Resolution", "planeSegments", 16, 256, 8, 0)}
+
+        {/* Geometry Type Selector */}
+        <div className={styles.controlRow}>
+          <label className={styles.controlLabel}>Type</label>
+          <div style={{ flex: 1 }}>
+            <Select.Root
+              value={params.geometryType}
+              onValueChange={(value) => {
+                handleChange("geometryType", value);
+                // Force geometry recreation when type changes
+                if (app) {
+                  app.recreateGeometry();
+                }
+              }}
+            >
+              <Select.Trigger>
+                {params.geometryType === "plane"
+                  ? "Plane"
+                  : params.geometryType === "sphere"
+                  ? "Sphere"
+                  : "Cube"}
+              </Select.Trigger>
+              <Select.Content>
+                <Select.Item value="plane">Plane</Select.Item>
+                <Select.Item value="sphere">Sphere</Select.Item>
+                <Select.Item value="cube">Cube</Select.Item>
+              </Select.Content>
+            </Select.Root>
+          </div>
+        </div>
+
+        {/* Plane-specific controls */}
+        {params.geometryType === "plane" && (
+          <>
+            {createSlider("Width", "planeWidth", 0.5, 5, 0.1)}
+            {createSlider("Height", "planeHeight", 0.5, 5, 0.1)}
+            {createSlider("Resolution", "planeSegments", 16, 256, 8, 0)}
+          </>
+        )}
+
+        {/* Sphere-specific controls */}
+        {params.geometryType === "sphere" && (
+          <>
+            {createSlider("Radius", "sphereRadius", 0.5, 3, 0.1)}
+            {createSlider(
+              "Width Segments",
+              "sphereWidthSegments",
+              8,
+              128,
+              4,
+              0
+            )}
+            {createSlider(
+              "Height Segments",
+              "sphereHeightSegments",
+              8,
+              128,
+              4,
+              0
+            )}
+          </>
+        )}
+
+        {/* Cube-specific controls */}
+        {params.geometryType === "cube" && (
+          <>
+            {createSlider("Size", "cubeSize", 0.5, 3, 0.1)}
+            {createSlider("Width Segments", "cubeWidthSegments", 1, 32, 1, 0)}
+            {createSlider("Height Segments", "cubeHeightSegments", 1, 32, 1, 0)}
+            {createSlider("Depth Segments", "cubeDepthSegments", 1, 32, 1, 0)}
+          </>
+        )}
       </div>
 
       {/* Normal Noise Controls */}
@@ -243,27 +340,6 @@ export const ControlPanel: FunctionComponent<ControlPanelProps> = ({ app }) => {
           onChangeSpeed={(value) =>
             handleChange("normalNoiseShiftSpeed", value)
           }
-        />
-      </div>
-
-      {/* Color Noise Controls */}
-      <div className={styles.controlGroup}>
-        <div className={styles.controlGroupTitle}>Color Noise</div>
-        {createSlider("Scale", "colorNoiseScale", 0.1, 10, 0.1)}
-        {createSlider("Speed", "colorNoiseSpeed", 0, 1, 0.01, 2)}
-        {/* <div className={styles.controlGroupSubtitle}>Direction</div> */}
-        <DirectionControl
-          valueX={params.gradientShiftX}
-          valueY={params.gradientShiftY}
-          speed={params.gradientShiftSpeed}
-          min={-1}
-          max={1}
-          minSpeed={0}
-          maxSpeed={0.5}
-          step={0.01}
-          onChangeX={(value) => handleChange("gradientShiftX", value)}
-          onChangeY={(value) => handleChange("gradientShiftY", value)}
-          onChangeSpeed={(value) => handleChange("gradientShiftSpeed", value)}
         />
       </div>
 
@@ -356,12 +432,33 @@ export const ControlPanel: FunctionComponent<ControlPanelProps> = ({ app }) => {
         </div>
       </div>
 
+      {/* Color Noise Controls */}
+      <div className={styles.controlGroup}>
+        <div className={styles.controlGroupTitle}>Color Noise</div>
+        {createSlider("Scale", "colorNoiseScale", 0.1, 10, 0.1)}
+        {createSlider("Speed", "colorNoiseSpeed", 0, 1, 0.01, 2)}
+        {/* <div className={styles.controlGroupSubtitle}>Direction</div> */}
+        <DirectionControl
+          valueX={params.gradientShiftX}
+          valueY={params.gradientShiftY}
+          speed={params.gradientShiftSpeed}
+          min={-1}
+          max={1}
+          minSpeed={0}
+          maxSpeed={0.5}
+          step={0.01}
+          onChangeX={(value) => handleChange("gradientShiftX", value)}
+          onChangeY={(value) => handleChange("gradientShiftY", value)}
+          onChangeSpeed={(value) => handleChange("gradientShiftSpeed", value)}
+        />
+      </div>
+
       {/* Lighting Controls */}
       <div className={styles.controlGroup}>
         <div className={styles.controlGroupTitle}>Lighting</div>
-        {createSlider("Light Dir X", "lightDirX", -1, 1, 0.01, 2)}
-        {createSlider("Light Dir Y", "lightDirY", -1, 1, 0.01, 2)}
-        {createSlider("Light Dir Z", "lightDirZ", -1, 1, 0.01, 2)}
+        {createSlider("X", "lightDirX", -1, 1, 0.01, 2)}
+        {createSlider("Y", "lightDirY", -1, 1, 0.01, 2)}
+        {createSlider("Z", "lightDirZ", -1, 1, 0.01, 2)}
         {createSlider("Diffuse", "diffuseIntensity", 0, 1, 0.01, 2)}
         {createSlider("Ambient", "ambientIntensity", 0, 1, 0.01, 2)}
         {createSlider("Rim Light", "rimLightIntensity", 0, 1, 0.01, 2)}
@@ -464,13 +561,13 @@ export const ControlPanel: FunctionComponent<ControlPanelProps> = ({ app }) => {
         <div className={styles.controlGroupTitle}>Export</div>
 
         <div className={styles.controlRow}>
-          <button className={styles.button} onClick={() => app.saveAsImage()}>
+          <button className={styles.button} onClick={() => app?.saveAsImage()}>
             Save as Image
           </button>
         </div>
 
         <div className={styles.controlRow}>
-          <button className={styles.button} onClick={() => app.exportCode()}>
+          <button className={styles.button} onClick={() => app?.exportCode()}>
             Export Code
           </button>
         </div>

@@ -14,7 +14,7 @@ export class HTMLExporter {
   constructor(app: ShaderApp) {
     this.app = app;
   }
-  
+
   /**
    * Generate HTML setup code
    * @returns HTML setup code
@@ -22,12 +22,12 @@ export class HTMLExporter {
   generateHTMLSetup(): string {
     const params = this.app.params;
     const transparentBg = params.exportTransparentBg;
-    
+
     // Set appropriate background style based on transparency setting
-    const bgStyle = transparentBg 
-      ? 'background-color: transparent;' 
+    const bgStyle = transparentBg
+      ? "background-color: transparent;"
       : `background-color: ${params.backgroundColor};`;
-    
+
     return `<!DOCTYPE html>
 <html>
 <head>
@@ -45,7 +45,7 @@ export class HTMLExporter {
 </body>
 </html>`;
   }
-  
+
   /**
    * Generate JavaScript scene setup code
    * @returns Scene setup code
@@ -53,29 +53,35 @@ export class HTMLExporter {
   generateSceneSetup(): string {
     const params = this.app.params;
     const transparentBg = params.exportTransparentBg;
-    
+
     // Create renderer options based on transparency setting
     const rendererOptions = transparentBg
-      ? '{ antialias: true, alpha: true }'
-      : '{ antialias: true }';
-    
+      ? "{ antialias: true, alpha: true }"
+      : "{ antialias: true }";
+
     // Set clear color based on transparency setting
     const clearColorCode = transparentBg
-      ? 'renderer.setClearColor(0x000000, 0);' // Transparent
+      ? "renderer.setClearColor(0x000000, 0);" // Transparent
       : `renderer.setClearColor(new THREE.Color("${params.backgroundColor}"));`;
-    
+
     // Default wireframe color if not defined in params
     const wireframeColor = (params as any).wireframeColor || "#ffffff";
-    
+
     return `// Initialize Three.js scene
 const scene = new THREE.Scene();
-const camera = new THREE.PerspectiveCamera(${params.cameraFov}, window.innerWidth / window.innerHeight, 0.1, 1000);
+const camera = new THREE.PerspectiveCamera(${
+      params.cameraFov
+    }, window.innerWidth / window.innerHeight, 0.1, 1000);
 
 // Set camera position
-camera.position.set(${params.cameraPosX.toFixed(4)}, ${params.cameraPosY.toFixed(4)}, ${params.cameraPosZ.toFixed(4)});
+camera.position.set(${params.cameraPosX.toFixed(
+      4
+    )}, ${params.cameraPosY.toFixed(4)}, ${params.cameraPosZ.toFixed(4)});
 
 // Make camera look at the target point
-camera.lookAt(${params.cameraTargetX.toFixed(4)}, ${params.cameraTargetY.toFixed(4)}, ${params.cameraTargetZ.toFixed(4)});
+camera.lookAt(${params.cameraTargetX.toFixed(
+      4
+    )}, ${params.cameraTargetY.toFixed(4)}, ${params.cameraTargetZ.toFixed(4)});
 
 // Create renderer
 const renderer = new THREE.WebGLRenderer(${rendererOptions});
@@ -96,6 +102,7 @@ const uniforms = {
   uColorNoiseScale: { value: ${params.colorNoiseScale} },
   uColorNoiseSpeed: { value: ${params.colorNoiseSpeed} },
   uGradientMode: { value: ${params.gradientMode} },
+  uGeometryType: { value: ${params.geometryType === "sphere" ? 1.0 : 0.0} },
   uGradientShiftX: { value: ${params.gradientShiftX} },
   uGradientShiftY: { value: ${params.gradientShiftY} },
   uGradientShiftSpeed: { value: ${params.gradientShiftSpeed} },
@@ -108,25 +115,42 @@ const uniforms = {
     ] 
   },
   uLightDir: { 
-    value: new THREE.Vector3(${params.lightDirX}, ${params.lightDirY}, ${params.lightDirZ}).normalize() 
+    value: new THREE.Vector3(${params.lightDirX}, ${params.lightDirY}, ${
+      params.lightDirZ
+    }).normalize() 
   },
   uDiffuseIntensity: { value: ${params.diffuseIntensity} },
   uAmbientIntensity: { value: ${params.ambientIntensity} },
-  uRimLightIntensity: { value: ${params.rimLightIntensity} },
-  uShowWireframe: { value: ${params.showWireframe} },
-  uWireframeColor: { value: new THREE.Color("${wireframeColor}") }
+  uRimLightIntensity: { value: ${params.rimLightIntensity} }
 };`;
   }
-  
+
   /**
    * Generate geometry and animation code
    * @returns Geometry and animation code
    */
   generateGeometryAndAnimation(): string {
     const params = this.app.params;
-    
+
+    // Generate geometry creation code based on the selected type
+    let geometryCode = "";
+
+    switch (params.geometryType) {
+      case "sphere":
+        geometryCode = `const geometry = new THREE.SphereGeometry(${params.sphereRadius}, ${params.sphereWidthSegments}, ${params.sphereHeightSegments});`;
+        break;
+      case "plane":
+      default:
+        geometryCode = `const geometry = new THREE.PlaneGeometry(${params.planeWidth}, ${params.planeHeight}, ${params.planeSegments}, ${params.planeSegments});`;
+        break;
+    }
+
     return `// Create geometry and mesh
-const geometry = new THREE.PlaneGeometry(${params.planeWidth}, ${params.planeHeight}, ${params.planeSegments}, ${params.planeSegments});
+${geometryCode}
+
+// Set material wireframe property
+material.wireframe = ${params.showWireframe};
+
 const plane = new THREE.Mesh(geometry, material);
 plane.rotation.x = ${params.rotationX};
 plane.rotation.y = ${params.rotationY};
@@ -153,7 +177,7 @@ window.addEventListener('resize', () => {
 // Start animation loop
 animate();`;
   }
-  
+
   /**
    * Get RGB values from hex color
    * @param hexColor - Hex color string

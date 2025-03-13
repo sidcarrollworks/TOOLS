@@ -8,7 +8,7 @@ uniform float uGradientShiftX;
 uniform float uGradientShiftY;
 uniform float uGradientShiftSpeed;
 
-// Five user-defined colors:
+// Four user-defined colors:
 uniform vec3 uColors[4];
 
 uniform vec3 uLightDir;
@@ -21,6 +21,7 @@ uniform float uRimLightIntensity;
 varying vec2 vUv;
 varying vec3 vNormal;
 varying float vNoise;
+varying vec3 vPosition;
 
 // Linear interpolation between two colors
 vec3 linearGradient(vec3 colorA, vec3 colorB, float t) {
@@ -65,9 +66,8 @@ vec3 bSpline(vec3 P0, vec3 P1, vec3 P2, vec3 P3, float t) {
 }
 
 void main() {
-    // Basic lighting
-    vec3 light = normalize(uLightDir);
-    float diffuse = max(0.0, dot(vNormal, light)) * uDiffuseIntensity + uAmbientIntensity;
+    // Ensure we have a properly normalized normal for lighting
+    vec3 normalizedNormal = normalize(vNormal);
     
     // Create a gradient shift offset
     vec2 gradientOffset = vec2(
@@ -75,12 +75,18 @@ void main() {
         uTime * uGradientShiftY * uGradientShiftSpeed * 10.0
     );
     
-    // Sample noise with the gradient shift applied DIRECTLY to the noise coordinate
-    float noiseVal = cnoise(vec3(
-        vUv.x * uColorNoiseScale + gradientOffset.x,
-        vUv.y * uColorNoiseScale + gradientOffset.y,
-        uTime * uColorNoiseSpeed
-    ));
+    // Normalize the position for consistent noise sampling across the cube
+    vec3 normalizedPos = normalize(vPosition);
+    
+    // Use normalized position for noise sampling
+    vec3 noiseCoord = vec3(
+        normalizedPos.x * uColorNoiseScale + gradientOffset.x,
+        normalizedPos.y * uColorNoiseScale + gradientOffset.y,
+        normalizedPos.z * uColorNoiseScale + uTime * uColorNoiseSpeed
+    );
+    
+    // Sample noise
+    float noiseVal = cnoise(noiseCoord);
     
     // Map to [0,1] range
     float t = (noiseVal + 1.0) * 0.5;
@@ -129,13 +135,30 @@ void main() {
         chosenColor = bSpline(c1, c2, c3, c4, t);
     }
 
-    // Apply diffuse lighting
-    vec3 finalColor = chosenColor * diffuse;
-
-    // Subtle rim light from Z+ direction
-    float rim = 1.0 - max(0.0, dot(vNormal, vec3(0.0, 0.0, 1.0)));
-    rim = pow(rim, 2.0) * uRimLightIntensity;
-    finalColor += vec3(1.0, 0.9, 0.8) * rim;
-
+    // Lighting for cube - sharper than sphere, softer than plane
+    vec3 light = normalize(uLightDir);
+    
+    // Calculate diffuse lighting
+    float diffuseFactor = max(0.0, dot(normalizedNormal, light));
+    
+    // Apply lighting model appropriate for a cube
+    float ambient = uAmbientIntensity;
+    float diffuse = diffuseFactor * uDiffuseIntensity;
+    
+    // Combine lighting
+    float lightingFactor = diffuse + ambient;
+    
+    // Apply lighting
+    vec3 finalColor = chosenColor * lightingFactor;
+    
+    // Add a subtle rim light for edge definition
+    // For a cube, we want a sharper rim light than a sphere but still subtle
+    vec3 viewDir = normalize(vec3(0.0, 0.0, 1.0) - normalizedNormal);
+    float rim = 1.0 - max(0.0, dot(normalizedNormal, viewDir));
+    rim = pow(rim, 3.0) * uRimLightIntensity * 0.2;
+    
+    // Add rim light
+    finalColor += vec3(0.9, 0.9, 0.9) * rim;
+    
     gl_FragColor = vec4(finalColor, 1.0);
 } 

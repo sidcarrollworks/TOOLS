@@ -81,16 +81,26 @@ export class SceneManager {
     // Setup OrbitControls
     this.setupOrbitControls();
 
-    // Create material
+    // Create material with the appropriate vertex shader
     this.app.material = new THREE.ShaderMaterial({
-      vertexShader: this.app.shaders.vertex,
-      fragmentShader: this.app.shaders.fragment,
+      vertexShader:
+        this.app.params.geometryType === "sphere"
+          ? this.app.shaders.sphereVertex
+          : this.app.params.geometryType === "cube"
+          ? this.app.shaders.cubeVertex
+          : this.app.shaders.vertex,
+      fragmentShader:
+        this.app.params.geometryType === "sphere"
+          ? this.app.shaders.sphereFragment
+          : this.app.params.geometryType === "cube"
+          ? this.app.shaders.cubeFragment
+          : this.app.shaders.fragment,
       uniforms: this.app.uniforms,
       side: THREE.DoubleSide,
     });
 
     // Create plane
-    this.recreatePlane();
+    this.recreateGeometry();
 
     // Add ambient light
     const ambientLight = new THREE.AmbientLight(0x404040);
@@ -160,31 +170,33 @@ export class SceneManager {
     );
 
     // Add event listener for camera changes
-    this.app.controls.addEventListener('change', () => {
+    this.app.controls.addEventListener("change", () => {
       if (!this.app.camera || !this.app.controls) return;
-      
+
       // Update the camera distance parameter to match the actual camera distance
-      const distance = this.app.camera.position.distanceTo(this.app.controls.target);
-      
+      const distance = this.app.camera.position.distanceTo(
+        this.app.controls.target
+      );
+
       // Only update if the difference is significant to avoid feedback loops
       if (Math.abs(distance - this.app.params.cameraDistance) > 0.01) {
         this.app.params.cameraDistance = distance;
-        
+
         // Update the control panel GUI if it's been set up
         if ("updateGUI" in this.app) {
           (this.app as any).updateGUI();
         }
       }
-      
+
       // Save camera position and target to params
       this.app.params.cameraPosX = this.app.camera.position.x;
       this.app.params.cameraPosY = this.app.camera.position.y;
       this.app.params.cameraPosZ = this.app.camera.position.z;
-      
+
       this.app.params.cameraTargetX = this.app.controls.target.x;
       this.app.params.cameraTargetY = this.app.controls.target.y;
       this.app.params.cameraTargetZ = this.app.controls.target.z;
-      
+
       // Update the dev panel if it's been set up
       if ("updateDevPanel" in this.app) {
         (this.app as any).updateDevPanel();
@@ -195,9 +207,9 @@ export class SceneManager {
   }
 
   /**
-   * Recreate the plane with current parameters
+   * Recreate the geometry with current parameters
    */
-  recreatePlane(): void {
+  recreateGeometry(): void {
     if (!this.app.scene) return;
 
     if (this.app.plane) {
@@ -211,18 +223,73 @@ export class SceneManager {
     // Get segment count with adaptive reduction for performance
     const segmentCount = this.getAdaptiveSegmentCount();
 
-    // Create new geometry
-    this.app.geometry = new THREE.PlaneGeometry(
-      this.app.params.planeWidth,
-      this.app.params.planeHeight,
-      segmentCount,
-      segmentCount
-    );
+    // Update the geometry type uniform
+    if (this.app.uniforms.uGeometryType) {
+      this.app.uniforms.uGeometryType.value =
+        this.app.params.geometryType === "sphere"
+          ? 1.0
+          : this.app.params.geometryType === "cube"
+          ? 2.0
+          : 0.0;
+    }
+
+    // Create new geometry based on the selected type
+    switch (this.app.params.geometryType) {
+      case "sphere":
+        this.app.geometry = new THREE.SphereGeometry(
+          this.app.params.sphereRadius,
+          this.app.params.sphereWidthSegments,
+          this.app.params.sphereHeightSegments
+        );
+        break;
+      case "cube":
+        this.app.geometry = new THREE.BoxGeometry(
+          this.app.params.cubeSize,
+          this.app.params.cubeSize,
+          this.app.params.cubeSize,
+          this.app.params.cubeWidthSegments,
+          this.app.params.cubeHeightSegments,
+          this.app.params.cubeDepthSegments
+        );
+        break;
+      case "plane":
+      default:
+        this.app.geometry = new THREE.PlaneGeometry(
+          this.app.params.planeWidth,
+          this.app.params.planeHeight,
+          segmentCount,
+          segmentCount
+        );
+        break;
+    }
 
     // Standard smooth shading
     this.app.geometry.computeVertexNormals();
 
     if (!this.app.material) return;
+
+    // Dispose of the old material if it exists
+    if (this.app.material) {
+      this.app.material.dispose();
+    }
+
+    // Create a new material with the appropriate vertex shader
+    this.app.material = new THREE.ShaderMaterial({
+      vertexShader:
+        this.app.params.geometryType === "sphere"
+          ? this.app.shaders.sphereVertex
+          : this.app.params.geometryType === "cube"
+          ? this.app.shaders.cubeVertex
+          : this.app.shaders.vertex,
+      fragmentShader:
+        this.app.params.geometryType === "sphere"
+          ? this.app.shaders.sphereFragment
+          : this.app.params.geometryType === "cube"
+          ? this.app.shaders.cubeFragment
+          : this.app.shaders.fragment,
+      uniforms: this.app.uniforms,
+      side: THREE.DoubleSide,
+    });
 
     // Apply wireframe property directly to the material
     this.app.material.wireframe = this.app.params.showWireframe;
@@ -239,18 +306,23 @@ export class SceneManager {
     this.app.scene.add(this.app.plane);
   }
 
+  // Alias for backward compatibility
+  recreatePlane(): void {
+    this.recreateGeometry();
+  }
+
   /**
    * Get adaptive segment count based on performance considerations
    * This reduces resolution during rapid changes to maintain performance
    */
   private getAdaptiveSegmentCount(): number {
     const requestedSegments = this.app.params.planeSegments;
-    
+
     // If we're in a high-performance context or resolution is already low, use the requested value
     if (requestedSegments <= 64) {
       return requestedSegments;
     }
-    
+
     // Check if we're in a performance-critical situation (e.g., rapid slider changes)
     const now = performance.now();
     if (!this._lastGeometryUpdateTime) {
@@ -258,11 +330,11 @@ export class SceneManager {
       this._geometryUpdateCount = 0;
       return requestedSegments;
     }
-    
+
     // Calculate time since last update and update the counter
     const timeSinceLastUpdate = now - this._lastGeometryUpdateTime;
     this._lastGeometryUpdateTime = now;
-    
+
     // If updates are happening rapidly (less than 300ms apart), increment counter
     if (timeSinceLastUpdate < 300) {
       this._geometryUpdateCount++;
@@ -270,20 +342,28 @@ export class SceneManager {
       // Reset counter if updates are not rapid
       this._geometryUpdateCount = 0;
     }
-    
+
     // Apply adaptive reduction based on update frequency
     if (this._geometryUpdateCount > 3) {
       // During rapid updates, reduce resolution for better performance
       // The more rapid updates, the more we reduce
-      const reductionFactor = Math.min(0.75, 0.25 * Math.min(this._geometryUpdateCount, 10) / 3);
-      const reducedSegments = Math.max(32, Math.floor(requestedSegments * (1 - reductionFactor)));
-      
+      const reductionFactor = Math.min(
+        0.75,
+        (0.25 * Math.min(this._geometryUpdateCount, 10)) / 3
+      );
+      const reducedSegments = Math.max(
+        32,
+        Math.floor(requestedSegments * (1 - reductionFactor))
+      );
+
       // Log the reduction for debugging
-      console.log(`Performance optimization: Reducing resolution from ${requestedSegments} to ${reducedSegments}`);
-      
+      console.log(
+        `Performance optimization: Reducing resolution from ${requestedSegments} to ${reducedSegments}`
+      );
+
       return reducedSegments;
     }
-    
+
     // Use requested resolution if not in a performance-critical situation
     return requestedSegments;
   }
@@ -322,6 +402,16 @@ export class SceneManager {
     // Update gradient mode
     this.app.uniforms.uGradientMode.value = this.app.params.gradientMode;
 
+    // Update geometry type
+    if (this.app.uniforms.uGeometryType) {
+      this.app.uniforms.uGeometryType.value =
+        this.app.params.geometryType === "sphere"
+          ? 1.0
+          : this.app.params.geometryType === "cube"
+          ? 2.0
+          : 0.0;
+    }
+
     // Convert each color param (hex) to a Three.js Color => Vector3
     const c1 = new THREE.Color(this.app.params.color1);
     const c2 = new THREE.Color(this.app.params.color2);
@@ -347,10 +437,6 @@ export class SceneManager {
       this.app.params.ambientIntensity;
     this.app.uniforms.uRimLightIntensity.value =
       this.app.params.rimLightIntensity;
-
-    // Update wireframe
-    this.app.uniforms.uShowWireframe.value = this.app.params.showWireframe;
-    this.app.uniforms.uWireframeColor.value.set(this.app.params.wireframeColor);
 
     // Apply wireframe property directly to the material if it exists
     if (this.app.material) {
@@ -482,19 +568,19 @@ export class SceneManager {
   }
 
   /**
-   * Recreate the plane with full quality (no adaptive reduction)
+   * Recreate the geometry with full quality (no adaptive reduction)
    * Used after rapid interactions end to restore full quality
    */
-  recreatePlaneHighQuality(): void {
+  recreateGeometryHighQuality(): void {
     if (!this.app.scene) return;
 
     // Only proceed if we're not already at full quality
     if (this._geometryUpdateCount > 0) {
       console.log("Restoring full quality geometry");
-      
+
       // Reset the update counter
       this._geometryUpdateCount = 0;
-      
+
       if (this.app.plane) {
         this.app.scene.remove(this.app.plane);
       }
@@ -503,13 +589,35 @@ export class SceneManager {
         this.app.geometry.dispose();
       }
 
-      // Create new geometry with full requested resolution
-      this.app.geometry = new THREE.PlaneGeometry(
-        this.app.params.planeWidth,
-        this.app.params.planeHeight,
-        this.app.params.planeSegments,
-        this.app.params.planeSegments
-      );
+      // Create new geometry with full requested resolution based on the selected type
+      switch (this.app.params.geometryType) {
+        case "sphere":
+          this.app.geometry = new THREE.SphereGeometry(
+            this.app.params.sphereRadius,
+            this.app.params.sphereWidthSegments,
+            this.app.params.sphereHeightSegments
+          );
+          break;
+        case "cube":
+          this.app.geometry = new THREE.BoxGeometry(
+            this.app.params.cubeSize,
+            this.app.params.cubeSize,
+            this.app.params.cubeSize,
+            this.app.params.cubeWidthSegments,
+            this.app.params.cubeHeightSegments,
+            this.app.params.cubeDepthSegments
+          );
+          break;
+        case "plane":
+        default:
+          this.app.geometry = new THREE.PlaneGeometry(
+            this.app.params.planeWidth,
+            this.app.params.planeHeight,
+            this.app.params.planeSegments,
+            this.app.params.planeSegments
+          );
+          break;
+      }
 
       // Standard smooth shading
       this.app.geometry.computeVertexNormals();
@@ -530,5 +638,10 @@ export class SceneManager {
       // Add to scene
       this.app.scene.add(this.app.plane);
     }
+  }
+
+  // Alias for backward compatibility
+  recreatePlaneHighQuality(): void {
+    this.recreateGeometryHighQuality();
   }
 }

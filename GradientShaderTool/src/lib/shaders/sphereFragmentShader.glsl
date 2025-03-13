@@ -8,7 +8,7 @@ uniform float uGradientShiftX;
 uniform float uGradientShiftY;
 uniform float uGradientShiftSpeed;
 
-// Five user-defined colors:
+// Four user-defined colors:
 uniform vec3 uColors[4];
 
 uniform vec3 uLightDir;
@@ -65,9 +65,9 @@ vec3 bSpline(vec3 P0, vec3 P1, vec3 P2, vec3 P3, float t) {
 }
 
 void main() {
-    // Basic lighting
-    vec3 light = normalize(uLightDir);
-    float diffuse = max(0.0, dot(vNormal, light)) * uDiffuseIntensity + uAmbientIntensity;
+    // For a sphere, we use the normalized normal vector for noise sampling
+    // This ensures seamless noise across the sphere surface
+    vec3 normalizedNormal = normalize(vNormal);
     
     // Create a gradient shift offset
     vec2 gradientOffset = vec2(
@@ -75,11 +75,12 @@ void main() {
         uTime * uGradientShiftY * uGradientShiftSpeed * 10.0
     );
     
-    // Sample noise with the gradient shift applied DIRECTLY to the noise coordinate
+    // Sample noise with the gradient shift applied to the normalized normal
+    // This approach prevents seams at the poles and edges
     float noiseVal = cnoise(vec3(
-        vUv.x * uColorNoiseScale + gradientOffset.x,
-        vUv.y * uColorNoiseScale + gradientOffset.y,
-        uTime * uColorNoiseSpeed
+        normalizedNormal.x * uColorNoiseScale + gradientOffset.x,
+        normalizedNormal.y * uColorNoiseScale + gradientOffset.y,
+        normalizedNormal.z * uColorNoiseScale + uTime * uColorNoiseSpeed
     ));
     
     // Map to [0,1] range
@@ -129,13 +130,38 @@ void main() {
         chosenColor = bSpline(c1, c2, c3, c4, t);
     }
 
-    // Apply diffuse lighting
-    vec3 finalColor = chosenColor * diffuse;
-
-    // Subtle rim light from Z+ direction
-    float rim = 1.0 - max(0.0, dot(vNormal, vec3(0.0, 0.0, 1.0)));
-    rim = pow(rim, 2.0) * uRimLightIntensity;
-    finalColor += vec3(1.0, 0.9, 0.8) * rim;
-
+    // Balanced lighting for sphere
+    vec3 light = normalize(uLightDir);
+    
+    // Calculate diffuse lighting
+    float diffuseFactor = max(0.0, dot(normalizedNormal, light));
+    
+    // Apply a balanced lighting model for spheres
+    // Use a moderate ambient boost to prevent colors from becoming too dark
+    float enhancedAmbient = uAmbientIntensity * 1.2;
+    float enhancedDiffuse = diffuseFactor * uDiffuseIntensity;
+    
+    // Combine lighting with a bias toward preserving color vibrancy
+    float lightingFactor = enhancedDiffuse + enhancedAmbient;
+    
+    // Apply a subtle gamma correction to enhance color vibrancy without distortion
+    vec3 gammaCorrectedColor = pow(chosenColor, vec3(0.9));
+    
+    // Apply lighting with color preservation
+    vec3 finalColor = gammaCorrectedColor * lightingFactor;
+    
+    // Add a more controlled rim light that doesn't overpower the base colors
+    vec3 viewDir = normalize(vec3(0.0, 0.0, 1.0) - normalizedNormal);
+    float rim = 1.0 - max(0.0, dot(normalizedNormal, viewDir));
+    
+    // Use a more subtle rim light with tighter falloff
+    rim = pow(rim, 2.0) * uRimLightIntensity * 0.1;
+    
+    // Use a more neutral rim light color that doesn't shift the overall color balance
+    finalColor += vec3(0.9, 0.9, 0.9) * rim;
+    
+    // Apply a more subtle color boost to ensure vibrancy without washing out
+    finalColor = mix(finalColor, gammaCorrectedColor, 0.2);
+    
     gl_FragColor = vec4(finalColor, 1.0);
 } 

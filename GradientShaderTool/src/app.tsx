@@ -35,6 +35,7 @@ export const App: ComponentType = () => {
   // Toggle settings handler
   const toggleSettings = useCallback(() => {
     const newShowSettings = !showSettings;
+    console.log("Toggling settings:", { newShowSettings, appExists: !!app });
     setShowSettings(newShowSettings);
 
     // If we're hiding the UI, always hide the stats
@@ -162,10 +163,12 @@ export const App: ComponentType = () => {
 
     // Initialize the shader app if it doesn't exist and we have a reference to the canvas
     if (!app && shaderCanvasRef.current) {
+      console.log("Initializing ShaderApp");
       const shaderApp = new ShaderApp();
       shaderApp
         .init(shaderCanvasRef.current.parentElement as HTMLElement)
         .then(() => {
+          console.log("ShaderApp initialized successfully");
           setApp(shaderApp);
 
           // Set initial stats visibility to match showStats state (should be false by default)
@@ -184,7 +187,7 @@ export const App: ComponentType = () => {
         app.dispose();
       }
     };
-  }, [app]);
+  }, []); // Remove app from dependencies to prevent re-initialization
 
   // Create component content
   const viewportContent = (
@@ -193,7 +196,15 @@ export const App: ComponentType = () => {
     </div>
   );
 
-  const settingsContent = <ControlPanel app={app} />;
+  // Only render ControlPanel when app is available and settings are shown
+  const settingsContent = app ? (
+    <ControlPanel
+      app={app}
+      key={showSettings ? "panel-visible" : "panel-hidden"}
+    />
+  ) : (
+    <div style={{ padding: "20px" }}>Loading app...</div>
+  );
 
   return (
     <>

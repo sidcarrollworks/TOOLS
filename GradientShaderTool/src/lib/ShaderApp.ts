@@ -9,10 +9,23 @@ import Stats from "stats.js";
 
 // Define types
 export interface ShaderParams {
+  // Geometry type and parameters
+  geometryType: string; // 'plane', 'sphere', 'cube', etc.
   // Plane geometry
   planeWidth: number;
   planeHeight: number;
   planeSegments: number;
+
+  // Sphere geometry
+  sphereRadius: number;
+  sphereWidthSegments: number;
+  sphereHeightSegments: number;
+
+  // Cube geometry
+  cubeSize: number;
+  cubeWidthSegments: number;
+  cubeHeightSegments: number;
+  cubeDepthSegments: number;
 
   // Rotation
   rotationX: number;
@@ -88,7 +101,7 @@ export class ShaderApp {
   renderer: THREE.WebGLRenderer | null;
   controls: OrbitControls | null;
   plane: THREE.Mesh | null;
-  geometry: THREE.PlaneGeometry | null;
+  geometry: THREE.BufferGeometry | null;
   material: THREE.ShaderMaterial | null;
 
   // GUI and control state
@@ -105,7 +118,11 @@ export class ShaderApp {
   shaders: {
     perlinNoise: string;
     vertex: string;
+    sphereVertex: string;
+    cubeVertex: string;
     fragment: string;
+    sphereFragment: string;
+    cubeFragment: string;
   };
 
   // Uniform values for the shader
@@ -138,7 +155,11 @@ export class ShaderApp {
     this.shaders = {
       perlinNoise: "",
       vertex: "",
+      sphereVertex: "",
+      cubeVertex: "",
       fragment: "",
+      sphereFragment: "",
+      cubeFragment: "",
     };
 
     // Animation frame ID for cancellation
@@ -146,10 +167,23 @@ export class ShaderApp {
 
     // Default parameters
     this.params = {
+      // Geometry type and parameters
+      geometryType: "plane",
       // Plane geometry
       planeWidth: 2,
       planeHeight: 2,
       planeSegments: 128,
+
+      // Sphere geometry
+      sphereRadius: 1,
+      sphereWidthSegments: 32,
+      sphereHeightSegments: 32,
+
+      // Cube geometry
+      cubeSize: 1,
+      cubeWidthSegments: 1,
+      cubeHeightSegments: 1,
+      cubeDepthSegments: 1,
 
       // Rotation
       rotationX: -Math.PI / 4, // 45 degrees
@@ -234,6 +268,14 @@ export class ShaderApp {
       uColorNoiseScale: { value: this.params.colorNoiseScale },
       uColorNoiseSpeed: { value: this.params.colorNoiseSpeed },
       uGradientMode: { value: this.params.gradientMode },
+      uGeometryType: {
+        value:
+          this.params.geometryType === "sphere"
+            ? 1.0
+            : this.params.geometryType === "cube"
+            ? 2.0
+            : 0.0,
+      },
 
       // Gradient shift uniforms
       uGradientShiftX: { value: this.params.gradientShiftX },
@@ -252,8 +294,6 @@ export class ShaderApp {
       uDiffuseIntensity: { value: this.params.diffuseIntensity },
       uAmbientIntensity: { value: this.params.ambientIntensity },
       uRimLightIntensity: { value: this.params.rimLightIntensity },
-      uShowWireframe: { value: this.params.showWireframe },
-      uWireframeColor: { value: new THREE.Color(this.params.wireframeColor) },
     };
 
     // Initialize managers
@@ -322,12 +362,12 @@ export class ShaderApp {
   updateParams(updateCamera = false): void {
     // Call the update method in SceneManager
     this.sceneManager.updateParams(updateCamera);
-    
+
     // Update the dev panel if it's been set up
     if ("updateDevPanel" in this) {
       (this as any).updateDevPanel();
     }
-    
+
     // Update the control panel GUI if it's been set up
     if ("updateGUI" in this) {
       (this as any).updateGUI();
@@ -335,27 +375,35 @@ export class ShaderApp {
   }
 
   /**
-   * Recreate plane
+   * Recreate the geometry with current parameters
    */
-  recreatePlane(): void {
-    this.sceneManager.recreatePlane();
-    
-    // Update the dev panel if it's been set up
-    if ("updateDevPanel" in this) {
-      (this as any).updateDevPanel();
+  recreateGeometry(): void {
+    if (this.sceneManager) {
+      this.sceneManager.recreateGeometry();
     }
   }
 
   /**
-   * Recreate plane with full quality (used after rapid interactions end)
+   * Recreate the plane with current parameters (alias for backward compatibility)
+   */
+  recreatePlane(): void {
+    this.recreateGeometry();
+  }
+
+  /**
+   * Recreate the geometry with high quality
+   */
+  recreateGeometryHighQuality(): void {
+    if (this.sceneManager) {
+      this.sceneManager.recreateGeometryHighQuality();
+    }
+  }
+
+  /**
+   * Recreate the plane with high quality (alias for backward compatibility)
    */
   recreatePlaneHighQuality(): void {
-    this.sceneManager.recreatePlaneHighQuality();
-    
-    // Update the dev panel if it's been set up
-    if ("updateDevPanel" in this) {
-      (this as any).updateDevPanel();
-    }
+    this.recreateGeometryHighQuality();
   }
 
   /**
