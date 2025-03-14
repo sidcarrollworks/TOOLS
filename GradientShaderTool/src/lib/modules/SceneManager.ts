@@ -5,6 +5,25 @@ import * as THREE from "three";
 import { OrbitControls } from "three/examples/jsm/controls/OrbitControls.js";
 import { ShaderApp } from "../ShaderApp";
 
+// Define the interface for camera settings updates
+interface CameraSettings {
+  cameraDistance?: number;
+  cameraPosX?: number;
+  cameraPosY?: number;
+  cameraPosZ?: number;
+  cameraTargetX?: number;
+  cameraTargetY?: number;
+  cameraTargetZ?: number;
+  cameraFov?: number;
+}
+
+// Type definition for the global function
+declare global {
+  interface Window {
+    __updateCameraSettings?: (settings: CameraSettings) => void;
+  }
+}
+
 export class SceneManager {
   private app: ShaderApp;
 
@@ -197,6 +216,35 @@ export class SceneManager {
       this.app.params.cameraTargetY = this.app.controls.target.y;
       this.app.params.cameraTargetZ = this.app.controls.target.z;
 
+      // Update the settings system with new camera values
+      try {
+        // Create an update function that uses requestAnimationFrame
+        const updateSettings = () => {
+          // Update camera position in settings
+          if (typeof window !== "undefined" && window.__updateCameraSettings) {
+            window.__updateCameraSettings({
+              cameraDistance: distance,
+              cameraPosX: this.app.camera?.position.x,
+              cameraPosY: this.app.camera?.position.y,
+              cameraPosZ: this.app.camera?.position.z,
+              cameraTargetX: this.app.controls?.target.x,
+              cameraTargetY: this.app.controls?.target.y,
+              cameraTargetZ: this.app.controls?.target.z,
+            });
+          }
+        };
+
+        // Cancel existing animation frame if there is one
+        if (this._cameraUpdateAnimFrame) {
+          cancelAnimationFrame(this._cameraUpdateAnimFrame);
+        }
+
+        // Use requestAnimationFrame for smoother updates aligned with render cycle
+        this._cameraUpdateAnimFrame = requestAnimationFrame(updateSettings);
+      } catch (error) {
+        console.error("Error updating camera settings:", error);
+      }
+
       // Update the dev panel if it's been set up
       if ("updateDevPanel" in this.app) {
         (this.app as any).updateDevPanel();
@@ -205,6 +253,9 @@ export class SceneManager {
 
     this.app.controls.update();
   }
+
+  // Store the animation frame ID
+  private _cameraUpdateAnimFrame: number | null = null;
 
   /**
    * Recreate the geometry with current parameters
@@ -424,13 +475,21 @@ export class SceneManager {
     this.app.uniforms.uColors.value[3].set(c4.r, c4.g, c4.b);
 
     // Update lighting
-    this.app.uniforms.uLightDir.value
-      .set(
-        this.app.params.lightDirX,
-        this.app.params.lightDirY,
-        this.app.params.lightDirZ
-      )
-      .normalize();
+    // IMPORTANT: We create a normalized copy of the light direction for the shader
+    // but never modify the original app.params values to avoid synchronization issues
+    // between the UI components and the shader
+
+    // Create a normalized light direction vector WITHOUT modifying the original parameters
+    const lightDir = new THREE.Vector3(
+      this.app.params.lightDirX,
+      this.app.params.lightDirY,
+      this.app.params.lightDirZ
+    ).normalize();
+
+    // Set the normalized vector to the uniform
+    this.app.uniforms.uLightDir.value.copy(lightDir);
+
+    // Update lighting intensity values
     this.app.uniforms.uDiffuseIntensity.value =
       this.app.params.diffuseIntensity;
     this.app.uniforms.uAmbientIntensity.value =

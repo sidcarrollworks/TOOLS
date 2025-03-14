@@ -1,0 +1,187 @@
+import type { FunctionComponent } from "preact";
+import { useComputed } from "@preact/signals";
+import { useRef } from "preact/hooks";
+import "./Panel.css";
+import Select from "../UI/Select";
+import { FigmaInput } from "../FigmaInput";
+import { Checkbox } from "../UI/Checkbox";
+import {
+  getPanelSettings,
+  getSettingValue,
+  updateSettingValue,
+} from "../../lib/settings/store";
+import type {
+  SettingGroup,
+  SelectSetting,
+  SliderSetting,
+} from "../../lib/settings/types";
+import { appSignal } from "../../app";
+
+interface GeometryPanelProps {
+  // No props needed for now
+}
+
+export const GeometryPanel: FunctionComponent<GeometryPanelProps> = () => {
+  // Get the app instance
+  const app = useComputed(() => appSignal.value);
+
+  // Debounce timer for geometry updates
+  const debounceTimerRef = useRef<number | null>(null);
+
+  // Get the geometry panel settings
+  const geometryPanelConfigSignal = getPanelSettings("geometry");
+  const geometryPanelConfig = useComputed(
+    () => geometryPanelConfigSignal.value
+  );
+
+  // Get the current geometry type
+  const geometryType = useComputed(
+    () => getSettingValue("geometryType") as string
+  );
+
+  // If no settings are available, show a placeholder
+  if (!geometryPanelConfig.value) {
+    return <div className="noSettings">No geometry settings available</div>;
+  }
+
+  // Find the geometry type setting group
+  const typeGroup = geometryPanelConfig.value.groups.find(
+    (group: SettingGroup) => group.id === "geometryType"
+  );
+
+  // Find the type setting
+  const typeSetting = typeGroup?.settings.find(
+    (setting): setting is SelectSetting => setting.id === "geometryType"
+  );
+
+  // Find the settings group for the current geometry type
+  const currentTypeSettings = geometryPanelConfig.value.groups.find(
+    (group: SettingGroup) => group.id === `${geometryType.value}Settings`
+  );
+
+  // Handle geometry type change
+  const handleTypeChange = (value: string) => {
+    updateSettingValue("geometryType", value);
+
+    // Update the app parameter
+    if (app.value) {
+      app.value.params.geometryType = value;
+
+      // Force geometry recreation when type changes
+      app.value.recreateGeometry();
+    }
+  };
+
+  // Handle slider value change
+  const handleSliderChange = (id: string, value: number) => {
+    updateSettingValue(id, value);
+
+    // Update the app parameter
+    if (app.value) {
+      // Check if the parameter exists in the app.params object
+      if (id in app.value.params) {
+        // Use type assertion to safely update the parameter
+        (app.value.params as any)[id] = value;
+      }
+
+      // Clear any existing timer
+      if (debounceTimerRef.current !== null) {
+        window.clearTimeout(debounceTimerRef.current);
+      }
+
+      // Debounce geometry recreation to avoid too many updates
+      debounceTimerRef.current = window.setTimeout(() => {
+        if (app.value) {
+          app.value.recreateGeometry();
+        }
+        debounceTimerRef.current = null;
+      }, 300);
+    }
+  };
+
+  // Get the label for the current geometry type
+  const getGeometryTypeLabel = () => {
+    const option = typeSetting?.options.find(
+      (opt) => opt.value.toString() === geometryType.value
+    );
+    return option ? option.label : "Select type";
+  };
+
+  return (
+    <div className="panel">
+      {/* Geometry Type Select */}
+      {typeSetting && (
+        <div className="settingRow">
+          <label className="label">{typeSetting.label}</label>
+          <Select.Root
+            value={(getSettingValue("geometryType") as number).toString()}
+            onValueChange={handleTypeChange}
+          >
+            <Select.Trigger>{getGeometryTypeLabel()}</Select.Trigger>
+            <Select.Content>
+              {typeSetting.options.map((option) => (
+                <Select.Item
+                  key={option.value.toString()}
+                  value={option.value.toString()}
+                >
+                  {option.label}
+                </Select.Item>
+              ))}
+            </Select.Content>
+          </Select.Root>
+        </div>
+      )}
+
+      {/* Geometry Settings */}
+      <div className="settingsGroup">
+        <h3 className="groupTitle">Shape Settings</h3>
+
+        {/* Render sliders for the current geometry type */}
+        {currentTypeSettings &&
+          currentTypeSettings.settings.map((setting) => {
+            if (setting.type === "slider") {
+              const sliderSetting = setting as SliderSetting;
+              const currentValue = getSettingValue(setting.id) as number;
+
+              return (
+                <FigmaInput
+                  key={setting.id}
+                  label={setting.label}
+                  value={currentValue}
+                  min={sliderSetting.min}
+                  max={sliderSetting.max}
+                  step={sliderSetting.step}
+                  onChange={(value) => handleSliderChange(setting.id, value)}
+                />
+              );
+            }
+            return null;
+          })}
+      </div>
+
+      {/* Wireframe Toggle */}
+      <div className="settingsGroup">
+        <h3 className="groupTitle">Display Options</h3>
+        <Checkbox
+          label="Show Wireframe"
+          checked={getSettingValue("showWireframe") as boolean}
+          onChange={(checked) => {
+            updateSettingValue("showWireframe", checked);
+
+            // Update the app parameter
+            if (app.value) {
+              app.value.params.showWireframe = checked;
+
+              // Update the shader parameters
+              if (app.value.updateParams) {
+                app.value.updateParams(false); // Update without camera reset
+              }
+            }
+          }}
+        />
+      </div>
+    </div>
+  );
+};
+
+export default GeometryPanel;

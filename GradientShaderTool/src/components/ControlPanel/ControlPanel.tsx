@@ -8,6 +8,7 @@ import { NumericControl } from "./NumericControl";
 import { setPresetApplying } from "../FigmaInput/FigmaInput";
 import { Select, Tooltip } from "../UI";
 import { DirectionControl } from "../DirectionControl";
+import { Checkbox } from "../UI/Checkbox";
 
 // Create a signal for the shader parameters
 const paramsSignal = signal<ShaderParams | null>(null);
@@ -722,17 +723,10 @@ export const ControlPanel: FunctionComponent<ControlPanelProps> = ({ app }) => {
         <div className={styles.controlGroupTitle}>Visualization</div>
 
         <div className={styles.controlRow}>
-          <label className={styles.controlLabel}>Transparent Background</label>
-          <input
-            type="checkbox"
-            className={styles.checkbox}
+          <Checkbox
+            label="Transparent Background"
             checked={params.exportTransparentBg}
-            onChange={(e) =>
-              handleChange(
-                "exportTransparentBg",
-                (e.target as HTMLInputElement).checked
-              )
-            }
+            onChange={(checked) => handleChange("exportTransparentBg", checked)}
           />
         </div>
 
@@ -766,17 +760,10 @@ export const ControlPanel: FunctionComponent<ControlPanelProps> = ({ app }) => {
         </div>
 
         <div className={styles.controlRow}>
-          <label className={styles.controlLabel}>Show Wireframe</label>
-          <input
-            type="checkbox"
-            className={styles.checkbox}
+          <Checkbox
+            label="Show Wireframe"
             checked={params.showWireframe}
-            onChange={(e) =>
-              handleChange(
-                "showWireframe",
-                (e.target as HTMLInputElement).checked
-              )
-            }
+            onChange={(checked) => handleChange("showWireframe", checked)}
           />
         </div>
       </div>
@@ -794,17 +781,10 @@ export const ControlPanel: FunctionComponent<ControlPanelProps> = ({ app }) => {
         {createSlider("Speed", "animationSpeed", 0, 0.05, 0.001, 3)}
 
         <div className={styles.controlRow}>
-          <label className={styles.controlLabel}>Pause</label>
-          <input
-            type="checkbox"
-            className={styles.checkbox}
+          <Checkbox
+            label="Pause"
             checked={params.pauseAnimation}
-            onChange={(e) =>
-              handleChange(
-                "pauseAnimation",
-                (e.target as HTMLInputElement).checked
-              )
-            }
+            onChange={(checked) => handleChange("pauseAnimation", checked)}
           />
         </div>
       </div>
@@ -834,17 +814,10 @@ export const ControlPanel: FunctionComponent<ControlPanelProps> = ({ app }) => {
         </div>
 
         <div className={styles.controlRow}>
-          <label className={styles.controlLabel}>High Quality</label>
-          <input
-            type="checkbox"
-            className={styles.checkbox}
+          <Checkbox
+            label="High Quality"
             checked={params.exportHighQuality}
-            onChange={(e) =>
-              handleChange(
-                "exportHighQuality",
-                (e.target as HTMLInputElement).checked
-              )
-            }
+            onChange={(checked) => handleChange("exportHighQuality", checked)}
           />
         </div>
       </div>

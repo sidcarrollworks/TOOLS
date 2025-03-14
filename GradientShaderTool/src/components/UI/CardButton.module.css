@@ -1,0 +1,56 @@
+.cardButton {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  background: none;
+  border: none;
+  padding: 0;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  width: 100%;
+}
+
+.cardButton:hover {
+  border-color: var(--border-hover);
+}
+
+.cardButton:disabled {
+  opacity: 0.7;
+  cursor: not-allowed;
+}
+
+.preview {
+  width: 100%;
+  padding-bottom: 75%; /* 4:3 aspect ratio */
+  background-color: var(--gray-a4);
+  position: relative;
+  border-radius: 4px;
+}
+
+.label {
+  padding: 8px 0 0 0;
+  font-size: 12px;
+  color: var(--text-secondary);
+  width: 100%;
+  text-align: left;
+}
+
+.cardButton:hover .label {
+  color: var(--text-primary);
+}
+
+.cardButton:hover .preview {
+  outline: 1px solid var(--gray-9);
+  outline-offset: -1px;
+}
+
+/* Active state */
+.active .preview {
+  outline: 1px solid var(--border-hover);
+  outline-offset: -1px;
+}
+
+.active .label {
+  color: var(--text-primary);
+  font-weight: 500;
+}
