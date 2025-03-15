@@ -234,7 +234,7 @@ export const ColorsPanel: FunctionComponent<ColorsPanelProps> = () => {
 
         {/* Transparent Background Toggle */}
         <Checkbox
-          label="Transparent Background"
+          label="Transparent"
           checked={
             app.value?.params.exportTransparentBg ??
             (getSettingValue("transparentBackground") as boolean) ??
