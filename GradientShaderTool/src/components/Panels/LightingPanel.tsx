@@ -1,6 +1,5 @@
 import type { FunctionComponent } from "preact";
 import { useComputed } from "@preact/signals";
-import { useRef } from "preact/hooks";
 import "./Panel.css";
 import { FigmaInput } from "../FigmaInput";
 import {
@@ -10,6 +9,7 @@ import {
 } from "../../lib/settings/store";
 import type { SettingGroup } from "../../lib/settings/types";
 import { appSignal } from "../../app";
+import { useDebounce } from "../../lib/hooks/useDebounce";
 
 interface LightingPanelProps {
   // No props needed for now
@@ -19,13 +19,19 @@ const LightingPanel: FunctionComponent<LightingPanelProps> = () => {
   // Get the app instance
   const app = useComputed(() => appSignal.value);
 
-  // Debounce timer for lighting updates
-  const debounceTimerRef = useRef<number | null>(null);
-
   // Get the lighting panel settings
   const lightingPanelConfigSignal = getPanelSettings("lighting");
   const lightingPanelConfig = useComputed(
     () => lightingPanelConfigSignal.value
+  );
+
+  // Create debounced update function
+  const updateLightingWithDebounce = useDebounce(
+    (id: string, value: number) => {
+      updateSettingValue(id, value);
+      // The shader param update is now handled by updateSettingValue
+    },
+    50
   );
 
   // If no settings are available, show a placeholder
@@ -40,65 +46,7 @@ const LightingPanel: FunctionComponent<LightingPanelProps> = () => {
 
   // Handle lighting value change
   const handleLightingChange = (id: string, value: number) => {
-    // Map the setting ID to the app parameter name
-    const paramMap: Record<string, string> = {
-      lightX: "lightDirX",
-      lightY: "lightDirY",
-      lightZ: "lightDirZ",
-      lightDiffuse: "diffuseIntensity",
-      lightAmbient: "ambientIntensity",
-      lightRim: "rimLightIntensity",
-    };
-
-    const appParamName = paramMap[id];
-    if (!appParamName) return;
-
-    // Update the setting value in the store
-    updateSettingValue(id, value);
-
-    // Update the app parameter
-    if (app.value) {
-      // Check if the parameter exists in the app.params object
-      if (appParamName in app.value.params) {
-        // Use type assertion to safely update the parameter
-        (app.value.params as any)[appParamName] = value;
-      }
-
-      // For light direction parameters, we need to handle them all together
-      // to prevent normalization issues
-      if (["lightDirX", "lightDirY", "lightDirZ"].includes(appParamName)) {
-        // Store the direct values in the app.params without normalization
-        // (this is done above)
-
-        // Clear any existing timer
-        if (debounceTimerRef.current !== null) {
-          window.clearTimeout(debounceTimerRef.current);
-        }
-
-        // Debounce updates to avoid too many updates
-        debounceTimerRef.current = window.setTimeout(() => {
-          if (app.value && app.value.updateParams) {
-            app.value.updateParams(false); // Update without camera reset
-          }
-          debounceTimerRef.current = null;
-        }, 50);
-      } else {
-        // For intensity parameters, we can update them immediately
-
-        // Clear any existing timer
-        if (debounceTimerRef.current !== null) {
-          window.clearTimeout(debounceTimerRef.current);
-        }
-
-        // Debounce updates to avoid too many updates
-        debounceTimerRef.current = window.setTimeout(() => {
-          if (app.value && app.value.updateParams) {
-            app.value.updateParams(false); // Update without camera reset
-          }
-          debounceTimerRef.current = null;
-        }, 50);
-      }
-    }
+    updateLightingWithDebounce(id, value);
   };
 
   return (
@@ -108,27 +56,27 @@ const LightingPanel: FunctionComponent<LightingPanelProps> = () => {
         <h3 className="groupTitle">Position</h3>
         <FigmaInput
           label="X"
-          value={getSettingValue("lightX") as number}
+          value={getSettingValue("lightDirX") as number}
           min={-1}
           max={1}
           step={0.01}
-          onChange={(value) => handleLightingChange("lightX", value)}
+          onChange={(value) => handleLightingChange("lightDirX", value)}
         />
         <FigmaInput
           label="Y"
-          value={getSettingValue("lightY") as number}
+          value={getSettingValue("lightDirY") as number}
           min={-1}
           max={1}
           step={0.01}
-          onChange={(value) => handleLightingChange("lightY", value)}
+          onChange={(value) => handleLightingChange("lightDirY", value)}
         />
         <FigmaInput
           label="Z"
-          value={getSettingValue("lightZ") as number}
+          value={getSettingValue("lightDirZ") as number}
           min={-1}
           max={1}
           step={0.01}
-          onChange={(value) => handleLightingChange("lightZ", value)}
+          onChange={(value) => handleLightingChange("lightDirZ", value)}
         />
       </div>
 
@@ -137,27 +85,27 @@ const LightingPanel: FunctionComponent<LightingPanelProps> = () => {
         <h3 className="groupTitle">Intensity</h3>
         <FigmaInput
           label="Diffuse"
-          value={getSettingValue("lightDiffuse") as number}
+          value={getSettingValue("diffuseIntensity") as number}
           min={0}
           max={1}
           step={0.01}
-          onChange={(value) => handleLightingChange("lightDiffuse", value)}
+          onChange={(value) => handleLightingChange("diffuseIntensity", value)}
         />
         <FigmaInput
           label="Ambient"
-          value={getSettingValue("lightAmbient") as number}
+          value={getSettingValue("ambientIntensity") as number}
           min={0}
           max={1}
           step={0.01}
-          onChange={(value) => handleLightingChange("lightAmbient", value)}
+          onChange={(value) => handleLightingChange("ambientIntensity", value)}
         />
         <FigmaInput
           label="Rim"
-          value={getSettingValue("lightRim") as number}
+          value={getSettingValue("rimLightIntensity") as number}
           min={0}
           max={1}
           step={0.01}
-          onChange={(value) => handleLightingChange("lightRim", value)}
+          onChange={(value) => handleLightingChange("rimLightIntensity", value)}
         />
       </div>
     </div>

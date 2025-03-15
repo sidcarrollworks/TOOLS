@@ -10,7 +10,6 @@ import {
 } from "../../lib/settings/store";
 import type { SettingGroup } from "../../lib/settings/types";
 import { appSignal } from "../../app";
-import { Vector3 } from "three";
 
 // Flag to track if we're processing camera changes from orbit controls
 let processingOrbitChange = false;
@@ -26,19 +25,12 @@ const CameraPanel: FunctionComponent<CameraPanelProps> = () => {
   // Animation frame ID for camera updates
   const animFrameRef = useRef<number | null>(null);
 
-  // Debounce timer for camera updates (keeping for backward compatibility)
-  const debounceTimerRef = useRef<number | null>(null);
-
   // Clean up animation frames on unmount
   useEffect(() => {
     return () => {
       if (animFrameRef.current !== null) {
         cancelAnimationFrame(animFrameRef.current);
         animFrameRef.current = null;
-      }
-      if (debounceTimerRef.current !== null) {
-        clearTimeout(debounceTimerRef.current);
-        debounceTimerRef.current = null;
       }
     };
   }, []);
@@ -68,17 +60,11 @@ const CameraPanel: FunctionComponent<CameraPanelProps> = () => {
     // Mark that we're manually changing camera params
     processingOrbitChange = true;
 
-    // Update the setting value in the store
+    // Update the setting value in the store - this also updates app.params via the mapping
     updateSettingValue(id, value);
 
-    // Update the app parameter
+    // Camera requires special handling beyond normal parameter updates
     if (app.value) {
-      // Check if the parameter exists in the app.params object
-      if (id in app.value.params) {
-        // Use type assertion to safely update the parameter
-        (app.value.params as any)[id] = value;
-      }
-
       // Cancel any existing animation frame
       if (animFrameRef.current !== null) {
         cancelAnimationFrame(animFrameRef.current);

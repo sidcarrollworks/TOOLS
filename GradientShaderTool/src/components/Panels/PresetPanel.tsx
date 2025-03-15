@@ -12,18 +12,11 @@ import type {
 import { appSignal } from "../../app";
 import { initializeSettingsFromShaderApp } from "../../lib/settings/initApp";
 import { setPresetApplying } from "../FigmaInput/FigmaInput";
+import { settingToParamMap } from "../../lib/settings/mappings";
 
 interface PresetPanelProps {
   // No props needed for now
 }
-
-// Map preset IDs to preset names in the ShaderApp
-const presetIdToName: Record<string, string> = {
-  presetDefault: "Default",
-  presetOceanWaves: "Ocean Waves",
-  presetLavaFlow: "Lava Flow",
-  presetAbstractArt: "Abstract Art",
-};
 
 export const PresetPanel: FunctionComponent<PresetPanelProps> = () => {
   // State for tracking the last applied preset
@@ -59,10 +52,10 @@ export const PresetPanel: FunctionComponent<PresetPanelProps> = () => {
       return;
     }
 
-    // Get the preset name from the ID
-    const presetName = presetIdToName[presetId];
+    // Get the preset name from the mapping
+    const presetName = settingToParamMap.get(presetId);
     if (!presetName) {
-      console.error(`Unknown preset ID: ${presetId}`);
+      console.error(`Mapping not found for preset ID: ${presetId}`);
       return;
     }
 

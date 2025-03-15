@@ -93,11 +93,27 @@ export const DirectionControl: FunctionalComponent<DirectionControlProps> = ({
 
   // Sync props with signals
   useEffect(() => {
-    signals.valueX.value = valueX;
+    if (signals.valueX.value !== valueX) {
+      signals.valueX.value = valueX;
+      console.log(
+        "DEBUG valueX prop changed:",
+        valueX,
+        "Signal updated:",
+        signals.valueX.value
+      );
+    }
   }, [valueX]);
 
   useEffect(() => {
-    signals.valueY.value = valueY;
+    if (signals.valueY.value !== valueY) {
+      signals.valueY.value = valueY;
+      console.log(
+        "DEBUG valueY prop changed:",
+        valueY,
+        "Signal updated:",
+        signals.valueY.value
+      );
+    }
   }, [valueY]);
 
   // Sync signals with state
@@ -196,6 +212,13 @@ export const DirectionControl: FunctionalComponent<DirectionControlProps> = ({
     let mag = Math.sqrt(rawX * rawX + rawY * rawY);
     let ang = Math.atan2(rawY, rawX);
 
+    console.log("DEBUG Raw values:", {
+      rawX,
+      rawY,
+      mag,
+      ang: ang * (180 / Math.PI),
+    });
+
     // Apply shift key constraint
     if (isShiftKey && mag > 0) {
       // Round angle to nearest 22.5 degrees (π/8 radians)
@@ -231,6 +254,8 @@ export const DirectionControl: FunctionalComponent<DirectionControlProps> = ({
     const newY = -rawY * max; // Flip the sign for Y
     const newSpeed = mag * (maxSpeed - minSpeed) + minSpeed;
 
+    console.log("DEBUG Before rounding:", { newX, newY, newSpeed, mag });
+
     // Round to step
     const roundToStep = (value: number) => Math.round(value / step) * step;
 
@@ -239,14 +264,42 @@ export const DirectionControl: FunctionalComponent<DirectionControlProps> = ({
     const roundedY = roundToStep(newY);
     const roundedSpeed = roundToStep(newSpeed);
 
+    console.log("DEBUG After rounding:", { roundedX, roundedY, roundedSpeed });
+
     // Update signals directly for immediate effect
     signals.valueX.value = roundedX;
     signals.valueY.value = roundedY;
 
-    // Also call the callbacks for parent component updates
-    onChangeX(roundedX);
-    onChangeY(roundedY);
-    onChangeSpeed(roundedSpeed);
+    // Ensure we call each callback separately and directly
+    try {
+      // Call callbacks one at a time to ensure they all execute
+      onChangeX(roundedX);
+    } catch (error) {
+      console.error("Error in onChangeX callback:", error);
+    }
+
+    try {
+      onChangeY(roundedY);
+    } catch (error) {
+      console.error("Error in onChangeY callback:", error);
+    }
+
+    try {
+      onChangeSpeed(roundedSpeed);
+    } catch (error) {
+      console.error("Error in onChangeSpeed callback:", error);
+    }
+
+    console.log("DEBUG Final values sent to callbacks:", {
+      valueX: roundedX,
+      valueY: roundedY,
+      speed: roundedSpeed,
+      signalValues: {
+        valueX: signals.valueX.value,
+        valueY: signals.valueY.value,
+        magnitude: signals.magnitude.value,
+      },
+    });
 
     // Force re-render of the component to ensure animation continues
     setIsHovered(true);

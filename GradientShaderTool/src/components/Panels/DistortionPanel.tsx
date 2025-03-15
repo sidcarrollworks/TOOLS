@@ -1,6 +1,5 @@
 import type { FunctionComponent } from "preact";
 import { useComputed } from "@preact/signals";
-import { useRef } from "preact/hooks";
 import "./Panel.css";
 import { FigmaInput } from "../FigmaInput";
 import { DirectionControl } from "../DirectionControl";
@@ -11,6 +10,7 @@ import {
 } from "../../lib/settings/store";
 import type { SettingGroup, SliderSetting } from "../../lib/settings/types";
 import { appSignal } from "../../app";
+import { useDebounce } from "../../lib/hooks/useDebounce";
 
 interface DistortionPanelProps {
   // No props needed for now
@@ -20,14 +20,38 @@ export const DistortionPanel: FunctionComponent<DistortionPanelProps> = () => {
   // Get the app instance
   const app = useComputed(() => appSignal.value);
 
-  // Debounce timer for distortion updates
-  const debounceTimerRef = useRef<number | null>(null);
-
   // Get the distortion panel settings
   const distortionPanelConfigSignal = getPanelSettings("distortion");
   const distortionPanelConfig = useComputed(
     () => distortionPanelConfigSignal.value
   );
+
+  // Create debounced update function
+  const updateDistortionWithDebounce = useDebounce(
+    (id: string, value: number) => {
+      updateSettingValue(id, value);
+      // The shader param update is now handled by updateSettingValue
+    },
+    25
+  );
+
+  // Handle flow direction changes immediately without debounce
+  const handleFlowDirectionChange = (id: string, value: number) => {
+    console.log(`DEBUG DistortionPanel direct update (${id}):`, value);
+    // Update directly without debounce
+    updateSettingValue(id, value);
+  };
+
+  // Handle slider value change
+  const handleSliderChange = (id: string, value: number) => {
+    // For flow direction controls, use immediate updates
+    if (id.includes("NoiseShift")) {
+      handleFlowDirectionChange(id, value);
+    } else {
+      // For other sliders, use debounced updates
+      updateDistortionWithDebounce(id, value);
+    }
+  };
 
   // If no settings are available, show a placeholder
   if (!distortionPanelConfig.value) {
@@ -43,33 +67,6 @@ export const DistortionPanel: FunctionComponent<DistortionPanelProps> = () => {
   const normalNoiseShiftGroup = distortionPanelConfig.value.groups.find(
     (group: SettingGroup) => group.id === "normalNoiseShift"
   );
-
-  // Handle slider value change
-  const handleSliderChange = (id: string, value: number) => {
-    updateSettingValue(id, value);
-
-    // Update the app parameter
-    if (app.value) {
-      // Check if the parameter exists in the app.params object
-      if (id in app.value.params) {
-        // Use type assertion to safely update the parameter
-        (app.value.params as any)[id] = value;
-      }
-
-      // Clear any existing timer
-      if (debounceTimerRef.current !== null) {
-        window.clearTimeout(debounceTimerRef.current);
-      }
-
-      // Debounce updates to avoid too many updates
-      debounceTimerRef.current = window.setTimeout(() => {
-        if (app.value && app.value.updateParams) {
-          app.value.updateParams(false); // Update without camera reset
-        }
-        debounceTimerRef.current = null;
-      }, 50);
-    }
-  };
 
   return (
     <div className="panel">
@@ -106,11 +103,21 @@ export const DistortionPanel: FunctionComponent<DistortionPanelProps> = () => {
           minSpeed={0}
           maxSpeed={1}
           step={0.01}
-          onChangeX={(value) => handleSliderChange("normalNoiseShiftX", value)}
-          onChangeY={(value) => handleSliderChange("normalNoiseShiftY", value)}
-          onChangeSpeed={(value) =>
-            handleSliderChange("normalNoiseShiftSpeed", value)
-          }
+          onChangeX={(value) => {
+            console.log("DEBUG DistortionPanel onChangeX:", value);
+            // Use direct update without debounce
+            handleFlowDirectionChange("normalNoiseShiftX", value);
+          }}
+          onChangeY={(value) => {
+            console.log("DEBUG DistortionPanel onChangeY:", value);
+            // Use direct update without debounce
+            handleFlowDirectionChange("normalNoiseShiftY", value);
+          }}
+          onChangeSpeed={(value) => {
+            console.log("DEBUG DistortionPanel onChangeSpeed:", value);
+            // Use direct update without debounce
+            handleFlowDirectionChange("normalNoiseShiftSpeed", value);
+          }}
         />
       </div>
     </div>

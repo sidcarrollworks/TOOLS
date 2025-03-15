@@ -435,6 +435,7 @@ export class SceneManager {
     this.app.uniforms.uNoiseSpeed.value = this.app.params.normalNoiseSpeed;
     this.app.uniforms.uNoiseStrength.value =
       this.app.params.normalNoiseStrength;
+
     this.app.uniforms.uNoiseShiftX.value = this.app.params.normalNoiseShiftX;
     this.app.uniforms.uNoiseShiftY.value = this.app.params.normalNoiseShiftY;
     this.app.uniforms.uNoiseShiftSpeed.value =

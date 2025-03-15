@@ -4,7 +4,6 @@ import { signal, computed, batch } from "@preact/signals";
 import "./styles/index.css";
 import { ShaderApp } from "./lib/ShaderApp";
 import ShaderCanvas from "./components/ShaderCanvas/ShaderCanvas";
-import ControlPanel from "./components/ControlPanel/ControlPanel";
 import Layout from "./components/Layout/Layout";
 import { DevPanel } from "./components/DevPanel";
 import { sidePanelVisibleSignal } from "./components/SidebarPanel";
@@ -32,6 +31,9 @@ const triggerInitSignal = signal(0);
 const isPausedSignal = computed(() => {
   return appSignal.value?.params.pauseAnimation ?? false;
 });
+
+// Initialize the settings system
+initializeSettingsSystem();
 
 // Add a useEffect hook to initialize our settings system
 export const App: ComponentType = () => {
@@ -229,10 +231,7 @@ export const App: ComponentType = () => {
               initializeSettingsFromShaderApp(shaderApp);
 
               // Connect settings to the shader app
-              const unsubscribe = connectSettingsToShaderApp(shaderApp);
-
-              // Store the unsubscribe function for cleanup
-              (shaderApp as any).settingsUnsubscribe = unsubscribe;
+              connectSettingsToShaderApp(shaderApp);
             });
 
             // Set initial stats visibility to match showStats state (should be false by default)

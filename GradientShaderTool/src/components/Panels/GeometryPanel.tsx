@@ -1,6 +1,5 @@
 import type { FunctionComponent } from "preact";
 import { useComputed } from "@preact/signals";
-import { useRef } from "preact/hooks";
 import "./Panel.css";
 import Select from "../UI/Select";
 import { FigmaInput } from "../FigmaInput";
@@ -16,6 +15,7 @@ import type {
   SliderSetting,
 } from "../../lib/settings/types";
 import { appSignal } from "../../app";
+import { useDebounce } from "../../lib/hooks/useDebounce";
 
 interface GeometryPanelProps {
   // No props needed for now
@@ -24,9 +24,6 @@ interface GeometryPanelProps {
 export const GeometryPanel: FunctionComponent<GeometryPanelProps> = () => {
   // Get the app instance
   const app = useComputed(() => appSignal.value);
-
-  // Debounce timer for geometry updates
-  const debounceTimerRef = useRef<number | null>(null);
 
   // Get the geometry panel settings
   const geometryPanelConfigSignal = getPanelSettings("geometry");
@@ -38,6 +35,17 @@ export const GeometryPanel: FunctionComponent<GeometryPanelProps> = () => {
   const geometryType = useComputed(
     () => getSettingValue("geometryType") as string
   );
+
+  // Create debounced update function for geometry settings
+  const updateGeometryWithDebounce = useDebounce((id: string, value: any) => {
+    updateSettingValue(id, value);
+
+    // Recreate the geometry after updating the parameter
+    // This needs to be done manually since it's a special operation
+    if (app.value) {
+      app.value.recreateGeometry();
+    }
+  }, 300);
 
   // If no settings are available, show a placeholder
   if (!geometryPanelConfig.value) {
@@ -63,40 +71,20 @@ export const GeometryPanel: FunctionComponent<GeometryPanelProps> = () => {
   const handleTypeChange = (value: string) => {
     updateSettingValue("geometryType", value);
 
-    // Update the app parameter
+    // Force geometry recreation when type changes
     if (app.value) {
-      app.value.params.geometryType = value;
-
-      // Force geometry recreation when type changes
       app.value.recreateGeometry();
     }
   };
 
   // Handle slider value change
   const handleSliderChange = (id: string, value: number) => {
-    updateSettingValue(id, value);
+    updateGeometryWithDebounce(id, value);
+  };
 
-    // Update the app parameter
-    if (app.value) {
-      // Check if the parameter exists in the app.params object
-      if (id in app.value.params) {
-        // Use type assertion to safely update the parameter
-        (app.value.params as any)[id] = value;
-      }
-
-      // Clear any existing timer
-      if (debounceTimerRef.current !== null) {
-        window.clearTimeout(debounceTimerRef.current);
-      }
-
-      // Debounce geometry recreation to avoid too many updates
-      debounceTimerRef.current = window.setTimeout(() => {
-        if (app.value) {
-          app.value.recreateGeometry();
-        }
-        debounceTimerRef.current = null;
-      }, 300);
-    }
+  // Handle checkbox change (for wireframe)
+  const handleCheckboxChange = (id: string, checked: boolean) => {
+    updateSettingValue(id, checked);
   };
 
   // Get the label for the current geometry type
@@ -114,7 +102,7 @@ export const GeometryPanel: FunctionComponent<GeometryPanelProps> = () => {
         <div className="settingRow">
           <label className="label">{typeSetting.label}</label>
           <Select.Root
-            value={(getSettingValue("geometryType") as number).toString()}
+            value={(getSettingValue("geometryType") as string).toString()}
             onValueChange={handleTypeChange}
           >
             <Select.Trigger>{getGeometryTypeLabel()}</Select.Trigger>
@@ -165,19 +153,7 @@ export const GeometryPanel: FunctionComponent<GeometryPanelProps> = () => {
         <Checkbox
           label="Show Wireframe"
           checked={getSettingValue("showWireframe") as boolean}
-          onChange={(checked) => {
-            updateSettingValue("showWireframe", checked);
-
-            // Update the app parameter
-            if (app.value) {
-              app.value.params.showWireframe = checked;
-
-              // Update the shader parameters
-              if (app.value.updateParams) {
-                app.value.updateParams(false); // Update without camera reset
-              }
-            }
-          }}
+          onChange={(checked) => handleCheckboxChange("showWireframe", checked)}
         />
       </div>
     </div>

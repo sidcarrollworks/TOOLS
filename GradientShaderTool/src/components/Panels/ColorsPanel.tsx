@@ -10,6 +10,7 @@ import {
   getPanelSettings,
   getSettingValue,
   updateSettingValue,
+  batchUpdateSettings,
 } from "../../lib/settings/store";
 import type {
   SettingGroup,
@@ -18,6 +19,7 @@ import type {
   ColorSetting,
 } from "../../lib/settings/types";
 import { appSignal } from "../../app";
+import { useDebounce } from "../../lib/hooks/useDebounce";
 
 interface ColorsPanelProps {
   // No props needed for now
@@ -27,12 +29,33 @@ export const ColorsPanel: FunctionComponent<ColorsPanelProps> = () => {
   // Get the app instance
   const app = useComputed(() => appSignal.value);
 
-  // Debounce timer for color updates
-  const debounceTimerRef = useRef<number | null>(null);
-
   // Get the colors panel settings
   const colorsPanelConfigSignal = getPanelSettings("colors");
   const colorsPanelConfig = useComputed(() => colorsPanelConfigSignal.value);
+
+  // Create debounced update functions
+  const updateSettingWithDebounce = useDebounce((id: string, value: any) => {
+    updateSettingValue(id, value);
+    // The shader param update is now handled by updateSettingValue
+  }, 50);
+
+  // Handle flow direction changes immediately without debounce
+  const handleFlowDirectionChange = (id: string, value: number) => {
+    console.log(`DEBUG ColorsPanel direct update (${id}):`, value);
+    // Update directly without debounce
+    updateSettingValue(id, value);
+  };
+
+  // Handle slider value change
+  const handleSliderChange = (id: string, value: number) => {
+    // For flow direction controls, use immediate updates
+    if (id.includes("gradientShift")) {
+      handleFlowDirectionChange(id, value);
+    } else {
+      // For other sliders, use debounced updates
+      updateSettingWithDebounce(id, value);
+    }
+  };
 
   // If no settings are available, show a placeholder
   if (!colorsPanelConfig.value) {
@@ -58,70 +81,11 @@ export const ColorsPanel: FunctionComponent<ColorsPanelProps> = () => {
   const handleGradientModeChange = (value: string) => {
     const numericValue = parseInt(value, 10);
     updateSettingValue("gradientMode", numericValue);
-
-    // Update the app parameter
-    if (app.value) {
-      app.value.params.gradientMode = numericValue;
-
-      // Update the shader parameters
-      if (app.value.updateParams) {
-        app.value.updateParams(false); // Update without camera reset
-      }
-    }
   };
 
   // Handle color change
   const handleColorChange = (id: string, value: string) => {
-    updateSettingValue(id, value);
-
-    // Update the app parameter
-    if (app.value) {
-      // Check if the parameter exists in the app.params object
-      if (id in app.value.params) {
-        // Use type assertion to safely update the parameter
-        (app.value.params as any)[id] = value;
-      }
-
-      // Clear any existing timer
-      if (debounceTimerRef.current !== null) {
-        window.clearTimeout(debounceTimerRef.current);
-      }
-
-      // Debounce updates to avoid too many updates
-      debounceTimerRef.current = window.setTimeout(() => {
-        if (app.value && app.value.updateParams) {
-          app.value.updateParams(false); // Update without camera reset
-        }
-        debounceTimerRef.current = null;
-      }, 50);
-    }
-  };
-
-  // Handle slider value change
-  const handleSliderChange = (id: string, value: number) => {
-    updateSettingValue(id, value);
-
-    // Update the app parameter
-    if (app.value) {
-      // Check if the parameter exists in the app.params object
-      if (id in app.value.params) {
-        // Use type assertion to safely update the parameter
-        (app.value.params as any)[id] = value;
-      }
-
-      // Clear any existing timer
-      if (debounceTimerRef.current !== null) {
-        window.clearTimeout(debounceTimerRef.current);
-      }
-
-      // Debounce updates to avoid too many updates
-      debounceTimerRef.current = window.setTimeout(() => {
-        if (app.value && app.value.updateParams) {
-          app.value.updateParams(false); // Update without camera reset
-        }
-        debounceTimerRef.current = null;
-      }, 50);
-    }
+    updateSettingWithDebounce(id, value);
   };
 
   // Get the label for the current gradient mode
@@ -220,11 +184,18 @@ export const ColorsPanel: FunctionComponent<ColorsPanelProps> = () => {
           minSpeed={0}
           maxSpeed={0.5}
           step={0.01}
-          onChangeX={(value) => handleSliderChange("gradientShiftX", value)}
-          onChangeY={(value) => handleSliderChange("gradientShiftY", value)}
-          onChangeSpeed={(value) =>
-            handleSliderChange("gradientShiftSpeed", value)
-          }
+          onChangeX={(value) => {
+            console.log("DEBUG ColorsPanel onChangeX:", value);
+            handleFlowDirectionChange("gradientShiftX", value);
+          }}
+          onChangeY={(value) => {
+            console.log("DEBUG ColorsPanel onChangeY:", value);
+            handleFlowDirectionChange("gradientShiftY", value);
+          }}
+          onChangeSpeed={(value) => {
+            console.log("DEBUG ColorsPanel onChangeSpeed:", value);
+            handleFlowDirectionChange("gradientShiftSpeed", value);
+          }}
         />
       </div>
 
@@ -236,47 +207,21 @@ export const ColorsPanel: FunctionComponent<ColorsPanelProps> = () => {
         <Checkbox
           label="Transparent"
           checked={
-            app.value?.params.exportTransparentBg ??
-            (getSettingValue("transparentBackground") as boolean) ??
-            false
+            (getSettingValue("transparentBackground") as boolean) ?? false
           }
           onChange={(checked) => {
-            // Update the setting value in the store with the correct ID
             updateSettingValue("transparentBackground", checked);
-
-            // Update the app parameter
-            if (app.value) {
-              app.value.params.exportTransparentBg = checked;
-
-              // Clear any existing timer
-              if (debounceTimerRef.current !== null) {
-                window.clearTimeout(debounceTimerRef.current);
-              }
-
-              // Debounce updates to avoid too many updates
-              debounceTimerRef.current = window.setTimeout(() => {
-                if (app.value && app.value.updateParams) {
-                  app.value.updateParams(false); // Update without camera reset
-                }
-                debounceTimerRef.current = null;
-              }, 50);
-            }
           }}
         />
 
-        {/* Background Color Picker */}
-        <div
-          className={`colorRow ${
-            app.value?.params.exportTransparentBg ? "disabled" : ""
-          }`}
-        >
-          <label className="label">Background Color</label>
+        {/* Background Color */}
+        <div className="colorRow">
+          <label className="label">Color</label>
           <div className="colorPickerContainer">
             <input
               type="color"
               className="colorPicker"
               value={getSettingValue("backgroundColor") as string}
-              disabled={app.value?.params.exportTransparentBg ?? false}
               onChange={(e) =>
                 handleColorChange(
                   "backgroundColor",

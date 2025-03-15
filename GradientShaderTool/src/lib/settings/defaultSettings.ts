@@ -418,7 +418,7 @@ export const defaultSettings: SettingsConfig = {
           label: "Lighting",
           settings: [
             {
-              id: "lightX",
+              id: "lightDirX",
               label: "X",
               type: "slider",
               min: -1,
@@ -428,7 +428,7 @@ export const defaultSettings: SettingsConfig = {
               description: "X position of the light",
             },
             {
-              id: "lightY",
+              id: "lightDirY",
               label: "Y",
               type: "slider",
               min: -1,
@@ -438,7 +438,7 @@ export const defaultSettings: SettingsConfig = {
               description: "Y position of the light",
             },
             {
-              id: "lightZ",
+              id: "lightDirZ",
               label: "Z",
               type: "slider",
               min: -1,
@@ -448,7 +448,7 @@ export const defaultSettings: SettingsConfig = {
               description: "Z position of the light",
             },
             {
-              id: "lightDiffuse",
+              id: "diffuseIntensity",
               label: "Diffuse",
               type: "slider",
               min: 0,
@@ -458,7 +458,7 @@ export const defaultSettings: SettingsConfig = {
               description: "Diffuse lighting intensity",
             },
             {
-              id: "lightAmbient",
+              id: "ambientIntensity",
               label: "Ambient",
               type: "slider",
               min: 0,
@@ -468,7 +468,7 @@ export const defaultSettings: SettingsConfig = {
               description: "Ambient lighting intensity",
             },
             {
-              id: "lightRim",
+              id: "rimLightIntensity",
               label: "Rim",
               type: "slider",
               min: 0,
