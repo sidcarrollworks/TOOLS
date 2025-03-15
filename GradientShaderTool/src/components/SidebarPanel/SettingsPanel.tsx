@@ -51,8 +51,6 @@ export const SettingsPanel: FunctionComponent<SettingsPanelProps> = () => {
         return "CAMERA SETTINGS";
       case "save":
         return "SAVE IMAGE";
-      case "code":
-        return "EXPORT CODE";
       default:
         return "";
     }

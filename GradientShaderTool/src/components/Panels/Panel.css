@@ -23,6 +23,17 @@
   text-transform: uppercase;
 }
 
+.settingDescription {
+  font-size: 12px;
+  color: var(--text-tertiary);
+  line-height: 1.4;
+}
+
+.settingDescription p {
+  margin-top: 8px;
+  margin-bottom: 0;
+}
+
 .settingsGroup:not(:first-child) .groupTitle {
   margin-top: 16px;
 }
@@ -41,6 +52,37 @@
 
 .controlRow {
   justify-content: space-between;
+}
+
+/* Buttons */
+.button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 4px;
+  border: 1px solid var(--border-color);
+  background: var(--background-secondary);
+  color: var(--text-primary);
+  font-size: 12px;
+  font-weight: 500;
+  padding: 0 12px;
+  height: 24px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.button:hover {
+  background: var(--background-hover);
+}
+
+.button.primary {
+  background: var(--primary);
+  color: white;
+  border-color: var(--primary-dark);
+}
+
+.button.primary:hover {
+  background: var(--primary-hover);
 }
 
 /* Labels */

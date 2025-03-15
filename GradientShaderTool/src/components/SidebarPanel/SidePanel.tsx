@@ -1,5 +1,5 @@
 import type { FunctionComponent } from "preact";
-import { signal } from "@preact/signals";
+import { signal, useComputed } from "@preact/signals";
 import styles from "./SidePanel.module.css";
 import { IconButton } from "../UI/IconButton";
 import {
@@ -13,6 +13,7 @@ import {
   CodeIcon,
 } from "../Icons";
 import SettingsPanel from "./SettingsPanel";
+import { appSignal } from "../../app";
 
 // Create a signal for the active panel
 export const activePanelSignal = signal<string | null>(null);
@@ -24,6 +25,9 @@ interface SidePanelProps {
 }
 
 export const SidePanel: FunctionComponent<SidePanelProps> = ({ visible }) => {
+  // Get the app instance
+  const app = useComputed(() => appSignal.value);
+
   // Check both the prop and the signal for visibility
   if (!visible || !sidePanelVisibleSignal.value) return null;
 
@@ -33,6 +37,14 @@ export const SidePanel: FunctionComponent<SidePanelProps> = ({ visible }) => {
       activePanelSignal.value = null;
     } else {
       activePanelSignal.value = panelName;
+    }
+  };
+
+  // Handle the code icon click specially - directly export code
+  const handleCodeIconClick = () => {
+    // If app is available, call exportCode directly
+    if (app.value) {
+      app.value.exportCode();
     }
   };
 
@@ -96,8 +108,8 @@ export const SidePanel: FunctionComponent<SidePanelProps> = ({ visible }) => {
         <IconButton
           icon={<CodeIcon />}
           label="Export Code"
-          isActive={activePanelSignal.value === "code"}
-          onClick={() => handleIconClick("code")}
+          isActive={false} // Never active since we don't open the panel
+          onClick={handleCodeIconClick}
           tooltipPosition="left"
         />
       </div>
