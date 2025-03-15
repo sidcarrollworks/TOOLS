@@ -1,0 +1,143 @@
+/* Panel.css - Consolidated styles for panel components in the Panels folder */
+
+/* Common Panel Styles */
+.panel {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  width: 100%;
+}
+
+/* Settings Groups */
+.settingsGroup {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  width: 100%;
+}
+
+.groupTitle {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-secondary);
+  text-transform: uppercase;
+}
+
+.settingDescription {
+  font-size: 12px;
+  color: var(--text-tertiary);
+  line-height: 1.4;
+}
+
+.settingDescription p {
+  margin-top: 8px;
+  margin-bottom: 0;
+}
+
+.settingsGroup:not(:first-child) .groupTitle {
+  margin-top: 16px;
+}
+
+/* Row Layouts */
+.settingRow,
+.colorRow,
+.controlRow {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  height: 24px;
+}
+
+.controlRow {
+  justify-content: space-between;
+}
+
+/* Buttons */
+.button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 4px;
+  border: 1px solid var(--border-color);
+  background: var(--background-secondary);
+  color: var(--text-primary);
+  font-size: 12px;
+  font-weight: 500;
+  padding: 0 12px;
+  height: 24px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.button:hover {
+  background: var(--background-hover);
+}
+
+.button.primary {
+  background: var(--primary);
+  color: white;
+  border-color: var(--primary-dark);
+}
+
+.button.primary:hover {
+  background: var(--primary-hover);
+}
+
+/* Labels */
+.label {
+  flex: 1;
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--text-primary);
+}
+
+/* Color Picker */
+.colorPickerContainer {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.colorPicker {
+  width: 24px;
+  height: 24px;
+  border: none;
+  cursor: pointer;
+  border-radius: 4px;
+  outline: 1px solid var(--gray-8);
+  outline-offset: 1px;
+}
+
+.colorValue {
+  font-size: 11px;
+  color: var(--text-tertiary);
+  font-family: monospace;
+  width: 60px;
+  text-align: right;
+}
+
+/* Preset Panel */
+.presetGrid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 12px;
+  width: 100%;
+}
+
+/* Placeholders */
+.placeholder,
+.noSettings,
+.noPresets {
+  color: var(--text-muted);
+  font-style: italic;
+  padding: 8px 0;
+  text-align: center;
+}
+
+/* States */
+.disabled {
+  opacity: 0.5;
+  pointer-events: none;
+}

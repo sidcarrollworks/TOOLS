@@ -1,4 +1,4 @@
-export * from './MouseLeftClick';
+export * from "./MouseLeftClick";
 export * from "./MouseRightClick";
 export * from "./X";
 export * from "./Copy";
@@ -6,3 +6,11 @@ export * from "./Check";
 export * from "./JS";
 export * from "./HTML";
 export * from "./OpenGL";
+export * from "./PresetIcon";
+export * from "./GeometryIcon";
+export * from "./DistortionIcon";
+export * from "./ColorsIcon";
+export * from "./LightingIcon";
+export * from "./CameraIcon";
+export * from "./SaveIcon";
+export * from "./CodeIcon";

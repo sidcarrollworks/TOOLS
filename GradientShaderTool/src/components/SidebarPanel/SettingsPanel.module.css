@@ -1,0 +1,67 @@
+.settingsPanel {
+  position: absolute;
+  top: 50%;
+  right: 100%; /* Position at the left edge of the sidebar */
+  transform: translateY(-50%) translateX(-6px); /* Move 6px to the left */
+  background-color: var(--gray-2);
+  border-radius: 8px;
+  border: 1px solid var(--border-color);
+  padding: 12px;
+  min-width: 240px;
+  max-width: 320px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  z-index: 1000; /* Increased z-index to ensure it appears above the canvas */
+  pointer-events: auto; /* Ensure it can receive mouse events */
+}
+
+.header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.title {
+  font-size: 12px;
+  font-weight: 500;
+  text-transform: uppercase;
+  color: var(--text-secondary); /* Secondary text color */
+  margin: 0;
+}
+
+.closeButton {
+  background: none;
+  border: none;
+  color: var(--text-tertiary);
+  cursor: pointer;
+  padding: 0;
+  width: 24px;
+  height: 24px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 4px;
+  transition: all 0.2s ease;
+  margin-left: 8px;
+  user-select: none; /* Prevent text selection */
+  -webkit-user-select: none;
+  -moz-user-select: none;
+  -ms-user-select: none;
+}
+
+.closeButton:hover {
+  color: var(--text-primary);
+}
+
+.content {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.placeholder {
+  color: var(--text-muted);
+  font-style: italic;
+  padding: 8px 0;
+}

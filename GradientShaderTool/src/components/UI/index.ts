@@ -16,3 +16,6 @@ export { Code } from "./Code";
 export { default as Select } from "./Select";
 export { Tooltip } from "./Tooltip";
 export { TooltipPortal } from "./TooltipPortal";
+export { IconButton } from "./IconButton";
+export { CardButton } from "./CardButton";
+export { Checkbox } from "./Checkbox";

@@ -37,6 +37,7 @@
   --panel-bg: var(--gray-2);
   --component-bg: var(--gray-3);
   --border-color: var(--gray-a5);
+  --border-hover: var(--gray-a6);
   --separator-color: var(--gray-a4);
 
   --text-primary: var(--gray-12);
@@ -80,6 +81,7 @@
     --panel-bg: var(--gray-2);
     --component-bg: var(--gray-3);
     --border-color: var(--gray-a5);
+    --border-hover: var(--gray-a6);
     --separator-color: var(--gray-a4);
 
     --text-primary: var(--gray-12);

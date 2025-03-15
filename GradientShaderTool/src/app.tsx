@@ -7,9 +7,16 @@ import ShaderCanvas from "./components/ShaderCanvas/ShaderCanvas";
 import ControlPanel from "./components/ControlPanel/ControlPanel";
 import Layout from "./components/Layout/Layout";
 import { DevPanel } from "./components/DevPanel";
+import { sidePanelVisibleSignal } from "./components/SidebarPanel";
+// Import settings system
+import {
+  initializeSettingsSystem,
+  connectSettingsToShaderApp,
+  initializeSettingsFromShaderApp,
+} from "./lib/settings/initApp";
 
 // Create signals for app state
-const appSignal = signal<ShaderApp | null>(null);
+export const appSignal = signal<ShaderApp | null>(null);
 const showSettingsSignal = signal(true);
 const showStatsSignal = signal(false);
 const showDevPanelSignal = signal(false);
@@ -26,6 +33,7 @@ const isPausedSignal = computed(() => {
   return appSignal.value?.params.pauseAnimation ?? false;
 });
 
+// Add a useEffect hook to initialize our settings system
 export const App: ComponentType = () => {
   // Reference to the shader canvas container
   const shaderCanvasRef = useRef<HTMLDivElement | null>(null);
@@ -129,10 +137,12 @@ export const App: ComponentType = () => {
         toggleAnimation();
       }
 
-      // 'H' to toggle settings panel
+      // 'H' to toggle settings panel and sidepanel
       if (e.key === "h" || e.key === "H") {
         e.preventDefault(); // Prevent default behavior
         toggleSettings();
+        // Toggle sidepanel visibility
+        sidePanelVisibleSignal.value = !sidePanelVisibleSignal.value;
       }
 
       // 'S' to toggle stats visibility - ONLY when UI is visible
@@ -214,6 +224,15 @@ export const App: ComponentType = () => {
               appSignal.value = shaderApp;
               appInitializedSignal.value = true;
               initializationErrorSignal.value = null;
+
+              // Initialize settings from the shader app
+              initializeSettingsFromShaderApp(shaderApp);
+
+              // Connect settings to the shader app
+              const unsubscribe = connectSettingsToShaderApp(shaderApp);
+
+              // Store the unsubscribe function for cleanup
+              (shaderApp as any).settingsUnsubscribe = unsubscribe;
             });
 
             // Set initial stats visibility to match showStats state (should be false by default)
@@ -268,6 +287,11 @@ export const App: ComponentType = () => {
         cleanupInProgressRef.current = true;
 
         try {
+          // Unsubscribe from settings if there's a subscription
+          if ((app as any).settingsUnsubscribe) {
+            (app as any).settingsUnsubscribe();
+          }
+
           app.dispose();
           console.log("ShaderApp resources cleaned up successfully");
         } catch (error) {
@@ -280,6 +304,13 @@ export const App: ComponentType = () => {
       }
     };
   }, [triggerInitSignal.value]); // Only re-run when triggerInitSignal changes
+
+  // Initialize settings system
+  useEffect(() => {
+    // Initialize settings system
+    initializeSettingsSystem();
+    console.log("Settings system initialized");
+  }, []);
 
   // Create component content
   const viewportContent = (
@@ -325,7 +356,11 @@ export const App: ComponentType = () => {
 
   // Only render ControlPanel when app is available and initialized
   const settingsContent = appInitializedSignal.value ? (
-    <ControlPanel app={appSignal.value} key="control-panel" />
+    // Temporarily disable the ControlPanel
+    // <ControlPanel app={appSignal.value} key="control-panel" />
+    <div style={{ padding: "20px" }}>
+      <div>Control Panel Disabled</div>
+    </div>
   ) : (
     <div style={{ padding: "20px" }}>
       <div>Loading app...</div>

@@ -2,6 +2,7 @@ import type { FunctionComponent } from "preact";
 import { useEffect, useState, useRef } from "preact/hooks";
 import styles from "./Layout.module.css";
 import { KeyboardHints, MinimalHint } from "./KeyboardHints";
+import { SidePanel, sidePanelVisibleSignal } from "../SidebarPanel";
 
 interface LayoutProps {
   viewportContent?: preact.ComponentChildren;
@@ -125,9 +126,13 @@ export const Layout: FunctionComponent<LayoutProps> = ({
           </div>
         </div>
 
-        {showSettings && (
+        {/* Temporarily disable the settings panel */}
+        {/* {showSettings && (
           <div className={styles.settingsPanel}>{settingsContent}</div>
-        )}
+        )} */}
+
+        {/* Move SidePanel outside of viewportContainer */}
+        <SidePanel visible={true} />
       </div>
     </>
   );

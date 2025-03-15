@@ -25,7 +25,7 @@
   background-color: var(--panel-bg, #2a2a2a);
   border: 1px solid var(--border-color, #444);
   border-radius: 6px;
-  padding: 8px 12px;
+  padding: 6px 12px;
   box-shadow: 0 2px 10px rgba(0, 0, 0, 0.3);
   max-width: 250px;
   width: max-content;
