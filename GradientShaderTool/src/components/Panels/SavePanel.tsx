@@ -213,47 +213,39 @@ const SavePanel: FunctionComponent<SavePanelProps> = () => {
   return (
     <div className="panel">
       <div className="settingsGroup">
-        <h3 className="groupTitle">Save Options</h3>
+        <Checkbox
+          label="Transparent Background"
+          checked={
+            app.value?.params.exportTransparentBg ??
+            (getSettingValue("transparentBackground") as boolean) ??
+            false
+          }
+          onChange={handleTransparentBgChange}
+        />
 
-        <div className="settingRow">
-          <Checkbox
-            label="Transparent Background"
-            checked={
-              app.value?.params.exportTransparentBg ??
-              (getSettingValue("transparentBackground") as boolean) ??
-              false
-            }
-            onChange={handleTransparentBgChange}
-          />
-        </div>
+        <Checkbox
+          label="High Quality"
+          checked={
+            app.value?.params.exportHighQuality ??
+            (getSettingValue("highQuality") as boolean) ??
+            true
+          }
+          onChange={handleHighQualityChange}
+        />
 
-        <div className="settingRow">
-          <Checkbox
-            label="High Quality"
-            checked={
-              app.value?.params.exportHighQuality ??
-              (getSettingValue("highQuality") as boolean) ??
-              true
-            }
-            onChange={handleHighQualityChange}
-          />
-        </div>
-
-        <div className="settingRow">
-          <Button
-            variant="primary"
-            onClick={handleSaveImage}
-            style={{
-              width: "100%",
-              height: "24px",
-              fontSize: "12px",
-              opacity: app.value ? 1 : 0.5,
-              cursor: app.value ? "pointer" : "not-allowed",
-            }}
-          >
-            Save Image
-          </Button>
-        </div>
+        <Button
+          variant="primary"
+          onClick={handleSaveImage}
+          style={{
+            width: "100%",
+            height: "24px",
+            fontSize: "12px",
+            opacity: app.value ? 1 : 0.5,
+            cursor: app.value ? "pointer" : "not-allowed",
+          }}
+        >
+          Save Image
+        </Button>
       </div>
     </div>
   );

@@ -75,8 +75,6 @@ export const DistortionPanel: FunctionComponent<DistortionPanelProps> = () => {
     <div className="panel">
       {/* Noise Settings */}
       <div className="settingsGroup">
-        <h3 className="groupTitle">Noise Settings</h3>
-
         {/* Render sliders for noise settings */}
         {normalNoiseGroup &&
           normalNoiseGroup.settings.map((setting) => {
@@ -98,11 +96,7 @@ export const DistortionPanel: FunctionComponent<DistortionPanelProps> = () => {
             }
             return null;
           })}
-      </div>
 
-      {/* Distortion Flow */}
-      <div className="settingsGroup">
-        <h3 className="groupTitle">Distortion Flow</h3>
         <DirectionControl
           valueX={getSettingValue("normalNoiseShiftX") as number}
           valueY={getSettingValue("normalNoiseShiftY") as number}

@@ -134,7 +134,7 @@ export const GeometryPanel: FunctionComponent<GeometryPanelProps> = () => {
 
       {/* Geometry Settings */}
       <div className="settingsGroup">
-        <h3 className="groupTitle">Shape Settings</h3>
+        <h3 className="groupTitle">Shape</h3>
 
         {/* Render sliders for the current geometry type */}
         {currentTypeSettings &&
@@ -161,7 +161,7 @@ export const GeometryPanel: FunctionComponent<GeometryPanelProps> = () => {
 
       {/* Wireframe Toggle */}
       <div className="settingsGroup">
-        <h3 className="groupTitle">Display Options</h3>
+        <h3 className="groupTitle">Display</h3>
         <Checkbox
           label="Show Wireframe"
           checked={getSettingValue("showWireframe") as boolean}

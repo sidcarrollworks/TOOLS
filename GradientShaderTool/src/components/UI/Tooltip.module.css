@@ -22,7 +22,7 @@
 .tooltip {
   position: fixed;
   z-index: 9999;
-  background-color: var(--panel-bg, #2a2a2a);
+  background-color: var(--gray-3, #2a2a2a);
   border: 1px solid var(--border-color, #444);
   border-radius: 6px;
   padding: 6px 12px;

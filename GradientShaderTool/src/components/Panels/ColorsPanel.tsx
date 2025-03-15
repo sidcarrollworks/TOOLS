@@ -210,11 +210,7 @@ export const ColorsPanel: FunctionComponent<ColorsPanelProps> = () => {
           step={0.01}
           onChange={(value) => handleSliderChange("colorNoiseSpeed", value)}
         />
-      </div>
 
-      {/* Gradient Flow */}
-      <div className="settingsGroup">
-        <h3 className="groupTitle">Gradient Flow</h3>
         <DirectionControl
           valueX={getSettingValue("gradientShiftX") as number}
           valueY={getSettingValue("gradientShiftY") as number}

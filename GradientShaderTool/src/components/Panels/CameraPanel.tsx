@@ -152,7 +152,6 @@ const CameraPanel: FunctionComponent<CameraPanelProps> = () => {
     <div className="panel">
       {/* Camera Settings */}
       <div className="settingsGroup">
-        <h3 className="groupTitle">Camera Settings</h3>
         <FigmaInput
           label="Distance"
           value={getSettingValue("cameraDistance") as number}
@@ -173,9 +172,9 @@ const CameraPanel: FunctionComponent<CameraPanelProps> = () => {
 
       {/* Camera Position */}
       <div className="settingsGroup">
-        <h3 className="groupTitle">Camera Position</h3>
+        <h3 className="groupTitle">Position</h3>
         <FigmaInput
-          label="X Position"
+          label="X"
           value={getSettingValue("cameraPosX") as number}
           min={-5}
           max={5}
@@ -183,7 +182,7 @@ const CameraPanel: FunctionComponent<CameraPanelProps> = () => {
           onChange={(value) => handleCameraChange("cameraPosX", value)}
         />
         <FigmaInput
-          label="Y Position"
+          label="Y"
           value={getSettingValue("cameraPosY") as number}
           min={-5}
           max={5}
@@ -191,7 +190,7 @@ const CameraPanel: FunctionComponent<CameraPanelProps> = () => {
           onChange={(value) => handleCameraChange("cameraPosY", value)}
         />
         <FigmaInput
-          label="Z Position"
+          label="Z"
           value={getSettingValue("cameraPosZ") as number}
           min={-5}
           max={5}

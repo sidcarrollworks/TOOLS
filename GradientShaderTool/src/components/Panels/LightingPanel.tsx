@@ -105,7 +105,7 @@ const LightingPanel: FunctionComponent<LightingPanelProps> = () => {
     <div className="panel">
       {/* Lighting Position */}
       <div className="settingsGroup">
-        <h3 className="groupTitle">Light Position</h3>
+        <h3 className="groupTitle">Position</h3>
         <FigmaInput
           label="X"
           value={getSettingValue("lightX") as number}
@@ -134,7 +134,7 @@ const LightingPanel: FunctionComponent<LightingPanelProps> = () => {
 
       {/* Lighting Intensity */}
       <div className="settingsGroup">
-        <h3 className="groupTitle">Light Intensity</h3>
+        <h3 className="groupTitle">Intensity</h3>
         <FigmaInput
           label="Diffuse"
           value={getSettingValue("lightDiffuse") as number}

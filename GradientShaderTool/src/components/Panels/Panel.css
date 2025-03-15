@@ -18,9 +18,9 @@
 
 .groupTitle {
   font-size: 12px;
-  font-weight: 600;
+  font-weight: 500;
   color: var(--text-secondary);
-  text-transform: uppercase;
+  /* text-transform: uppercase; */
 }
 
 .settingDescription {
