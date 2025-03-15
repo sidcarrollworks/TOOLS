@@ -31,7 +31,7 @@
   width: 10px;
   height: 10px;
   /* Using a CSS variable for the panel background color */
-  background-image: url("data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20width%3D%2210%22%20height%3D%2210%22%20viewBox%3D%220%200%2010%2010%22%20fill%3D%22none%22%3E%3Cpath%20d%3D%22M10%200V10H0C0%2010%204%2010%207%207C10%204%2010%200%2010%200Z%22%20fill%3D%22%23222222%22%2F%3E%3C%2Fsvg%3E");
+  background-image: url("data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20width%3D%2210%22%20height%3D%2210%22%20viewBox%3D%220%200%2010%2010%22%20fill%3D%22none%22%3E%3Cpath%20d%3D%22M10%200V10H0C0%2010%204%2010%207%207C10%204%2010%200%2010%200Z%22%20fill%3D%22%23191919%22%2F%3E%3C%2Fsvg%3E");
   background-repeat: no-repeat;
 }
 
@@ -43,7 +43,8 @@
   right: 0;
   width: 10px;
   height: 10px;
+  color: var(--panel-bg);
   /* Using a CSS variable for the panel background color */
-  background-image: url("data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20width%3D%2210%22%20height%3D%2210%22%20viewBox%3D%220%200%2010%2010%22%20fill%3D%22none%22%3E%3Cpath%20d%3D%22M-4.37114e-07%200L10%20-4.37114e-07L10%2010C10%2010%2010%206%207%203C4%203.01992e-07%20-4.37114e-07%200%20-4.37114e-07%200Z%22%20fill%3D%22%23222222%22%2F%3E%3C%2Fsvg%3E");
+  background-image: url("data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20width%3D%2210%22%20height%3D%2210%22%20viewBox%3D%220%200%2010%2010%22%20fill%3D%22none%22%3E%3Cpath%20d%3D%22M-4.37114e-07%200L10%20-4.37114e-07L10%2010C10%2010%2010%206%207%203C4%203.01992e-07%20-4.37114e-07%200%20-4.37114e-07%200Z%22%20fill%3D%22%23191919%22%2F%3E%3C%2Fsvg%3E");
   background-repeat: no-repeat;
 }
