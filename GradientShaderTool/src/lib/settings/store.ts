@@ -1,6 +1,6 @@
 import { signal, computed } from "@preact/signals";
 import type { SettingsConfig } from "./types";
-import { appSignal } from "../../app";
+import { facadeSignal } from "../../app";
 import { applySettingsToParams, validateSetting } from "./mappings/utils";
 
 // Create a signal for the settings configuration
@@ -60,22 +60,17 @@ export function updateSettingValue(id: string, value: any) {
     );
   }
 
-  // Get the app instance
-  const app = appSignal.value;
-  if (app) {
-    // Apply the update to shader params directly
-    applySettingsToParams({ [id]: value }, app.params, app);
+  // Get the facade instance
+  const facade = facadeSignal.value;
+  if (facade && facade.isInitialized()) {
+    // Update the parameter using the facade
+    facade.updateParam(id as any, value, { skipValidation: true });
 
     // Debug the actual shader param values
-    if (
-      (id.includes("NoiseShift") || id.includes("gradientShift")) &&
-      app.params
-    ) {
+    if (id.includes("NoiseShift") || id.includes("gradientShift")) {
       console.log(
         `DEBUG Shader param after update (${id}):`,
-        id in app.params
-          ? app.params[id as keyof typeof app.params]
-          : "param not found"
+        facade.getParam(id as any)
       );
     }
   }
@@ -101,11 +96,13 @@ export function batchUpdateSettings(updates: Record<string, any>) {
     ...updates,
   };
 
-  // Get the app instance
-  const app = appSignal.value;
-  if (app) {
-    // Apply all updates to shader params
-    applySettingsToParams(updates, app.params, app);
+  // Get the facade instance
+  const facade = facadeSignal.value;
+  if (facade && facade.isInitialized()) {
+    // Apply all updates to shader params through the facade
+    Object.entries(updates).forEach(([id, value]) => {
+      facade.updateParam(id as any, value, { skipValidation: true });
+    });
   }
 
   return true;
@@ -136,10 +133,12 @@ export function loadPreset(presetValues: Record<string, any>) {
     ...presetValues,
   };
 
-  // Get the app instance
-  const app = appSignal.value;
-  if (app) {
-    // Apply all updates to shader params
-    applySettingsToParams(presetValues, app.params, app);
+  // Get the facade instance
+  const facade = facadeSignal.value;
+  if (facade && facade.isInitialized()) {
+    // Apply all updates to shader params through the facade
+    Object.entries(presetValues).forEach(([id, value]) => {
+      facade.updateParam(id as any, value, { skipValidation: true });
+    });
   }
 }

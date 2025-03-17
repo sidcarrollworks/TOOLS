@@ -9,7 +9,7 @@ import type {
   SettingGroup,
   ButtonSetting,
 } from "../../lib/settings/types";
-import { appSignal } from "../../app";
+import { facadeSignal } from "../../app";
 import { initializeSettingsFromShaderApp } from "../../lib/settings/initApp";
 import { setPresetApplying } from "../FigmaInput/FigmaInput";
 import { settingToParamMap } from "../../lib/settings/mappings";
@@ -23,6 +23,9 @@ export const PresetPanel: FunctionComponent<PresetPanelProps> = () => {
   const [lastAppliedPreset, setLastAppliedPreset] = useState<string | null>(
     null
   );
+
+  // Use facadeSignal instead of useFacade
+  const facade = useComputed(() => facadeSignal.value);
 
   // Get the presets panel settings
   const presetPanelConfigSignal = getPanelSettings("presets");
@@ -45,13 +48,6 @@ export const PresetPanel: FunctionComponent<PresetPanelProps> = () => {
   const handlePresetClick = (presetId: string) => {
     console.log(`Applying preset: ${presetId}`);
 
-    // Get the app instance from the signal
-    const app = appSignal.value;
-    if (!app) {
-      console.error("App not initialized");
-      return;
-    }
-
     // Get the preset name from the mapping
     const presetName = settingToParamMap.get(presetId);
     if (!presetName) {
@@ -59,32 +55,32 @@ export const PresetPanel: FunctionComponent<PresetPanelProps> = () => {
       return;
     }
 
+    // Check if facade is available
+    if (!facade.value) {
+      console.error("Facade not available");
+      return;
+    }
+
     // Set the preset application state to true before applying the preset
     setPresetApplying(true);
 
-    // Apply the preset
-    if (presetName in app.presets) {
-      try {
-        // Apply the preset to the ShaderApp
-        app.presets[presetName]();
-        console.log(`Applied preset: ${presetName}`);
+    try {
+      // Apply the preset using the facade
+      facade.value.applyPreset(presetName);
+      console.log(`Applied preset: ${presetName}`);
 
-        // Sync the ShaderApp parameters back to the settings store
-        initializeSettingsFromShaderApp(app);
+      // Sync the facade parameters back to the settings store
+      initializeSettingsFromShaderApp(facade.value);
 
-        // Update the UI state
-        setLastAppliedPreset(presetId);
+      // Update the UI state
+      setLastAppliedPreset(presetId);
 
-        // Set the preset application state back to false after a delay
-        setTimeout(() => {
-          setPresetApplying(false);
-        }, 600); // Slightly longer than the transition duration to ensure it completes
-      } catch (error) {
-        console.error(`Error applying preset: ${presetName}`, error);
+      // Set the preset application state back to false after a delay
+      setTimeout(() => {
         setPresetApplying(false);
-      }
-    } else {
-      console.error(`Preset not found: ${presetName}`);
+      }, 600); // Slightly longer than the transition duration to ensure it completes
+    } catch (error) {
+      console.error(`Error applying preset: ${presetName}`, error);
       setPresetApplying(false);
     }
   };

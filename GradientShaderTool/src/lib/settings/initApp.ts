@@ -5,6 +5,7 @@ import {
   batchUpdateSettings,
 } from "./store";
 import type { ShaderApp } from "../ShaderApp";
+import type { IShaderAppFacade } from "../facade/types";
 import {
   initMappingLookups,
   extractSettingsFromParams,
@@ -22,6 +23,9 @@ interface CameraSettings {
   cameraTargetZ?: number;
   cameraFov?: number;
 }
+
+// Define a type that can be either ShaderApp or IShaderAppFacade
+export type AppOrFacade = ShaderApp | IShaderAppFacade;
 
 // Declare the global function for TypeScript
 declare global {
@@ -62,25 +66,50 @@ export function initializeSettingsSystem() {
   console.log("Settings system initialized with default values");
 }
 
-// Connect settings changes to shader app updates
-export function connectSettingsToShaderApp(app: ShaderApp) {
-  console.log("Connecting settings to ShaderApp...");
+// Connect settings changes to shader app or facade
+export function connectSettingsToShaderApp(appOrFacade: AppOrFacade) {
+  console.log("Connecting settings to app...");
 
   // Initialize the app with current settings
   const settings = settingsValuesSignal.value;
   if (Object.keys(settings).length > 0) {
-    applySettingsToParams(settings, app.params, app);
+    // Check if we're dealing with a facade or direct ShaderApp
+    if ("updateParam" in appOrFacade) {
+      // It's a facade
+      const facade = appOrFacade as IShaderAppFacade;
+
+      // Apply each setting to the facade
+      Object.entries(settings).forEach(([settingId, value]) => {
+        facade.updateParam(settingId as any, value, { skipValidation: true });
+      });
+    } else {
+      // It's a ShaderApp
+      const app = appOrFacade as ShaderApp;
+      applySettingsToParams(settings, app.params, app);
+    }
   }
 
-  console.log("Settings connected to ShaderApp");
+  console.log("Settings connected to app");
 }
 
-// Initialize the settings values from the shader app
-export function initializeSettingsFromShaderApp(app: ShaderApp) {
-  console.log("Initializing settings from ShaderApp...");
+// Initialize the settings values from the shader app or facade
+export function initializeSettingsFromShaderApp(appOrFacade: AppOrFacade) {
+  console.log("Initializing settings from app...");
 
-  // Extract current values from ShaderApp params
-  const settings = extractSettingsFromParams(app.params);
+  // Extract current values from params
+  let settings: Record<string, any> = {};
+
+  // Check if we're dealing with a facade or direct ShaderApp
+  if ("getAllParams" in appOrFacade) {
+    // It's a facade
+    const facade = appOrFacade as IShaderAppFacade;
+    const params = facade.getAllParams();
+    settings = extractSettingsFromParams(params);
+  } else {
+    // It's a ShaderApp
+    const app = appOrFacade as ShaderApp;
+    settings = extractSettingsFromParams(app.params);
+  }
 
   // Update the settings values signal with a batch update
   settingsValuesSignal.value = {
@@ -88,5 +117,5 @@ export function initializeSettingsFromShaderApp(app: ShaderApp) {
     ...settings,
   };
 
-  console.log("Settings initialized from ShaderApp");
+  console.log("Settings initialized from app");
 }

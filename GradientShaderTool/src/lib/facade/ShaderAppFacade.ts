@@ -15,7 +15,8 @@ import type {
   ShaderAppEventMap,
 } from "./types";
 import { EventEmitter } from "./EventEmitter";
-import { FacadeConfig, createConfig } from "./FacadeConfig";
+import type { FacadeConfig } from "./FacadeConfig";
+import { createConfig } from "./FacadeConfig";
 import type { ShaderApp, ShaderParams } from "../ShaderApp";
 import { validateSetting } from "../settings/mappings/utils";
 
@@ -111,11 +112,16 @@ export class ShaderAppFacade extends EventEmitter implements IShaderAppFacade {
       // Start performance monitoring if enabled
       if (this.config.performance.enableStats && this.app.stats) {
         container.appendChild(this.app.stats.dom);
+        this.app.stats.dom.style.display = "block"; // Make sure it's visible if enabled
+      } else if (this.app.stats) {
+        // Make sure stats are hidden by default if not enabled
+        this.app.stats.dom.style.display = "none";
       }
 
-      // Start animation loop if not already running
-      if (!this.isAnimating()) {
-        this.startAnimation();
+      // We don't start the animation loop here anymore since ShaderApp does it
+      // Just set the animationFrameId to a dummy value to indicate we're ready to animate
+      if (!this.app.params.pauseAnimation) {
+        this.animationFrameId = 1;
       }
 
       // Log debug information if enabled
@@ -139,18 +145,16 @@ export class ShaderAppFacade extends EventEmitter implements IShaderAppFacade {
    * Dispose of the shader app and clean up resources
    */
   public dispose(): void {
-    // Stop the animation loop if running
-    if (this.isAnimating()) {
-      this.stopAnimation();
-    }
-
-    // Clear all debounce timeouts
+    // Clear any debounce timeouts
     Object.values(this.debounceTimeouts).forEach((timeoutId) => {
       window.clearTimeout(timeoutId);
     });
     this.debounceTimeouts = {};
 
-    // Dispose of the app
+    // Reset our tracking flag for animation
+    this.animationFrameId = null;
+
+    // Dispose of the app - this will handle canceling any animation frame
     if (this.app) {
       this.app.dispose();
       this.app = null;
@@ -718,22 +722,13 @@ export class ShaderAppFacade extends EventEmitter implements IShaderAppFacade {
     // Update the animation parameter
     this.updateParam("pauseAnimation", false, { deferUpdate: true });
 
-    // Start the animation loop
-    const animate = () => {
-      this.animationFrameId = requestAnimationFrame(animate);
+    // Let ShaderApp handle its own animation loop
+    // We don't need to set up a separate animation loop here
+    // since ShaderApp.animate() already calls requestAnimationFrame
+    this.animationFrameId = 1; // Set a dummy value to indicate animation is running
 
-      // Call the app's animate method
-      this.app!.animate();
-
-      // Emit render complete event
-      const frameTime = performance.now(); // Simple proxy for frame time
-      const frameCount = 0; // No frame counter implementation yet
-
-      this.emit("render-complete", { frameTime, frameCount });
-    };
-
-    // Start the loop
-    this.animationFrameId = requestAnimationFrame(animate);
+    // Call animate once to start the ShaderApp animation loop
+    this.app!.animate();
 
     // Emit animation started event
     this.emit("animation-started", undefined);
@@ -748,14 +743,11 @@ export class ShaderAppFacade extends EventEmitter implements IShaderAppFacade {
       return;
     }
 
-    // Update the animation parameter
+    // Update the animation parameter to pause
     this.updateParam("pauseAnimation", true, { deferUpdate: true });
 
-    // Stop the animation loop
-    if (this.animationFrameId !== null) {
-      cancelAnimationFrame(this.animationFrameId);
-      this.animationFrameId = null;
-    }
+    // Reset our tracking flag
+    this.animationFrameId = null;
 
     // Emit animation stopped event
     this.emit("animation-stopped", undefined);

@@ -9,15 +9,15 @@ import {
   updateSettingValue,
 } from "../../lib/settings/store";
 import type { SettingGroup } from "../../lib/settings/types";
-import { appSignal } from "../../app";
+import { useFacade } from "../../lib/facade/FacadeContext";
 
 interface SavePanelProps {
   // No props needed for now
 }
 
 const SavePanel: FunctionComponent<SavePanelProps> = () => {
-  // Get the app instance
-  const app = useComputed(() => appSignal.value);
+  // Get the facade instance using the hook
+  const facade = useFacade();
 
   // Get the save panel settings
   const savePanelConfigSignal = getPanelSettings("save");
@@ -38,25 +38,33 @@ const SavePanel: FunctionComponent<SavePanelProps> = () => {
     updateSettingValue(id, checked);
   };
 
-  // Handle save image
+  // Handle save image button click
   const handleSaveImage = () => {
-    if (app.value && app.value.exportManager) {
-      app.value.exportManager.saveAsImage();
+    if (facade.isInitialized()) {
+      facade.exportAsImage({
+        transparent: getSettingValue("transparentBackground"),
+        highQuality: getSettingValue("exportHighQuality"),
+      });
     }
   };
 
-  // Handle save animation
+  // Handle save animation button click
   const handleSaveAnimation = () => {
-    if (app.value) {
-      // Animation export functionality goes here
+    if (facade.isInitialized()) {
+      // Animation export not implemented yet in the facade
       alert("Animation export not implemented yet");
+      // When implemented, it would be something like:
+      // facade.exportAsAnimation({
+      //   transparent: getSettingValue("transparentBackground"),
+      //   highQuality: getSettingValue("exportHighQuality"),
+      // });
     }
   };
 
-  // Handle save code
+  // Handle save code button click
   const handleSaveCode = () => {
-    if (app.value && app.value.exportManager) {
-      app.value.exportManager.exportCode();
+    if (facade.isInitialized()) {
+      facade.exportAsCode();
     }
   };
 

@@ -88,6 +88,9 @@ export interface ShaderParams {
   // Export options
   exportTransparentBg: boolean;
   exportHighQuality: boolean;
+
+  // Performance options
+  useAdaptiveResolution: boolean;
 }
 
 export interface ShaderPresets {
@@ -246,6 +249,9 @@ export class ShaderApp {
       // Export options
       exportTransparentBg: false,
       exportHighQuality: true,
+
+      // Performance options
+      useAdaptiveResolution: false,
     };
 
     // Uniforms for the shader
@@ -334,8 +340,8 @@ export class ShaderApp {
       // Set up Three.js scene
       this.sceneManager.setupScene(this.parentElement);
 
-      // Set up performance stats
-      this.utils.setupStats(this);
+      // Set up performance stats - pass false to hide stats by default
+      this.utils.setupStats(this, false);
 
       // Load default preset
       this.presetManager.presetDefault();
@@ -469,5 +475,15 @@ export class ShaderApp {
     }
 
     console.log("Application resources cleaned up");
+  }
+
+  /**
+   * Set whether to use adaptive resolution for geometry
+   * @param enabled Whether to use adaptive resolution
+   */
+  setAdaptiveResolution(enabled: boolean): void {
+    if (this.sceneManager) {
+      this.sceneManager.setAdaptiveResolution(enabled);
+    }
   }
 }

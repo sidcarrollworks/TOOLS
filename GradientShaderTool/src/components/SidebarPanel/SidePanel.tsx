@@ -13,7 +13,7 @@ import {
   CodeIcon,
 } from "../Icons";
 import SettingsPanel from "./SettingsPanel";
-import { appSignal } from "../../app";
+import { facadeSignal } from "../../app";
 
 // Create a signal for the active panel
 export const activePanelSignal = signal<string | null>(null);
@@ -25,8 +25,8 @@ interface SidePanelProps {
 }
 
 export const SidePanel: FunctionComponent<SidePanelProps> = ({ visible }) => {
-  // Get the app instance
-  const app = useComputed(() => appSignal.value);
+  // Use facadeSignal instead of useFacade
+  const facade = useComputed(() => facadeSignal.value);
 
   // Check both the prop and the signal for visibility
   if (!visible || !sidePanelVisibleSignal.value) return null;
@@ -42,9 +42,9 @@ export const SidePanel: FunctionComponent<SidePanelProps> = ({ visible }) => {
 
   // Handle the code icon click specially - directly export code
   const handleCodeIconClick = () => {
-    // If app is available, call exportCode directly
-    if (app.value) {
-      app.value.exportCode();
+    // If facade is available, call exportAsCode directly
+    if (facade.value && facade.value.isInitialized()) {
+      facade.value.exportAsCode();
     }
   };
 

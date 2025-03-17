@@ -14,7 +14,7 @@ import type {
   SelectSetting,
   SliderSetting,
 } from "../../lib/settings/types";
-import { appSignal } from "../../app";
+import { facadeSignal } from "../../app";
 import { useDebounce } from "../../lib/hooks/useDebounce";
 
 interface GeometryPanelProps {
@@ -22,8 +22,8 @@ interface GeometryPanelProps {
 }
 
 export const GeometryPanel: FunctionComponent<GeometryPanelProps> = () => {
-  // Get the app instance
-  const app = useComputed(() => appSignal.value);
+  // Use facadeSignal instead of useFacade
+  const facade = useComputed(() => facadeSignal.value);
 
   // Get the geometry panel settings
   const geometryPanelConfigSignal = getPanelSettings("geometry");
@@ -36,16 +36,18 @@ export const GeometryPanel: FunctionComponent<GeometryPanelProps> = () => {
     () => getSettingValue("geometryType") as string
   );
 
-  // Create debounced update function for geometry settings
+  // Create debounced update function with geometry recreation
   const updateGeometryWithDebounce = useDebounce((id: string, value: any) => {
+    // Update the setting value in the store
     updateSettingValue(id, value);
 
     // Recreate the geometry after updating the parameter
     // This needs to be done manually since it's a special operation
-    if (app.value) {
-      app.value.recreateGeometry();
+    if (facade.value && facade.value.isInitialized()) {
+      // Use a generic method to trigger geometry update
+      facade.value.updateParam(id as any, value, { recreateGeometry: true });
     }
-  }, 300);
+  }, 50);
 
   // If no settings are available, show a placeholder
   if (!geometryPanelConfig.value) {
@@ -69,11 +71,18 @@ export const GeometryPanel: FunctionComponent<GeometryPanelProps> = () => {
 
   // Handle geometry type change
   const handleTypeChange = (value: string) => {
-    updateSettingValue("geometryType", value);
+    // Convert string value to number
+    const numericValue = parseInt(value, 10);
+
+    // Update the setting value in the store
+    updateSettingValue("geometryType", numericValue);
 
     // Force geometry recreation when type changes
-    if (app.value) {
-      app.value.recreateGeometry();
+    if (facade.value && facade.value.isInitialized()) {
+      // Use a generic method to trigger geometry update
+      facade.value.updateParam("geometryType" as any, numericValue, {
+        recreateGeometry: true,
+      });
     }
   };
 

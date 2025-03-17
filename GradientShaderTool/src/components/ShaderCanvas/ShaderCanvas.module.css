@@ -9,6 +9,7 @@
   justify-content: center;
   align-items: center;
   transition: width var(--transition-normal), height var(--transition-normal);
+  padding: 4px;
 }
 
 /* Target any canvas element within the container */

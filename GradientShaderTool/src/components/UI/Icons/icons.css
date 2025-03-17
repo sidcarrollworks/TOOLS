@@ -1,0 +1,91 @@
+.icon {
+  display: inline-block;
+  vertical-align: middle;
+}
+
+.icon-button {
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  padding: 4px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 4px;
+  color: var(--color-text-secondary, #aaa);
+  transition: color 0.2s, background-color 0.2s;
+}
+
+.icon-button:hover {
+  color: var(--color-text-primary, #eee);
+  background-color: rgba(255, 255, 255, 0.1);
+}
+
+.icon-button:active {
+  color: var(--color-accent, #4b9cdb);
+  background-color: rgba(255, 255, 255, 0.15);
+}
+
+.icon-button:focus {
+  outline: none;
+  box-shadow: 0 0 0 2px rgba(75, 156, 219, 0.5);
+}
+
+.icon-button.active {
+  color: var(--color-accent, #4b9cdb);
+  background-color: rgba(75, 156, 219, 0.15);
+}
+
+/* Icon with text */
+.icon-with-text {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.icon-with-text .icon {
+  flex-shrink: 0;
+}
+
+/* Different icon sizes */
+.icon-xs {
+  width: 12px;
+  height: 12px;
+}
+
+.icon-sm {
+  width: 16px;
+  height: 16px;
+}
+
+.icon-md {
+  width: 20px;
+  height: 20px;
+}
+
+.icon-lg {
+  width: 24px;
+  height: 24px;
+}
+
+.icon-xl {
+  width: 32px;
+  height: 32px;
+}
+
+/* Status colors */
+.icon-success {
+  color: var(--color-success, #43a047);
+}
+
+.icon-warning {
+  color: var(--color-warning, #f9a825);
+}
+
+.icon-error {
+  color: var(--color-error, #e53935);
+}
+
+.icon-info {
+  color: var(--color-info, #4b9cdb);
+}

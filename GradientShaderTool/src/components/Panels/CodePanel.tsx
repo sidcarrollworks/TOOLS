@@ -10,29 +10,29 @@ import type { FunctionComponent } from "preact";
 import { useEffect } from "preact/hooks";
 import { useComputed } from "@preact/signals";
 import "./Panel.css";
-import { appSignal } from "../../app";
+import { useFacade } from "../../lib/facade/FacadeContext";
 
 interface CodePanelProps {
   // No props needed for now
 }
 
 const CodePanel: FunctionComponent<CodePanelProps> = () => {
-  // Get the app instance
-  const app = useComputed(() => appSignal.value);
+  // Get the facade instance using the hook
+  const facade = useFacade();
 
   // Trigger the export code modal when the panel is shown
   useEffect(() => {
-    if (app.value) {
+    if (facade.isInitialized()) {
       // Small delay to ensure the panel is rendered before opening the modal
       const timer = setTimeout(() => {
-        app.value?.exportCode();
+        facade.exportAsCode();
       }, 100);
 
       return () => {
         clearTimeout(timer);
       };
     }
-  }, [app.value]);
+  }, [facade]);
 
   return (
     <div className="panel">
@@ -49,13 +49,13 @@ const CodePanel: FunctionComponent<CodePanelProps> = () => {
         <div className="settingRow" style={{ marginTop: "16px" }}>
           <button
             className="button primary"
-            onClick={() => app.value?.exportCode()}
+            onClick={() => facade.isInitialized() && facade.exportAsCode()}
             style={{
               width: "100%",
               height: "24px",
               fontSize: "12px",
-              opacity: app.value ? 1 : 0.5,
-              cursor: app.value ? "pointer" : "not-allowed",
+              opacity: facade.isInitialized() ? 1 : 0.5,
+              cursor: facade.isInitialized() ? "pointer" : "not-allowed",
             }}
           >
             Open Export Code Modal

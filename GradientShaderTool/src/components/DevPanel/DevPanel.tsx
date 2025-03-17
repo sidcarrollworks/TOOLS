@@ -1,10 +1,12 @@
 import type { FunctionComponent } from "preact";
 import { useState, useEffect, useRef } from "preact/hooks";
-import type { ShaderApp, ShaderParams } from "../../lib/ShaderApp";
+import { useComputed } from "@preact/signals";
+import type { ShaderParams } from "../../lib/ShaderApp";
+import type { IShaderAppFacade } from "../../lib/facade/types";
+import { facadeSignal } from "../../app";
 import styles from "./DevPanel.module.css";
 
 interface DevPanelProps {
-  app: ShaderApp | null;
   visible: boolean;
   onToggle: () => void;
 }
@@ -60,321 +62,243 @@ const paramCategories = {
   export: ["exportTransparentBg", "exportHighQuality"],
 };
 
-// Helper function to format values for display
+// Format parameter values for display
 const formatValue = (key: string, value: any): string => {
+  if (value === undefined || value === null) return "undefined";
   if (typeof value === "number") {
-    // Format numbers with precision
-    return value.toFixed(4);
-  } else if (typeof value === "boolean") {
-    return value ? "true" : "false";
-  } else {
-    return String(value);
+    // Check if it's a color parameter (might be a number format like 0xFFFFFF)
+    if (key.toLowerCase().includes("color") && !key.includes("Scale")) {
+      const hex = value.toString(16).padStart(6, "0");
+      return `#${hex}`;
+    }
+    return value.toFixed(2);
   }
+  if (typeof value === "boolean") return value ? "true" : "false";
+  if (typeof value === "string") {
+    // Truncate long strings
+    return value.length > 20 ? value.substring(0, 20) + "..." : value;
+  }
+  return String(value);
 };
 
-// Helper function to generate preset code
+// Generate code for a preset
 const generatePresetCode = (params: ShaderParams): string => {
-  return `// Preset: Custom Preset
-const customPreset = () => {
-  // Geometry
-  this.params.geometryType = "${params.geometryType}";
-  this.params.planeWidth = ${params.planeWidth};
-  this.params.planeHeight = ${params.planeHeight};
-  this.params.planeSegments = ${params.planeSegments};
-  this.params.sphereRadius = ${params.sphereRadius};
-  this.params.sphereWidthSegments = ${params.sphereWidthSegments};
-  this.params.sphereHeightSegments = ${params.sphereHeightSegments};
-  this.params.cubeSize = ${params.cubeSize};
-  this.params.cubeWidthSegments = ${params.cubeWidthSegments};
-  this.params.cubeHeightSegments = ${params.cubeHeightSegments};
-  this.params.cubeDepthSegments = ${params.cubeDepthSegments};
+  // Filter out parameters we don't want in presets
+  const relevantParams = Object.entries(params).filter(
+    ([key, value]) =>
+      // Filter out complex objects, functions, and specific params we don't want to include
+      typeof value !== "object" &&
+      typeof value !== "function" &&
+      !key.includes("camera") && // Exclude camera params
+      !key.startsWith("_")
+  );
 
-  // Rotation
-  this.params.rotationX = ${params.rotationX};
-  this.params.rotationY = ${params.rotationY};
-  this.params.rotationZ = ${params.rotationZ};
-
-  // Camera
-  this.params.cameraDistance = ${params.cameraDistance};
-  this.params.cameraFov = ${params.cameraFov};
-  this.params.cameraPosX = ${params.cameraPosX};
-  this.params.cameraPosY = ${params.cameraPosY};
-  this.params.cameraPosZ = ${params.cameraPosZ};
-  this.params.cameraTargetX = ${params.cameraTargetX};
-  this.params.cameraTargetY = ${params.cameraTargetY};
-  this.params.cameraTargetZ = ${params.cameraTargetZ};
-
-  // Normal Noise
-  this.params.normalNoiseScaleX = ${params.normalNoiseScaleX};
-  this.params.normalNoiseScaleY = ${params.normalNoiseScaleY};
-  this.params.normalNoiseSpeed = ${params.normalNoiseSpeed};
-  this.params.normalNoiseStrength = ${params.normalNoiseStrength};
-  this.params.normalNoiseShiftX = ${params.normalNoiseShiftX};
-  this.params.normalNoiseShiftY = ${params.normalNoiseShiftY};
-  this.params.normalNoiseShiftSpeed = ${params.normalNoiseShiftSpeed};
-
-  // Color Noise
-  this.params.colorNoiseScale = ${params.colorNoiseScale};
-  this.params.colorNoiseSpeed = ${params.colorNoiseSpeed};
-
-  // Gradient Shift
-  this.params.gradientShiftX = ${params.gradientShiftX};
-  this.params.gradientShiftY = ${params.gradientShiftY};
-  this.params.gradientShiftSpeed = ${params.gradientShiftSpeed};
-
-  // Colors
-  this.params.gradientMode = ${params.gradientMode};
-  this.params.color1 = "${params.color1}";
-  this.params.color2 = "${params.color2}";
-  this.params.color3 = "${params.color3}";
-  this.params.color4 = "${params.color4}";
-
-  // Lighting
-  this.params.lightDirX = ${params.lightDirX};
-  this.params.lightDirY = ${params.lightDirY};
-  this.params.lightDirZ = ${params.lightDirZ};
-  this.params.diffuseIntensity = ${params.diffuseIntensity};
-  this.params.ambientIntensity = ${params.ambientIntensity};
-  this.params.rimLightIntensity = ${params.rimLightIntensity};
-
-  // Visualization
-  this.params.backgroundColor = "${params.backgroundColor}";
-  this.params.showWireframe = ${params.showWireframe};
-  this.params.flatShading = ${params.flatShading};
-
-  // Animation
-  this.params.animationSpeed = ${params.animationSpeed};
-  this.params.pauseAnimation = ${params.pauseAnimation};
-
-  // Apply all changes
-  this.recreatePlane();
-  this.updateParams(true);
-};`;
+  // Create a formatted string of parameters
+  return `// Gradient Shader Preset
+{
+${relevantParams
+  .map(([key, value]) => {
+    if (typeof value === "string") {
+      return `  ${key}: "${value}",`;
+    } else if (typeof value === "number") {
+      return `  ${key}: ${value.toFixed(2)},`;
+    } else {
+      return `  ${key}: ${value},`;
+    }
+  })
+  .join("\n")}
+}`;
 };
 
 export const DevPanel: FunctionComponent<DevPanelProps> = ({
-  app,
   visible,
   onToggle,
 }) => {
   const [params, setParams] = useState<ShaderParams | null>(null);
-  const [activeTab, setActiveTab] = useState<string>("params");
+  // Only use legacy tab now since facade is disabled
+  const [activeTab, setActiveTab] = useState<"legacy">("legacy");
   const [fps, setFps] = useState<number>(0);
   const [triangleCount, setTriangleCount] = useState<number>(0);
   const [drawCalls, setDrawCalls] = useState<number>(0);
   const [memoryUsage, setMemoryUsage] = useState<number>(0);
   const [presetCode, setPresetCode] = useState<string>("");
-
-  const fpsCounterRef = useRef<number>(0);
-  const lastTimeRef = useRef<number>(performance.now());
   const frameCountRef = useRef<number>(0);
+  const lastTimeRef = useRef<number>(0);
+  const frameTimesRef = useRef<number[]>([]);
 
-  // Update parameters and stats
+  // Get the facade using the hook
+  const facade = useComputed(() => facadeSignal.value);
+
   useEffect(() => {
-    if (!app) return;
+    if (!facade.value || !facade.value.isInitialized()) return;
 
-    // Initial update
-    setParams({ ...app.params });
-    updateStats();
+    const interval = setInterval(() => {
+      if (facade.value && facade.value.isInitialized()) {
+        const allParams = facade.value.getAllParams();
+        setParams({ ...allParams });
+        setPresetCode(generatePresetCode(allParams));
+      }
 
-    // Set up interval for stats updates
-    const statsInterval = setInterval(updateStats, 1000);
+      frameCountRef.current = 0;
+      frameTimesRef.current = [];
+    }, 1000);
 
-    // Set up animation frame for FPS counting
+    return () => clearInterval(interval);
+  }, [facade]);
+
+  useEffect(() => {
+    if (!facade.value || !facade.value.isInitialized()) return;
+
+    // Update the metrics in the animation loop
     const countFrames = () => {
+      const currentTime = performance.now();
+      const deltaTime = currentTime - lastTimeRef.current;
+      lastTimeRef.current = currentTime;
+
       frameCountRef.current++;
+      frameTimesRef.current.push(deltaTime);
+
+      // Keep only last 10 frames for the moving average
+      if (frameTimesRef.current.length > 10) {
+        frameTimesRef.current.shift();
+      }
+
+      // Calculate FPS
+      if (frameTimesRef.current.length > 0) {
+        const avgFrameTime =
+          frameTimesRef.current.reduce((a, b) => a + b, 0) /
+          frameTimesRef.current.length;
+        setFps(Math.round(1000 / avgFrameTime));
+      }
+
+      // Request next frame
       requestAnimationFrame(countFrames);
     };
-    const frameId = requestAnimationFrame(countFrames);
 
-    // Add a method to update the dev panel from the app
-    (app as any).updateDevPanel = () => {
-      setParams({ ...app.params });
-    };
+    // Start monitoring frames
+    countFrames();
 
     return () => {
-      clearInterval(statsInterval);
-      cancelAnimationFrame(frameId);
+      // Frame monitoring is automatically stopped when component unmounts
+      // since we stop requesting animation frames
     };
-  }, [app]);
+  }, [facade]);
 
-  // Update preset code when params change
-  useEffect(() => {
-    if (params) {
-      setPresetCode(generatePresetCode(params));
-    }
-  }, [params]);
-
-  // Update stats
+  // Function to update additional stats
   const updateStats = () => {
-    if (!app) return;
+    if (!facade.value || !facade.value.isInitialized()) return;
 
-    // Calculate FPS
-    const now = performance.now();
-    const delta = now - lastTimeRef.current;
-    if (delta > 0) {
-      setFps(Math.round((frameCountRef.current * 1000) / delta));
-      lastTimeRef.current = now;
-      frameCountRef.current = 0;
-    }
-
-    // Get triangle count
-    if (app.geometry) {
-      setTriangleCount(app.geometry.attributes.position.count / 3);
-    }
-
-    // Get draw calls (estimate)
-    setDrawCalls(app.scene ? app.scene.children.length : 0);
-
-    // Get memory usage (estimate)
-    if (app.renderer) {
-      const memory = (app.renderer as any).info?.memory;
-      if (memory) {
-        setMemoryUsage(memory.geometries + memory.textures);
-      }
-    }
+    // TODO: Add facade support for renderer stats when available
+    // For now, we can't directly access renderer stats through the facade
+    setTriangleCount(0);
+    setDrawCalls(0);
+    setMemoryUsage(0);
   };
+
+  // Update stats periodically
+  useEffect(() => {
+    if (!facade.value || !facade.value.isInitialized()) return;
+
+    const interval = setInterval(updateStats, 1000);
+    return () => clearInterval(interval);
+  }, [facade]);
 
   // Copy preset code to clipboard
   const copyPresetCode = () => {
-    navigator.clipboard
-      .writeText(presetCode)
-      .then(() => {
-        alert("Preset code copied to clipboard!");
-      })
-      .catch((err) => {
-        console.error("Failed to copy preset code:", err);
-      });
+    navigator.clipboard.writeText(presetCode).then(
+      () => {
+        // Show visual feedback (you could add a toast notification here)
+        console.log("Preset code copied to clipboard");
+      },
+      (err) => {
+        console.error("Could not copy preset code", err);
+      }
+    );
   };
 
-  // If app or params are not available, show nothing
-  if (!app || !params) {
-    return null;
-  }
+  // Calculate current FPS and frame time
+  const frameCount = frameCountRef.current;
+  const renderTime =
+    frameTimesRef.current.length > 0
+      ? frameTimesRef.current.reduce((a, b) => a + b, 0) /
+        frameTimesRef.current.length
+      : 0;
+
+  if (!visible) return null;
 
   return (
-    <div className={`${styles.devPanel} ${visible ? "" : styles.hidden}`}>
+    <div className={`${styles.devPanel} ${!visible ? styles.hidden : ""}`}>
       <div className={styles.header}>
-        <div className={styles.title}>Shader Dev Panel</div>
+        <div className={styles.title}>Dev Panel</div>
         <button className={styles.closeButton} onClick={onToggle}>
-          ×
+          ✕
         </button>
       </div>
 
-      {/* Tabs */}
-      <div className={styles.tabs}>
-        <button
-          className={`${styles.tab} ${
-            activeTab === "params" ? styles.active : ""
-          }`}
-          onClick={() => setActiveTab("params")}
-        >
-          Parameters
-        </button>
-        <button
-          className={`${styles.tab} ${
-            activeTab === "stats" ? styles.active : ""
-          }`}
-          onClick={() => setActiveTab("stats")}
-        >
-          Performance
-        </button>
-        <button
-          className={`${styles.tab} ${
-            activeTab === "preset" ? styles.active : ""
-          }`}
-          onClick={() => setActiveTab("preset")}
-        >
-          Preset Code
-        </button>
-      </div>
-
-      {/* Parameters Tab */}
-      <div
-        className={`${styles.tabContent} ${
-          activeTab === "params" ? styles.active : ""
-        }`}
-      >
-        {Object.entries(paramCategories).map(([category, paramKeys]) => (
-          <div key={category} className={styles.section}>
-            <div className={styles.sectionTitle}>
-              {category.charAt(0).toUpperCase() + category.slice(1)}
-            </div>
-            <div className={styles.paramList}>
-              {paramKeys.map((key) => {
-                const paramKey = key as keyof ShaderParams;
-                const value = params[paramKey];
-                const isColor = key.toLowerCase().includes("color");
-
-                return (
-                  <div key={key} className={styles.param}>
-                    <span className={styles.paramName}>{key}:</span>
-                    <span className={styles.paramValue}>
-                      {isColor && typeof value === "string" && (
-                        <span
-                          className={styles.colorValue}
-                          style={{ backgroundColor: value }}
-                        />
-                      )}
-                      {formatValue(key, value)}
-                    </span>
-                  </div>
-                );
-              })}
-            </div>
-          </div>
-        ))}
-      </div>
-
-      {/* Performance Stats Tab */}
-      <div
-        className={`${styles.tabContent} ${
-          activeTab === "stats" ? styles.active : ""
-        }`}
-      >
-        <div className={styles.section}>
-          <div className={styles.sectionTitle}>Performance Metrics</div>
+      {/* Legacy panel content - now without tab wrapping */}
+      <div className={styles.tabContent}>
+        {/* Keep all the existing content here */}
+        <div className={styles.stats}>
           <div className={styles.statItem}>
             <span className={styles.statLabel}>FPS:</span>
             <span className={styles.statValue}>{fps}</span>
           </div>
           <div className={styles.statItem}>
-            <span className={styles.statLabel}>Triangles:</span>
-            <span className={styles.statValue}>{triangleCount}</span>
+            <span className={styles.statLabel}>Frame Render Time:</span>
+            <span className={styles.statValue}>{renderTime.toFixed(2)} ms</span>
           </div>
           <div className={styles.statItem}>
-            <span className={styles.statLabel}>Draw Calls:</span>
-            <span className={styles.statValue}>{drawCalls}</span>
-          </div>
-          <div className={styles.statItem}>
-            <span className={styles.statLabel}>Memory Objects:</span>
-            <span className={styles.statValue}>{memoryUsage}</span>
-          </div>
-          <div className={styles.statItem}>
-            <span className={styles.statLabel}>Shader Uniforms:</span>
-            <span className={styles.statValue}>
-              {app.uniforms ? Object.keys(app.uniforms).length : 0}
-            </span>
-          </div>
-          <div className={styles.statItem}>
-            <span className={styles.statLabel}>Animation Time:</span>
-            <span className={styles.statValue}>{app.time.toFixed(2)}</span>
+            <span className={styles.statLabel}>Frame Count:</span>
+            <span className={styles.statValue}>{frameCount}</span>
           </div>
         </div>
-      </div>
 
-      {/* Preset Code Tab */}
-      <div
-        className={`${styles.tabContent} ${
-          activeTab === "preset" ? styles.active : ""
-        }`}
-      >
+        <div className={styles.section}>
+          <div className={styles.sectionTitle}>Camera Position</div>
+          <div className={styles.paramList}>
+            {params &&
+              ["cameraPosX", "cameraPosY", "cameraPosZ"].map((paramKey) => (
+                <div key={paramKey} className={styles.param}>
+                  <span className={styles.paramName}>{paramKey}</span>
+                  <span className={styles.paramValue}>
+                    {typeof params[paramKey as keyof ShaderParams] === "number"
+                      ? (
+                          params[paramKey as keyof ShaderParams] as number
+                        ).toFixed(2)
+                      : params[paramKey as keyof ShaderParams]}
+                  </span>
+                </div>
+              ))}
+          </div>
+        </div>
+
+        <div className={styles.section}>
+          <div className={styles.sectionTitle}>Current Parameters</div>
+          <div className={styles.paramList}>
+            {params &&
+              Object.entries(params)
+                // Filter out complex objects and functions
+                .filter(
+                  ([key, value]) =>
+                    typeof value !== "object" && typeof value !== "function"
+                )
+                .map(([key, value]) => (
+                  <div key={key} className={styles.param}>
+                    <span className={styles.paramName}>{key}</span>
+                    <span className={styles.paramValue}>
+                      {formatValue(key, value)}
+                    </span>
+                  </div>
+                ))}
+          </div>
+        </div>
+
         <div className={styles.section}>
           <div className={styles.sectionTitle}>Preset Code</div>
-          <div className={styles.presetCode}>{presetCode}</div>
           <button className={styles.copyButton} onClick={copyPresetCode}>
-            Copy to Clipboard
+            Copy Code
           </button>
+          <div className={styles.presetCode}>{presetCode}</div>
         </div>
       </div>
     </div>

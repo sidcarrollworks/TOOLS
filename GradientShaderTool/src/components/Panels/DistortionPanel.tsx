@@ -9,7 +9,7 @@ import {
   updateSettingValue,
 } from "../../lib/settings/store";
 import type { SettingGroup, SliderSetting } from "../../lib/settings/types";
-import { appSignal } from "../../app";
+import { useFacade } from "../../lib/facade/FacadeContext";
 import { useDebounce } from "../../lib/hooks/useDebounce";
 
 interface DistortionPanelProps {
@@ -17,8 +17,8 @@ interface DistortionPanelProps {
 }
 
 export const DistortionPanel: FunctionComponent<DistortionPanelProps> = () => {
-  // Get the app instance
-  const app = useComputed(() => appSignal.value);
+  // Get the facade instance using the hook
+  const facade = useFacade();
 
   // Get the distortion panel settings
   const distortionPanelConfigSignal = getPanelSettings("distortion");
@@ -32,7 +32,7 @@ export const DistortionPanel: FunctionComponent<DistortionPanelProps> = () => {
       updateSettingValue(id, value);
       // The shader param update is now handled by updateSettingValue
     },
-    25
+    5
   );
 
   // Handle flow direction changes immediately without debounce

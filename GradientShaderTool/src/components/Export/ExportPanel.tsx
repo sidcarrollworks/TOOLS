@@ -1,6 +1,5 @@
 import type { FunctionComponent, JSX } from "preact";
 import { useState, useEffect } from "preact/hooks";
-import type { ShaderApp } from "../../lib/ShaderApp";
 import {
   Dialog,
   DialogOverlay,
@@ -12,8 +11,9 @@ import {
 } from "../UI";
 import styles from "./Export.module.css";
 import { X, JS, HTML, OpenGL } from "../Icons";
+import { useFacade } from "../../lib/facade/FacadeContext";
+
 interface ExportPanelProps {
-  app: ShaderApp;
   isOpen: boolean;
   onOpenChange: (open: boolean) => void;
 }
@@ -26,10 +26,10 @@ interface ExportMethod {
 }
 
 export const ExportPanel: FunctionComponent<ExportPanelProps> = ({
-  app,
   isOpen,
   onOpenChange,
 }) => {
+  const facade = useFacade();
   const [activeMethod, setActiveMethod] = useState<string>("js");
   const [codeTitle, setCodeTitle] = useState<string>("");
   const [codeDescription, setCodeDescription] = useState<string>("");
@@ -60,13 +60,13 @@ export const ExportPanel: FunctionComponent<ExportPanelProps> = ({
   ];
 
   useEffect(() => {
-    if (isOpen && app) {
+    if (isOpen && facade && facade.isInitialized()) {
       loadCode(activeMethod);
     }
-  }, [isOpen, activeMethod, app]);
+  }, [isOpen, activeMethod, facade]);
 
   const loadCode = async (methodId: string) => {
-    if (!app) return;
+    if (!facade || !facade.isInitialized()) return;
 
     setIsLoading(true);
     setCodeSections([]);
@@ -78,8 +78,7 @@ export const ExportPanel: FunctionComponent<ExportPanelProps> = ({
           "Copy this code to use your gradient shader in an existing Three.js project."
         );
 
-        const jsCode =
-          await app.exportManager.jsExporter.generateJavaScriptOnly();
+        const jsCode = await facade.exportAsCode({ format: "js" });
         setCodeSections([{ title: "", code: jsCode, language: "javascript" }]);
       } else if (methodId === "html") {
         setCodeTitle("HTML Page Export");
@@ -87,36 +86,18 @@ export const ExportPanel: FunctionComponent<ExportPanelProps> = ({
           "Copy this code to create a standalone HTML page with your gradient shader."
         );
 
-        const htmlSetup = app.exportManager.htmlExporter.generateHTMLSetup();
-        const sceneSetup = app.exportManager.htmlExporter.generateSceneSetup();
-        const shaderCode =
-          await app.exportManager.shaderExporter.generateShaderCode();
-        const geometryAndAnimation =
-          app.exportManager.htmlExporter.generateGeometryAndAnimation();
-
-        // Combine all code for complete example
-        const completeExample = `${htmlSetup.replace(
-          "// Your shader code will go here",
-          `
-${sceneSetup}
-
-${shaderCode}
-
-${geometryAndAnimation}
-        `
-        )}`;
-
-        setCodeSections([
-          { title: "", code: completeExample, language: "html" },
-        ]);
+        const htmlCode = await facade.exportAsCode({
+          format: "js",
+          includeLib: true,
+        });
+        setCodeSections([{ title: "", code: htmlCode, language: "html" }]);
       } else if (methodId === "shader") {
         setCodeTitle("Shaders only");
         setCodeDescription(
           "Copy just the shader code for use in your own Three.js setup."
         );
 
-        const shaderCode =
-          await app.exportManager.shaderExporter.generateShaderCode();
+        const shaderCode = await facade.exportAsCode({ format: "glsl" });
         setCodeSections([{ title: "", code: shaderCode, language: "glsl" }]);
       }
     } catch (error) {

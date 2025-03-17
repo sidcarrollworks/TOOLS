@@ -27,6 +27,9 @@ declare global {
 export class SceneManager {
   private app: ShaderApp;
 
+  // Add new property to control adaptive resolution
+  private useAdaptiveResolution: boolean = false;
+
   /**
    * Create a SceneManager
    * @param {ShaderApp} app - Reference to main app
@@ -367,6 +370,11 @@ export class SceneManager {
    * This reduces resolution during rapid changes to maintain performance
    */
   private getAdaptiveSegmentCount(): number {
+    // If adaptive resolution is disabled in app parameters, just return the requested segments
+    if (this.app.params.useAdaptiveResolution === false) {
+      return this.app.params.planeSegments;
+    }
+
     const requestedSegments = this.app.params.planeSegments;
 
     // If we're in a high-performance context or resolution is already low, use the requested value
@@ -703,5 +711,19 @@ export class SceneManager {
   // Alias for backward compatibility
   recreatePlaneHighQuality(): void {
     this.recreateGeometryHighQuality();
+  }
+
+  /**
+   * Set whether to use adaptive resolution for geometry
+   * @param enabled Whether to use adaptive resolution
+   */
+  setAdaptiveResolution(enabled: boolean): void {
+    this.useAdaptiveResolution = enabled;
+    // If we're disabling adaptive resolution and currently using reduced resolution,
+    // recreate the geometry with the full resolution
+    if (!enabled && this._geometryUpdateCount > 3) {
+      this._geometryUpdateCount = 0;
+      this.recreateGeometry();
+    }
   }
 }

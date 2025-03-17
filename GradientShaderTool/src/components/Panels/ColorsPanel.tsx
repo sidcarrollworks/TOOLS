@@ -18,7 +18,7 @@ import type {
   SliderSetting,
   ColorSetting,
 } from "../../lib/settings/types";
-import { appSignal } from "../../app";
+import { facadeSignal } from "../../app";
 import { useDebounce } from "../../lib/hooks/useDebounce";
 
 interface ColorsPanelProps {
@@ -26,8 +26,8 @@ interface ColorsPanelProps {
 }
 
 export const ColorsPanel: FunctionComponent<ColorsPanelProps> = () => {
-  // Get the app instance
-  const app = useComputed(() => appSignal.value);
+  // Use facadeSignal instead of useFacade
+  const facade = useComputed(() => facadeSignal.value);
 
   // Get the colors panel settings
   const colorsPanelConfigSignal = getPanelSettings("colors");
@@ -37,7 +37,7 @@ export const ColorsPanel: FunctionComponent<ColorsPanelProps> = () => {
   const updateSettingWithDebounce = useDebounce((id: string, value: any) => {
     updateSettingValue(id, value);
     // The shader param update is now handled by updateSettingValue
-  }, 50);
+  }, 5);
 
   // Handle flow direction changes immediately without debounce
   const handleFlowDirectionChange = (id: string, value: number) => {

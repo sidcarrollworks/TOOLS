@@ -174,3 +174,33 @@ canvas {
   width: 100%;
   height: 100%;
 }
+
+/* Add position absolute for the shader canvas container to ensure it's properly positioned */
+.shader-canvas-container {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  z-index: 0;
+}
+
+/* Paused badge indicator */
+.paused-badge {
+  position: absolute;
+  top: 15px;
+  right: 15px;
+  background-color: rgba(255, 70, 70, 0.2);
+  color: rgba(255, 200, 200, 0.9);
+  font-size: 11px;
+  padding: 2px 6px;
+  border-radius: 3px;
+  border: 1px solid rgba(255, 70, 70, 0.3);
+  z-index: 10;
+}
+
+/* Ensure layout is positioned above the canvas */
+.layout {
+  position: relative;
+  z-index: 1;
+}

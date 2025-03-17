@@ -8,7 +8,7 @@ import {
   updateSettingValue,
 } from "../../lib/settings/store";
 import type { SettingGroup } from "../../lib/settings/types";
-import { appSignal } from "../../app";
+import { useFacade } from "../../lib/facade/FacadeContext";
 import { useDebounce } from "../../lib/hooks/useDebounce";
 
 interface LightingPanelProps {
@@ -16,8 +16,8 @@ interface LightingPanelProps {
 }
 
 const LightingPanel: FunctionComponent<LightingPanelProps> = () => {
-  // Get the app instance
-  const app = useComputed(() => appSignal.value);
+  // Get the facade instance using the hook
+  const facade = useFacade();
 
   // Get the lighting panel settings
   const lightingPanelConfigSignal = getPanelSettings("lighting");
@@ -31,7 +31,7 @@ const LightingPanel: FunctionComponent<LightingPanelProps> = () => {
       updateSettingValue(id, value);
       // The shader param update is now handled by updateSettingValue
     },
-    50
+    5
   );
 
   // If no settings are available, show a placeholder

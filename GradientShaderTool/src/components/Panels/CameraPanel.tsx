@@ -9,7 +9,7 @@ import {
   updateSettingValue,
 } from "../../lib/settings/store";
 import type { SettingGroup } from "../../lib/settings/types";
-import { appSignal } from "../../app";
+import { facadeSignal } from "../../app";
 
 // Flag to track if we're processing camera changes from orbit controls
 let processingOrbitChange = false;
@@ -18,9 +18,9 @@ interface CameraPanelProps {
   // No props needed for now
 }
 
-const CameraPanel: FunctionComponent<CameraPanelProps> = () => {
-  // Get the app instance
-  const app = useComputed(() => appSignal.value);
+export const CameraPanel: FunctionComponent<CameraPanelProps> = () => {
+  // Use facadeSignal instead of useFacade
+  const facade = useComputed(() => facadeSignal.value);
 
   // Animation frame ID for camera updates
   const animFrameRef = useRef<number | null>(null);
@@ -35,102 +35,29 @@ const CameraPanel: FunctionComponent<CameraPanelProps> = () => {
     };
   }, []);
 
-  // Get the camera panel settings
-  const cameraPanelConfigSignal = getPanelSettings("camera");
-  const cameraPanelConfig = useComputed(() => cameraPanelConfigSignal.value);
-
-  // If no settings are available, show a placeholder
-  if (!cameraPanelConfig.value) {
-    return <div className="noSettings">No camera settings available</div>;
-  }
-
-  // Find the camera settings groups
-  const cameraSettingsGroup = cameraPanelConfig.value.groups.find(
-    (group: SettingGroup) => group.id === "cameraSettings"
-  );
-  const cameraPositionGroup = cameraPanelConfig.value.groups.find(
-    (group: SettingGroup) => group.id === "cameraPosition"
-  );
-
-  // Handle camera value change
+  // Handle camera parameter changes
   const handleCameraChange = (id: string, value: number) => {
-    // If we're processing changes from OrbitControls, don't update to avoid loops
+    // Skip if we're processing changes from orbit controls
     if (processingOrbitChange) return;
 
-    // Mark that we're manually changing camera params
-    processingOrbitChange = true;
-
-    // Update the setting value in the store - this also updates app.params via the mapping
+    // Update the setting value in the store
     updateSettingValue(id, value);
 
     // Camera requires special handling beyond normal parameter updates
-    if (app.value) {
+    if (facade.value && facade.value.isInitialized()) {
       // Cancel any existing animation frame
       if (animFrameRef.current !== null) {
         cancelAnimationFrame(animFrameRef.current);
+        animFrameRef.current = null;
       }
 
       // Use requestAnimationFrame for smoother updates
       animFrameRef.current = requestAnimationFrame(() => {
-        if (app.value?.sceneManager) {
-          const camera = app.value.camera;
-          const controls = app.value.controls;
-
-          if (camera && controls) {
-            // Update FOV if changed
-            if (id === "cameraFov" && camera.fov !== value) {
-              camera.fov = value;
-              camera.updateProjectionMatrix();
-            }
-
-            // Update camera position if changed
-            if (id.startsWith("cameraPos")) {
-              const axis = id.slice(-1).toLowerCase(); // Get X, Y, or Z
-              const position = camera.position;
-              const target = controls.target;
-
-              // Update position and target based on axis
-              switch (axis) {
-                case "x":
-                  position.x = value;
-                  break;
-                case "y":
-                  position.y = value;
-                  break;
-                case "z":
-                  position.z = value;
-                  break;
-              }
-
-              controls.update();
-            }
-
-            // Update camera distance if changed
-            if (id === "cameraDistance") {
-              const currentDistance = camera.position.distanceTo(
-                controls.target
-              );
-              if (Math.abs(currentDistance - value) > 0.01) {
-                const direction = camera.position
-                  .clone()
-                  .sub(controls.target)
-                  .normalize();
-                camera.position
-                  .copy(controls.target)
-                  .add(direction.multiplyScalar(value));
-                controls.update();
-              }
-            }
-          }
+        if (facade.value && facade.value.isInitialized()) {
+          // Use the facade's updateParam method for camera parameters
+          facade.value.updateParam(id as any, value);
         }
-
-        // Reset the orbit change flag after processing
-        processingOrbitChange = false;
-        animFrameRef.current = null;
       });
-    } else {
-      // Reset the orbit change flag if there's no app
-      processingOrbitChange = false;
     }
   };
 
