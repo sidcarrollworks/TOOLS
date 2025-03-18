@@ -12,15 +12,16 @@ import {
   CameraIcon,
   SaveIcon,
   CodeIcon,
+  X,
 } from "../Icons";
 import PresetPanel from "../Panels/PresetPanel";
 import GeometryPanel from "../Panels/GeometryPanel";
 import ColorsPanel from "../Panels/ColorsPanel";
 import LightingPanel from "../Panels/LightingPanel";
 import CameraPanel from "../Panels/CameraPanel";
-import SettingsPanel from "./SettingsPanel";
 import { facadeSignal } from "../../app";
 import SavePanel from "../Panels/SavePanel";
+import DistortionPanel from "../Panels/DistortionPanel";
 
 // Create a signal for the active panel
 export const activePanelSignal = signal<string | null>(null);
@@ -109,6 +110,10 @@ export const SidePanel: FunctionComponent<SidePanelProps> = ({ visible }) => {
     e.stopPropagation();
   };
 
+  const handleSettingsClose = () => {
+    activePanelSignal.value = null;
+  };
+
   return (
     <div className={styles.sidePanelContainer} onClick={handleContainerClick}>
       <div className={styles.sidePanel}>
@@ -173,12 +178,19 @@ export const SidePanel: FunctionComponent<SidePanelProps> = ({ visible }) => {
 
       {activePanelSignal.value && (
         <div className={styles.contentPanel}>
-          <h2 className={styles.title}>{activePanelSignal.value}</h2>
+          <div className={styles.header}>
+            <h2 className={styles.title}>{activePanelSignal.value}</h2>
+            <button
+              className={styles.closeButton}
+              onClick={handleSettingsClose}
+              aria-label="Close panel"
+            >
+              <X />
+            </button>
+          </div>
           {activePanelSignal.value === "presets" && <PresetPanel />}
           {activePanelSignal.value === "geometry" && <GeometryPanel />}
-          {activePanelSignal.value === "distortion" && (
-            <div>Distortion Panel</div>
-          )}
+          {activePanelSignal.value === "distortion" && <DistortionPanel />}
           {activePanelSignal.value === "colors" && <ColorsPanel />}
           {activePanelSignal.value === "lighting" && <LightingPanel />}
           {activePanelSignal.value === "camera" && <CameraPanel />}

@@ -200,7 +200,7 @@ export const CameraPanel: FunctionComponent<CameraPanelProps> = () => {
       </div>
 
       <div className="settingsGroup">
-        <Button variant="secondary" size="medium" onClick={handleResetCamera}>
+        <Button variant="primary" size="small" onClick={handleResetCamera}>
           Reset Camera
         </Button>
       </div>
