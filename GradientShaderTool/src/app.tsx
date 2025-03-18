@@ -3,7 +3,6 @@ import { useEffect, useRef, useCallback } from "preact/hooks";
 import { signal, computed, batch } from "@preact/signals";
 import "./styles/index.css";
 import ShaderCanvas from "./components/ShaderCanvas/ShaderCanvas";
-// import Layout from "./components/Layout/Layout";
 import { DevPanel } from "./components/DevPanel";
 import {
   SidePanel,
@@ -22,6 +21,13 @@ import {
 } from "./lib/facade/FacadeContext";
 import type { IShaderAppFacade } from "./lib/facade/types";
 import { KeyboardHintsContainer } from "./components/KeyboardHints/KeyboardHintsContainer";
+// Import store initialization
+import {
+  initializeStores,
+  initializeStoresWithFacade,
+  disposeStores,
+} from "./lib/stores";
+import { OrbitControlsSync } from "./components/ShaderCanvas/OrbitControlsSync";
 
 // Create signals for app state
 export const facadeSignal = signal<IShaderAppFacade | null>(null);
@@ -47,6 +53,9 @@ const isPausedSignal = computed(() => {
 
 // Initialize the settings system
 initializeSettingsSystem();
+
+// Initialize the stores
+initializeStores();
 
 // Add a useEffect hook to initialize our settings system
 export const App: ComponentType = () => {
@@ -241,6 +250,10 @@ export const App: ComponentType = () => {
       // Connect settings to the facade
       connectSettingsToShaderApp(facade);
 
+      // Initialize stores with facade
+      initializeStoresWithFacade();
+      console.log("Stores initialized with facade");
+
       // Disable adaptive resolution to maintain high quality
       facade.updateParam("useAdaptiveResolution", false);
       // Force recreation of geometry to ensure it's at full resolution
@@ -314,13 +327,17 @@ export const App: ComponentType = () => {
 
   // Render the application
   return (
-    <div className="app-container">
+    <div
+      className={`app-container ${
+        isFullscreenSignal.value ? "fullscreen" : ""
+      }`}
+    >
       <FacadeErrorBoundary
         fallback={(error) => (
           <div className="error-container">
-            <h2>Error</h2>
+            <h1>Shader App Error</h1>
             <p>{error.message}</p>
-            <button onClick={() => window.location.reload()}>Reload</button>
+            <button onClick={() => triggerInitSignal.value++}>Retry</button>
           </div>
         )}
         onError={(error) => {
@@ -328,34 +345,31 @@ export const App: ComponentType = () => {
           initializationErrorSignal.value = error.message;
         }}
       >
-        {/* Render ShaderCanvas separately to prevent re-renders from affecting it */}
-        <div className="shader-canvas-container" ref={shaderCanvasRef}>
-          <ShaderCanvas canvasId="shader-canvas" />
-          {/* Add the KeyboardHints directly in the canvas container */}
-          <KeyboardHintsContainer
-            showSettings={showSettingsSignal.value}
-            isFullscreen={isFullscreenSignal.value}
-          />
-          {/* Show pause badge if needed */}
-          {isPausedSignal.value && <div className="paused-badge">PAUSED</div>}
-        </div>
-
-        {/* Initialize FacadeProvider with the existing shaderCanvasRef */}
         <FacadeProvider
           containerRef={shaderCanvasRef}
           onInitialized={handleFacadeInitialized}
           onError={handleFacadeError}
         >
-          <div>
-            {/* Only render the SidePanel after the facade has been initialized */}
-            {facadeSignal.value && (
-              <SidePanel visible={sidePanelVisibleSignal.value} />
-            )}
-            {showDevPanelSignal.value && (
-              <DevPanel
-                visible={showDevPanelSignal.value}
-                onToggle={toggleDevPanel}
-              />
+          <div className="main-container">
+            {/* ShaderCanvas is wrapped with a container for proper positioning */}
+            <ShaderCanvas ref={shaderCanvasRef} />
+
+            {/* Only show UI components if the app is initialized and facade is available */}
+            {appInitializedSignal.value && facadeSignal.value && (
+              <>
+                <OrbitControlsSync />
+                {sidePanelVisibleSignal.value && <SidePanel visible={true} />}
+                <KeyboardHintsContainer
+                  showSettings={showSettingsSignal.value}
+                  isFullscreen={isFullscreenSignal.value}
+                />
+                {showDevPanelSignal.value && (
+                  <DevPanel
+                    visible={showDevPanelSignal.value}
+                    onToggle={toggleDevPanel}
+                  />
+                )}
+              </>
             )}
           </div>
         </FacadeProvider>

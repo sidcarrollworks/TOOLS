@@ -1,7 +1,8 @@
-import type { FunctionComponent } from "preact";
 import { useEffect, useRef } from "preact/hooks";
+import type { FunctionComponent } from "preact";
 import { forwardRef } from "preact/compat";
 import styles from "./ShaderCanvas.module.css";
+import { OrbitControlsSync } from "./OrbitControlsSync";
 
 interface ShaderCanvasProps {
   canvasId?: string;
@@ -66,7 +67,9 @@ export const ShaderCanvas = forwardRef<HTMLDivElement, ShaderCanvasProps>(
     }, []);
 
     return (
-      <div id={canvasId} ref={internalRef} className={styles.canvasContainer} />
+      <div id={canvasId} ref={internalRef} className={styles.canvasContainer}>
+        <OrbitControlsSync />
+      </div>
     );
   }
 );

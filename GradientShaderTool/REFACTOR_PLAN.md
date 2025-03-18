@@ -2,6 +2,28 @@
 
 ## Recent Accomplishments (April 2024)
 
+### Phase 3 Progress: Core Store Implementation
+
+1. ✅ Implemented comprehensive store system
+
+   - Created six specialized stores for different aspects of the application
+   - Implemented central store registry for coordinated initialization
+   - Established consistent access patterns through getter functions
+   - Added proper resource management and cleanup
+
+2. ✅ Created robust CameraStore for camera management
+
+   - Implemented CameraStore for position, target, and FOV management
+   - Created OrbitControlsSync component for syncing camera controls
+   - Fixed UI rendering issues with camera updates
+   - Added bidirectional synchronization between UI and 3D view
+
+3. ✅ Enhanced UI component system
+   - Created StandardSlider component with consistent styling
+   - Implemented proper component layout with SettingsGroup
+   - Added CSS improvements for consistent appearance
+   - Fixed layout and container issues affecting the application
+
 ### Performance and User Experience Improvements
 
 1. ✅ Optimized update responsiveness
@@ -13,10 +35,18 @@
    - GeometryPanel: Decreased from 300ms to 50ms (kept slightly higher to balance responsiveness with performance)
 
 2. ✅ Fixed adaptive resolution behavior
+
    - Added useAdaptiveResolution setting to prevent automatic resolution reduction
    - Updated SceneManager to respect this setting
    - Set adaptive resolution to disabled by default
    - Added method to force recreation of geometry at full resolution
+
+3. ✅ Improved application structure
+   - Removed redundant Layout component that was no longer in use
+   - Centralized KeyboardHints into a dedicated component folder
+   - Moved paused badge styling to global CSS
+   - Simplified component hierarchy for better maintenance
+   - Streamlined initialization for faster startup
 
 ### Bug Fixes and Code Improvements
 
@@ -27,9 +57,16 @@
    - Added parameter validation before updates
 
 2. ✅ Enhanced type safety
+
    - Added missing types and interfaces
    - Fixed incorrect type assertions
    - Improved type checking throughout the codebase
+
+3. ✅ Fixed linter errors in core components
+   - Corrected import statements in store files
+   - Fixed component path references
+   - Resolved type safety issues in ParameterStore implementation
+   - Updated SignalEffect implementation to use proper hooks
 
 ---
 
@@ -239,7 +276,7 @@
 
 The next phase will focus on standardizing state management with signal stores, implementing consistent UI patterns, and further optimizing performance.
 
-## Phase 3: Standardize State Management - PLANNING 🔄
+## Phase 3: Standardize State Management - IN PROGRESS 🔄
 
 ### Goals for Phase 3:
 
@@ -251,82 +288,409 @@ The next phase will focus on standardizing state management with signal stores, 
 
 ### Preliminary Tasks:
 
-1. Document existing state patterns across components
-2. Create prototype of signal store architecture
-3. Define standard patterns for UI components
+1. ✅ Document existing state patterns across components
+2. ✅ Create prototype of signal store architecture
+3. ✅ Define standard patterns for UI components
 
 ### Implementation Plan:
 
 1. **Create Signal Store Foundation**
 
-   - Define store interfaces and types
-   - Implement base store functionality
-   - Create utility functions for common operations
-   - Add debugging capabilities for tracking updates
+   - ✅ Define store interfaces and types
+   - ✅ Implement base store functionality in `StoreBase.ts`
+   - ✅ Create utility functions for common operations
+   - ✅ Add debugging capabilities for tracking updates
 
 2. **Implement Core Stores**
 
-   - Create ParameterStore for shader parameters
-   - Implement UIStore for UI state
-   - Create GeometryStore for geometry-specific state
-   - Implement PresetStore for preset management
-   - Add CameraStore for camera controls
+   - ✅ Create ParameterStore for shader parameters
+   - ✅ Implement UIStore for UI state
+   - ✅ Create GeometryStore for geometry-specific state
+   - ✅ Implement PresetStore for preset management
+   - ✅ Add HistoryStore for undo/redo functionality
+   - ✅ Implement ExportStore for exporting shaders
+   - ✅ Create CameraStore for camera controls
 
 3. **Create UI Component Library**
 
-   - Implement SettingsGroup component for parameter grouping
-   - Create StandardSlider with consistent behavior
-   - Implement ColorInput with enhanced features
-   - Create ToggleButton with consistent styling
-   - Implement TabGroup for panel organization
+   - ✅ Implement SettingsGroup component for parameter grouping
+   - ✅ Create SettingsField component for consistent field layout
+   - ✅ Implement Icon system for UI elements
+   - ✅ Create StandardSlider with consistent behavior
+   - 🔄 Implement ColorInput with enhanced features
+   - 🔄 Create ToggleButton with consistent styling
+   - 🔄 Implement TabGroup for panel organization
 
 4. **Add Global Error Handling**
 
-   - Create error boundary components
-   - Implement toast notification system
-   - Add error logging and reporting
-   - Create recovery mechanisms for common errors
+   - 🔄 Create error boundary components
+   - 🔄 Implement toast notification system
+   - 🔄 Add error logging and reporting
+   - 🔄 Create recovery mechanisms for common errors
 
 5. **Optimize Performance**
 
-   - Implement virtualization for long lists
-   - Add memoization for expensive calculations
-   - Create optimized render patterns for components
-   - Implement performance monitoring tools
+   - 🔄 Implement virtualization for long lists
+   - 🔄 Add memoization for expensive calculations
+   - 🔄 Create optimized render patterns for components
+   - 🔄 Implement performance monitoring tools
 
 ### Timeline for Phase 3:
 
-1. Week 1: Signal Store Foundation and Core Stores
-2. Week 2: UI Component Library
+1. Week 1: Signal Store Foundation and Core Stores ✅
+2. Week 2: UI Component Library 🔄
 3. Week 3: Error Handling and Recovery
 4. Week 4: Performance Optimization
 
-### Success Criteria for Phase 3:
+### Accomplished in Phase 3:
 
-1. **State Management**
+1. **Signal Store Foundation**
 
-   - All component state managed through signal stores
-   - Clear patterns for updating and subscribing to state
-   - Improved debuggability with signal tracking
+   - ✅ Created `StoreBase.ts` with common store functionality
+   - ✅ Implemented signal-based state management with typed interfaces
+   - ✅ Added methods for getting/setting state and creating computed values
+   - ✅ Implemented debugging capabilities for tracing state changes
 
-2. **UI Consistency**
+2. **Core Store Implementation**
 
-   - Standardized component library used throughout the application
-   - Consistent interaction patterns across all panels
-   - Improved accessibility with keyboard navigation
+   - ✅ Created `UIStore` for managing UI state (sidebar visibility, toasts, modals)
+   - ✅ Implemented `GeometryStore` for geometry-specific state management
+   - ✅ Created `PresetStore` for preset definitions, loading, and saving
+   - ✅ Implemented `HistoryStore` for undo/redo functionality
+   - ✅ Created `ParameterStore` for shader parameter management
+   - ✅ Implemented `ExportStore` for exporting shaders as images or code
+   - ✅ Created `CameraStore` for camera position, target, and FOV management
+
+3. **Store Integration System**
+
+   - ✅ Created central store registry in `stores/index.ts`
+   - ✅ Implemented consistent initialization patterns
+   - ✅ Added facade integration for all stores
+   - ✅ Created standardized access patterns through getter functions
+   - ✅ Added proper cleanup and disposal for store resources
+
+4. **UI Component Library**
+
+   - ✅ Created `SettingsGroup` and `SettingsField` components
+   - ✅ Implemented a complete Icon system with consistent styling
+   - ✅ Created `StandardSlider` component with proper styling
+   - ✅ Added proper CSS for all new components
+   - ✅ Ensured accessibility and usability features in UI components
+
+5. **Panel Refactoring**
+   - ✅ Refactored `CameraPanel` to use the new store system
+   - ✅ Implemented proper camera controls with two-way binding
+   - ✅ Added orbit controls synchronization with camera store
+   - ✅ Improved UI feedback and error handling in panels
+
+### Detailed Implementation Plan for Phase 3 Remaining Tasks:
+
+## 1. Complete Signal Store Implementation (Week 2)
+
+### 1.1 UIStore Implementation
+
+- Create `UIStore.ts` to manage UI-specific state:
+  - Sidebar visibility and active panel
+  - Modal state (active modal, modal data)
+  - Toast notifications queue
+  - Global UI flags (loading states, error states)
+- Add methods for common UI operations:
+  - Toggle sidebar, change active panel
+  - Open/close modals with data
+  - Show/hide notifications
+  - Track UI interaction states
+
+### 1.2 GeometryStore Implementation
+
+- Create `GeometryStore.ts` to handle geometry-specific state:
+  - Geometry type (plane, sphere, etc.)
+  - Resolution settings
+  - Adaptive resolution controls
+  - Rebuilding status tracking
+- Add specialized methods:
+  - Rebuild geometry with proper error handling
+  - Adjust resolution with performance considerations
+  - Track rebuilding state for UI feedback
+
+### 1.3 PresetStore Implementation
+
+- Create `PresetStore.ts` for preset management:
+  - Store preset definitions and metadata
+  - Track current active preset
+  - Handle preset loading states
+  - Manage custom user presets
+- Implement methods for:
+  - Loading presets from different sources
+  - Applying presets with proper parameter updates
+  - Saving current state as a preset
+  - Importing/exporting presets
+
+### 1.4 CameraStore Implementation
+
+- Create `CameraStore.ts` for camera controls:
+  - Camera position, target, and rotation
+  - Field of view and zoom settings
+  - Orbit controls state
+  - Animation settings
+- Add methods for:
+  - Camera movement with proper constraints
+  - Smooth camera animations
+  - Orbit controls with customizable speed
+  - Camera reset operations
+
+### 1.5 Store Integration System
+
+- Create a central store registry in `stores/index.ts`:
+  - Register all stores in a central location
+  - Provide consistent initialization patterns
+  - Enable store debugging and monitoring
+  - Create standard access patterns
+
+## 2. UI Component Library Completion (Week 3)
+
+### 2.1 StandardSlider Component
+
+- Create a reusable slider component with:
+  - Consistent styling matching FigmaInput
+  - Support for continuous and discrete updates
+  - Customizable range and step values
+  - Proper accessibility attributes
+  - Built-in debounce support
+  - Visual feedback during interaction
+
+### 2.2 ColorInput Component
+
+- Implement an enhanced color input with:
+  - Color swatch preview
+  - Hex value input with validation
+  - Support for opacity/alpha
+  - Consistent styling with other inputs
+  - Color picker popup option
+  - Keyboard navigation support
+
+### 2.3 ToggleButton Component
+
+- Create a versatile toggle button with:
+  - On/off state visualization
+  - Support for icons and labels
+  - Multiple style variants (primary, secondary, etc.)
+  - Size options (small, medium, large)
+  - Accessibility support
+  - Animation for state changes
+
+### 2.4 TabGroup Component
+
+- Implement a flexible tab navigation system:
+  - Horizontal and vertical orientations
+  - Support for icons and badges
+  - Consistent styling with panel navigation
+  - Animation for tab switching
+  - Keyboard navigation support
+  - Content area with proper ARIA attributes
+
+## 3. Error Handling System (Week 3-4)
+
+### 3.1 Toast Notification System
+
+- Create a toast notification system:
+  - Multiple message types (info, success, warning, error)
+  - Automatic timeout with configurability
+  - Position options (top, bottom, etc.)
+  - Animation for appearance/disappearance
+  - Action buttons support
+  - Queue management for multiple notifications
+
+### 3.2 Error Boundaries
+
+- Implement error boundary components:
+  - Component-level error catching
+  - Graceful fallback UI
+  - Error reporting capabilities
+  - Recovery options where possible
+  - Context-aware error messaging
+
+### 3.3 Error Logging Service
+
+- Create a centralized error logging service:
+  - Consistent error formatting
+  - Error categorization
+  - Optional remote reporting
+  - Debugging information preservation
+  - Rate limiting for repeated errors
+
+### 3.4 Recovery Mechanisms
+
+- Implement recovery strategies for common errors:
+  - Parameter validation failures
+  - Network/loading errors
+  - WebGL context issues
+  - Out-of-memory situations
+  - Auto-retry with backoff for transient errors
+
+## 4. Performance Optimization (Week 4)
+
+### 4.1 Render Optimization
+
+- Implement optimized render patterns:
+  - Proper use of memoization for components
+  - Fine-grained reactivity with signals
+  - Prevent unnecessary re-renders
+  - Component lazy loading
+  - Batch updates for related state changes
+
+### 4.2 Resource Management
+
+- Improve resource utilization:
+  - Proper cleanup of unused resources
+  - Texture and geometry pooling
+  - Prioritize critical rendering tasks
+  - Throttle non-essential updates
+  - Manage WebGL context resources efficiently
+
+### 4.3 Performance Monitoring
+
+- Add performance monitoring capabilities:
+  - FPS counter with thresholds
+  - Render time tracking
+  - Memory usage monitoring
+  - Update frequency analysis
+  - Performance issues detection
+
+### 4.4 Progressive Enhancement
+
+- Implement progressive enhancement techniques:
+  - Feature detection for advanced capabilities
+  - Adaptive quality settings
+  - Load optimized assets based on device capability
+  - Prioritize UI responsiveness
+  - Intelligent workload distribution
+
+## 5. Panel Refactoring (Throughout Weeks 2-4)
+
+### 5.1 Panel Component Refactoring Strategy
+
+- Define a phased approach for panel refactoring:
+  - Start with simpler panels (CameraPanel, PresetPanel)
+  - Progress to moderate complexity (LightingPanel, DistortionPanel)
+  - End with complex panels (ColorsPanel, GeometryPanel)
+  - Use consistent patterns across all panels
+  - Maintain existing functionality while improving code quality
+
+### 5.2 Panel Component Pattern
+
+- Establish a standard pattern for all panel components:
+  - Use SettingsGroup for logical parameter grouping
+  - Access parameters through store hooks
+  - Implement consistent update patterns
+  - Handle loading and error states uniformly
+  - Provide responsive layouts for different screen sizes
+
+### 5.3 Panel-Specific Considerations
+
+- Address unique requirements for each panel:
+  - **ColorsPanel**: Handle color pickers and gradient modes
+  - **GeometryPanel**: Manage rebuild operations and progress indicators
+  - **LightingPanel**: Provide interactive controls for light direction
+  - **DistortionPanel**: Handle multiple related parameters
+  - **CameraPanel**: Integrate with OrbitControls
+  - **PresetPanel**: Manage preset loading states and thumbnails
+
+## Implementation Approach and Best Practices
+
+### Incremental Implementation
+
+- Take an incremental approach to minimize disruption:
+  - Implement one store at a time
+  - Refactor one panel at a time
+  - Add new components alongside existing ones
+  - Test thoroughly before moving to the next component
+  - Keep the application functional throughout the process
+
+### Code Quality Standards
+
+- Maintain high code quality standards:
+  - Comprehensive TypeScript types
+  - Clear function and variable names
+  - Consistent error handling
+  - Proper comments for complex logic
+  - Follow established project patterns
+
+### Testing Strategy
+
+- Implement a thorough testing approach:
+  - Test stores in isolation
+  - Test components with mock stores
+  - Verify all error conditions
+  - Ensure accessibility compliance
+  - Test performance under various conditions
+
+### Documentation
+
+- Provide thorough documentation:
+  - Document all store APIs
+  - Create usage examples for components
+  - Document error handling strategies
+  - Explain performance considerations
+  - Create contributor guidelines
+
+## Success Criteria for Phase 3
+
+1. **State Management Improvements**
+
+   - All application state managed through signal stores
+   - Consistent patterns for state updates
+   - Improved debuggability and testability
+   - Clear separation of concerns
+
+2. **UI Component Enhancements**
+
+   - Consistent look and feel across all inputs
+   - Improved accessibility
+   - Better user feedback during interactions
+   - Reduced code duplication
 
 3. **Error Handling**
 
-   - Graceful error recovery throughout the application
-   - Clear error messages for users
-   - Comprehensive logging for debugging
+   - Graceful handling of all error conditions
+   - Clear user feedback for errors
+   - Improved error recovery
+   - Comprehensive error logging
 
 4. **Performance**
+   - Faster UI response times
    - Reduced unnecessary renders
    - Optimized update patterns
-   - Improved responsiveness for user interactions
+   - Better resource management
 
----
+## Timeline and Milestones
+
+### Week 1 (Completed)
+
+- ✅ Establish store architecture with `StoreBase`
+- ✅ Implement `ParameterStore` with validation
+- ✅ Create `SettingsGroup` component
+- ✅ Setup foundation for consistent UI patterns
+
+### Week 2
+
+- ✅ Complete core store implementations (UIStore, GeometryStore, PresetStore, HistoryStore, ParameterStore, ExportStore, CameraStore)
+- 🔄 Begin panel refactoring with simpler panels (CameraPanel completed)
+- ✅ Implement StandardSlider component
+- ✅ Create store initialization system
+
+### Week 3
+
+- ✅ Complete remaining stores (PresetStore, HistoryStore, ExportStore, CameraStore)
+- 🔄 Implement ColorInput and ToggleButton components
+- 🔄 Create toast notification system through UIStore
+- 🔄 Continue panel refactoring with moderate complexity panels
+
+### Week 4
+
+- Implement error boundaries and logging
+- Complete performance optimizations
+- Finish panel refactoring with complex panels
+- Final integration and testing
 
 ## Overarching Goals
 
@@ -361,7 +725,7 @@ The next phase will focus on standardizing state management with signal stores, 
    - Add validation to ensure parameters are within valid ranges
    - Implement type-safe accessor methods
 
-3. **Refactor Settings Store**
+3. **Refactored Settings Store**
 
    - Update the settings store to use the centralized mapping
    - Create a consistent interface for updating both settings and shader parameters

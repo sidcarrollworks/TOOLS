@@ -100,27 +100,30 @@ export const ColorsPanel: FunctionComponent<ColorsPanelProps> = () => {
   return (
     <div className="panel">
       {/* Gradient Mode Select */}
-      {gradientModeSetting && (
-        <div className="settingRow">
-          <label className="label">{gradientModeSetting.label}</label>
-          <Select.Root
-            value={(getSettingValue("gradientMode") as number).toString()}
-            onValueChange={handleGradientModeChange}
-          >
-            <Select.Trigger>{getGradientModeLabel()}</Select.Trigger>
-            <Select.Content>
-              {gradientModeSetting.options.map((option) => (
-                <Select.Item
-                  key={option.value.toString()}
-                  value={option.value.toString()}
-                >
-                  {option.label}
-                </Select.Item>
-              ))}
-            </Select.Content>
-          </Select.Root>
-        </div>
-      )}
+      <div className="settingsGroup">
+        <h3 className="groupTitle">Gradient</h3>
+        {gradientModeSetting && (
+          <div className="settingRow">
+            <label className="label">{gradientModeSetting.label}</label>
+            <Select.Root
+              value={(getSettingValue("gradientMode") as number).toString()}
+              onValueChange={handleGradientModeChange}
+            >
+              <Select.Trigger>{getGradientModeLabel()}</Select.Trigger>
+              <Select.Content>
+                {gradientModeSetting.options.map((option) => (
+                  <Select.Item
+                    key={option.value.toString()}
+                    value={option.value.toString()}
+                  >
+                    {option.label}
+                  </Select.Item>
+                ))}
+              </Select.Content>
+            </Select.Root>
+          </div>
+        )}
+      </div>
 
       {/* Colors */}
       {colorsGroup && (

@@ -1,15 +1,15 @@
 .canvasContainer {
   width: 100%;
   height: 100%;
-  position: relative;
+  position: absolute;
+  top: 0;
+  left: 0;
   overflow: hidden;
   background-color: var(--viewport-bg);
-  border-radius: 4px;
   display: flex;
   justify-content: center;
   align-items: center;
   transition: width var(--transition-normal), height var(--transition-normal);
-  padding: 4px;
 }
 
 /* Target any canvas element within the container */

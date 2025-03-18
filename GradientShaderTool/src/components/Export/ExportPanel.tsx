@@ -11,11 +11,12 @@ import {
 } from "../UI";
 import styles from "./Export.module.css";
 import { X, JS, HTML, OpenGL } from "../Icons";
-import { useFacade } from "../../lib/facade/FacadeContext";
+import type { IShaderAppFacade } from "../../lib/facade/types";
 
 interface ExportPanelProps {
   isOpen: boolean;
   onOpenChange: (open: boolean) => void;
+  facade?: IShaderAppFacade;
 }
 
 interface ExportMethod {
@@ -28,8 +29,8 @@ interface ExportMethod {
 export const ExportPanel: FunctionComponent<ExportPanelProps> = ({
   isOpen,
   onOpenChange,
+  facade,
 }) => {
-  const facade = useFacade();
   const [activeMethod, setActiveMethod] = useState<string>("js");
   const [codeTitle, setCodeTitle] = useState<string>("");
   const [codeDescription, setCodeDescription] = useState<string>("");
@@ -61,12 +62,21 @@ export const ExportPanel: FunctionComponent<ExportPanelProps> = ({
 
   useEffect(() => {
     if (isOpen && facade && facade.isInitialized()) {
-      loadCode(activeMethod);
+      const timer = setTimeout(() => {
+        loadCode(activeMethod);
+      }, 0);
+
+      return () => clearTimeout(timer);
     }
   }, [isOpen, activeMethod, facade]);
 
   const loadCode = async (methodId: string) => {
-    if (!facade || !facade.isInitialized()) return;
+    if (!facade || !facade.isInitialized()) {
+      console.error(
+        "Cannot load code: Facade is not available or not initialized"
+      );
+      return;
+    }
 
     setIsLoading(true);
     setCodeSections([]);
@@ -102,6 +112,9 @@ export const ExportPanel: FunctionComponent<ExportPanelProps> = ({
       }
     } catch (error) {
       console.error("Error loading code:", error);
+      setCodeSections([
+        { title: "Error", code: "Failed to generate code.", language: "text" },
+      ]);
     } finally {
       setIsLoading(false);
     }

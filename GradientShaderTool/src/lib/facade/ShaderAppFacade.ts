@@ -866,44 +866,71 @@ export class ShaderAppFacade extends EventEmitter implements IShaderAppFacade {
   }
 
   /**
-   * Export the current state as code
+   * Export the current shader as code
    * @param options Export options
    * @returns Promise that resolves with the exported code
    */
   public async exportAsCode(options: ExportCodeOptions = {}): Promise<string> {
     this.ensureInitialized();
 
-    // Merge options with defaults
-    const mergedOptions = {
-      ...this.config.export.defaultCodeExport,
-      ...options,
-    };
-
     try {
       // Emit export started event
       this.emit("export-started", {
         type: "code",
-        settings: mergedOptions,
+        settings: options,
       });
 
-      // Export the code
-      this.app!.exportCode();
+      if (!this.app) {
+        throw new Error("ShaderApp is not initialized");
+      }
 
-      // Since the actual exportCode doesn't return the code, we'll simulate the behavior
-      // In a real implementation, the exportManager should be modified to return the code
-      const mockCode = `// Generated GLSL code\nvoid main() {\n  // TODO: Implement actual code export\n}`;
+      // Get shaders and uniforms from the app
+      const vertexShader =
+        this.app.params.geometryType === "sphere"
+          ? this.app.shaders.sphereVertex
+          : this.app.shaders.vertex;
+      const fragmentShader = this.app.shaders.fragment;
+      const uniforms = this.app.uniforms;
+
+      let code = "";
+
+      // Generate appropriate code based on export options
+      if (!options || options.format === "glsl") {
+        // Default to GLSL
+        code = `// Vertex Shader\n${vertexShader}\n\n// Fragment Shader\n${fragmentShader}\n\n// Uniforms\n/*\n${JSON.stringify(
+          uniforms,
+          null,
+          2
+        )}\n*/`;
+      } else if (options.format === "js") {
+        // JavaScript code
+        code = `// JavaScript Three.js implementation\nconst vertexShader = \`${vertexShader}\`;\n\nconst fragmentShader = \`${fragmentShader}\`;\n\nconst uniforms = ${JSON.stringify(
+          uniforms,
+          null,
+          2
+        )};\n\n// Use in Three.js material\nconst material = new THREE.ShaderMaterial({\n  vertexShader,\n  fragmentShader,\n  uniforms\n});`;
+      } else if (options.format === "ts") {
+        // TypeScript code
+        code = `// TypeScript Three.js implementation\nconst vertexShader = \`${vertexShader}\`;\n\nconst fragmentShader = \`${fragmentShader}\`;\n\nconst uniforms: Record<string, THREE.IUniform> = ${JSON.stringify(
+          uniforms,
+          null,
+          2
+        )};\n\n// Use in Three.js material\nconst material = new THREE.ShaderMaterial({\n  vertexShader,\n  fragmentShader,\n  uniforms\n});`;
+      }
 
       // Emit export complete event
       this.emit("export-complete", {
         type: "code",
-        result: mockCode,
+        result: code,
       });
 
-      return mockCode;
+      return code;
     } catch (error) {
       // Handle errors during export
       this.emit("error", {
-        message: `Error exporting code: ${(error as Error).message}`,
+        message: `Error exporting code: ${
+          error instanceof Error ? error.message : String(error)
+        }`,
         code: "CODE_EXPORT_ERROR",
         source: "export",
         recoverable: true,

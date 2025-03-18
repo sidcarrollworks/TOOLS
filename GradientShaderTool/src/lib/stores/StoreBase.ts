@@ -1,4 +1,9 @@
-import { signal, computed, Signal, ReadonlySignal } from "@preact/signals";
+import {
+  signal,
+  computed,
+  type Signal,
+  type ReadonlySignal,
+} from "@preact/signals";
 
 /**
  * Options for creating a store

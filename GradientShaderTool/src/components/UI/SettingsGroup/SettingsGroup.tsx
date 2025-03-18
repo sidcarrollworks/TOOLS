@@ -1,7 +1,7 @@
 import { useState, useCallback } from "preact/hooks";
 import { type FunctionComponent, type ComponentChildren } from "preact";
 import "./SettingsGroup.css";
-import { ChevronDown, ChevronUp } from "../Icons";
+import { ChevronDown, ChevronUp } from "../Icons/index";
 
 /**
  * Props for SettingsGroup component

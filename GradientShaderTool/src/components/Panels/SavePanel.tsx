@@ -48,32 +48,10 @@ const SavePanel: FunctionComponent<SavePanelProps> = () => {
     }
   };
 
-  // Handle save animation button click
-  const handleSaveAnimation = () => {
-    if (facade.isInitialized()) {
-      // Animation export not implemented yet in the facade
-      alert("Animation export not implemented yet");
-      // When implemented, it would be something like:
-      // facade.exportAsAnimation({
-      //   transparent: getSettingValue("transparentBackground"),
-      //   highQuality: getSettingValue("exportHighQuality"),
-      // });
-    }
-  };
-
-  // Handle save code button click
-  const handleSaveCode = () => {
-    if (facade.isInitialized()) {
-      facade.exportAsCode();
-    }
-  };
-
   return (
     <div className="panel">
       {/* Export Options */}
       <div className="settingsGroup">
-        <h3 className="groupTitle">Export Options</h3>
-
         {/* Transparent Background Toggle */}
         <Checkbox
           label="Transparent Background"
@@ -95,14 +73,9 @@ const SavePanel: FunctionComponent<SavePanelProps> = () => {
 
       {/* Export Buttons */}
       <div className="settingsGroup">
-        <h3 className="groupTitle">Export</h3>
-        <div className="buttonGrid">
-          <Button onClick={handleSaveImage} variant="primary">
-            Save Image
-          </Button>
-          <Button onClick={handleSaveAnimation}>Save Animation</Button>
-          <Button onClick={handleSaveCode}>Save Code</Button>
-        </div>
+        <Button onClick={handleSaveImage} variant="primary">
+          Save Image
+        </Button>
       </div>
     </div>
   );

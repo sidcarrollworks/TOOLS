@@ -1,85 +1,143 @@
 import type { FunctionComponent } from "preact";
 import { useComputed } from "@preact/signals";
-import { useRef, useEffect } from "preact/hooks";
+import { useRef, useEffect, useState } from "preact/hooks";
 import "./Panel.css";
 import { FigmaInput } from "../FigmaInput";
-import {
-  getPanelSettings,
-  getSettingValue,
-  updateSettingValue,
-} from "../../lib/settings/store";
-import type { SettingGroup } from "../../lib/settings/types";
 import { facadeSignal } from "../../app";
-
-// Flag to track if we're processing camera changes from orbit controls
-let processingOrbitChange = false;
+import { getCameraStore } from "../../lib/stores/CameraStore";
+import { getUIStore } from "../../lib/stores/UIStore";
+import { Button } from "../UI/Button";
 
 interface CameraPanelProps {
   // No props needed for now
 }
 
 export const CameraPanel: FunctionComponent<CameraPanelProps> = () => {
-  // Use facadeSignal instead of useFacade
-  const facade = useComputed(() => facadeSignal.value);
+  // Use the camera store
+  const cameraStore = getCameraStore();
+  const uiStore = getUIStore();
 
-  // Animation frame ID for camera updates
-  const animFrameRef = useRef<number | null>(null);
+  // Local state for camera values
+  const [position, setPosition] = useState({ x: 0, y: 0, z: 5 });
+  const [target, setTarget] = useState({ x: 0, y: 0, z: 0 });
+  const [fov, setFov] = useState(75);
 
-  // Clean up animation frames on unmount
+  // Sync local state with store
   useEffect(() => {
-    return () => {
-      if (animFrameRef.current !== null) {
-        cancelAnimationFrame(animFrameRef.current);
-        animFrameRef.current = null;
+    // Initial sync
+    setPosition(cameraStore.get("position"));
+    setTarget(cameraStore.get("target"));
+
+    // Get FOV from facade
+    const facade = facadeSignal.value;
+    if (facade && facade.isInitialized()) {
+      const currentFov = facade.getParam("cameraFov");
+      setFov(currentFov);
+    }
+
+    // Set up interval to poll camera position from store
+    // This is needed because three.js orbit controls update position directly
+    const intervalId = setInterval(() => {
+      setPosition(cameraStore.get("position"));
+      setTarget(cameraStore.get("target"));
+
+      // Sync FOV
+      if (facade && facade.isInitialized()) {
+        const currentFov = facade.getParam("cameraFov");
+        setFov(currentFov);
       }
-    };
+    }, 500); // Update every 500ms
+
+    return () => clearInterval(intervalId);
   }, []);
 
-  // Handle camera parameter changes
-  const handleCameraChange = (id: string, value: number) => {
-    // Skip if we're processing changes from orbit controls
-    if (processingOrbitChange) return;
+  // Handle position changes from UI
+  const handlePositionChange = (axis: "x" | "y" | "z", value: number) => {
+    // Update local state for immediate feedback
+    setPosition((prev) => ({
+      ...prev,
+      [axis]: value,
+    }));
 
-    // Update the setting value in the store
-    updateSettingValue(id, value);
+    // Update the store (which updates the facade)
+    cameraStore.setPositionAxis(axis, value);
+  };
 
-    // Camera requires special handling beyond normal parameter updates
-    if (facade.value && facade.value.isInitialized()) {
-      // Cancel any existing animation frame
-      if (animFrameRef.current !== null) {
-        cancelAnimationFrame(animFrameRef.current);
-        animFrameRef.current = null;
-      }
+  // Handle target changes from UI
+  const handleTargetChange = (axis: "x" | "y" | "z", value: number) => {
+    // Update local state for immediate feedback
+    setTarget((prev) => ({
+      ...prev,
+      [axis]: value,
+    }));
 
-      // Use requestAnimationFrame for smoother updates
-      animFrameRef.current = requestAnimationFrame(() => {
-        if (facade.value && facade.value.isInitialized()) {
-          // Use the facade's updateParam method for camera parameters
-          facade.value.updateParam(id as any, value);
-        }
-      });
+    // Update the store (which updates the facade)
+    cameraStore.setTargetAxis(axis, value);
+  };
+
+  // Handle FOV change
+  const handleFovChange = (value: number) => {
+    setFov(value);
+
+    const facade = facadeSignal.value;
+    if (facade && facade.isInitialized()) {
+      facade.updateParam("cameraFov", value, { resetCamera: true });
     }
+  };
+
+  // Handle reset camera button
+  const handleResetCamera = () => {
+    cameraStore.resetCamera();
+
+    // Update local state
+    setPosition(cameraStore.get("defaultPosition"));
+    setTarget(cameraStore.get("defaultTarget"));
+
+    // Reset FOV
+    const facade = facadeSignal.value;
+    if (facade && facade.isInitialized()) {
+      const defaultFov = 75; // Default FOV value
+      facade.updateParam("cameraFov", defaultFov, { resetCamera: true });
+      setFov(defaultFov);
+    }
+  };
+
+  // Check if UI values match actual store values
+  const isSynced = () => {
+    const storePosition = cameraStore.get("position");
+    const storeTarget = cameraStore.get("target");
+
+    return (
+      Math.abs(position.x - storePosition.x) < 0.001 &&
+      Math.abs(position.y - storePosition.y) < 0.001 &&
+      Math.abs(position.z - storePosition.z) < 0.001 &&
+      Math.abs(target.x - storeTarget.x) < 0.001 &&
+      Math.abs(target.y - storeTarget.y) < 0.001 &&
+      Math.abs(target.z - storeTarget.z) < 0.001
+    );
   };
 
   return (
     <div className="panel">
-      {/* Camera Settings */}
+      {/* Status information (for debugging) */}
+      {/* <div className="settingsGroup">
+        <p className="statusText" style={{ fontSize: "11px", color: "#888" }}>
+          {cameraStore.get("status") || "No updates yet"}
+          {!isSynced() && (
+            <span style={{ color: "orange" }}> (out of sync)</span>
+          )}
+        </p>
+      </div> */}
+
+      {/* Field of View */}
       <div className="settingsGroup">
         <FigmaInput
-          label="Distance"
-          value={getSettingValue("cameraDistance") as number}
-          min={0.1}
-          max={5}
-          step={0.1}
-          onChange={(value) => handleCameraChange("cameraDistance", value)}
-        />
-        <FigmaInput
-          label="Field of View"
-          value={getSettingValue("cameraFov") as number}
-          min={10}
-          max={100}
+          label="FOV"
+          value={fov}
+          min={15}
+          max={90}
           step={1}
-          onChange={(value) => handleCameraChange("cameraFov", value)}
+          onChange={handleFovChange}
         />
       </div>
 
@@ -88,28 +146,63 @@ export const CameraPanel: FunctionComponent<CameraPanelProps> = () => {
         <h3 className="groupTitle">Position</h3>
         <FigmaInput
           label="X"
-          value={getSettingValue("cameraPosX") as number}
-          min={-5}
-          max={5}
+          value={position.x}
+          min={-10}
+          max={10}
           step={0.1}
-          onChange={(value) => handleCameraChange("cameraPosX", value)}
+          onChange={(value) => handlePositionChange("x", value)}
         />
         <FigmaInput
           label="Y"
-          value={getSettingValue("cameraPosY") as number}
-          min={-5}
-          max={5}
+          value={position.y}
+          min={-10}
+          max={10}
           step={0.1}
-          onChange={(value) => handleCameraChange("cameraPosY", value)}
+          onChange={(value) => handlePositionChange("y", value)}
         />
         <FigmaInput
           label="Z"
-          value={getSettingValue("cameraPosZ") as number}
-          min={-5}
-          max={5}
+          value={position.z}
+          min={-10}
+          max={10}
           step={0.1}
-          onChange={(value) => handleCameraChange("cameraPosZ", value)}
+          onChange={(value) => handlePositionChange("z", value)}
         />
+      </div>
+
+      {/* Camera Target */}
+      <div className="settingsGroup">
+        <h3 className="groupTitle">Look At Point</h3>
+        <FigmaInput
+          label="X"
+          value={target.x}
+          min={-10}
+          max={10}
+          step={0.1}
+          onChange={(value) => handleTargetChange("x", value)}
+        />
+        <FigmaInput
+          label="Y"
+          value={target.y}
+          min={-10}
+          max={10}
+          step={0.1}
+          onChange={(value) => handleTargetChange("y", value)}
+        />
+        <FigmaInput
+          label="Z"
+          value={target.z}
+          min={-10}
+          max={10}
+          step={0.1}
+          onChange={(value) => handleTargetChange("z", value)}
+        />
+      </div>
+
+      <div className="settingsGroup">
+        <Button variant="secondary" size="medium" onClick={handleResetCamera}>
+          Reset Camera
+        </Button>
       </div>
     </div>
   );

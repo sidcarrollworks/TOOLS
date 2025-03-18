@@ -1,5 +1,6 @@
-import type { FunctionComponent } from "preact";
 import { signal, useComputed } from "@preact/signals";
+import type { FunctionComponent } from "preact";
+import { useEffect, useRef } from "preact/hooks";
 import styles from "./SidePanel.module.css";
 import { IconButton } from "../UI/IconButton";
 import {
@@ -12,8 +13,14 @@ import {
   SaveIcon,
   CodeIcon,
 } from "../Icons";
+import PresetPanel from "../Panels/PresetPanel";
+import GeometryPanel from "../Panels/GeometryPanel";
+import ColorsPanel from "../Panels/ColorsPanel";
+import LightingPanel from "../Panels/LightingPanel";
+import CameraPanel from "../Panels/CameraPanel";
 import SettingsPanel from "./SettingsPanel";
 import { facadeSignal } from "../../app";
+import SavePanel from "../Panels/SavePanel";
 
 // Create a signal for the active panel
 export const activePanelSignal = signal<string | null>(null);
@@ -27,12 +34,58 @@ interface SidePanelProps {
 export const SidePanel: FunctionComponent<SidePanelProps> = ({ visible }) => {
   // Use facadeSignal instead of useFacade
   const facade = useComputed(() => facadeSignal.value);
+  const exportUIRef = useRef<any>(null);
+
+  // Initialize ExportUI when facade is available
+  useEffect(() => {
+    if (facade.value && facade.value.isInitialized()) {
+      // Dynamically import the ShaderApp to get access to it
+      import("../../lib/ShaderApp")
+        .then(({ ShaderApp }) => {
+          // Import ExportUI
+          import("../../lib/modules/export/ExportUI")
+            .then(({ ExportUI }) => {
+              // We can't access the app property directly, so we'll just use exportAsCode directly
+              if (facade.value && !exportUIRef.current) {
+                // Create a dummy app instance just for the ExportUI
+                // This is a workaround to avoid accessing the internal ShaderApp
+                const dummyApp = {
+                  exportCode: () => {
+                    if (facade.value) {
+                      facade.value.exportAsCode();
+                    }
+                  },
+                };
+
+                console.log("Creating ExportUI instance");
+                exportUIRef.current = new ExportUI(dummyApp as any);
+              }
+            })
+            .catch((err) => {
+              console.error("Error loading ExportUI:", err);
+            });
+        })
+        .catch((err) => {
+          console.error("Error loading ShaderApp:", err);
+        });
+    }
+
+    // Clean up on unmount
+    return () => {
+      if (exportUIRef.current) {
+        console.log("Disposing ExportUI instance");
+        exportUIRef.current.dispose();
+        exportUIRef.current = null;
+      }
+    };
+  }, [facade.value]);
 
   // Check both the prop and the signal for visibility
   if (!visible || !sidePanelVisibleSignal.value) return null;
 
+  // Handle icon click to change active panel
   const handleIconClick = (panelName: string) => {
-    // Toggle the panel if it's already active
+    // Toggle panel if clicking the active one
     if (activePanelSignal.value === panelName) {
       activePanelSignal.value = null;
     } else {
@@ -40,11 +93,14 @@ export const SidePanel: FunctionComponent<SidePanelProps> = ({ visible }) => {
     }
   };
 
-  // Handle the code icon click specially - directly export code
-  const handleCodeIconClick = () => {
-    // If facade is available, call exportAsCode directly
-    if (facade.value && facade.value.isInitialized()) {
-      facade.value.exportAsCode();
+  // Handle export code click
+  const handleExportCodeClick = () => {
+    console.log("Export code button clicked");
+    if (exportUIRef.current) {
+      console.log("Showing export code UI");
+      exportUIRef.current.showExportCode();
+    } else {
+      console.error("ExportUI instance not available");
     }
   };
 
@@ -93,29 +149,42 @@ export const SidePanel: FunctionComponent<SidePanelProps> = ({ visible }) => {
         />
         <IconButton
           icon={<CameraIcon />}
-          label="Camera Settings"
+          label="Camera"
           isActive={activePanelSignal.value === "camera"}
           onClick={() => handleIconClick("camera")}
           tooltipPosition="left"
         />
         <IconButton
           icon={<SaveIcon />}
-          label="Save Image"
+          label="Save"
           isActive={activePanelSignal.value === "save"}
           onClick={() => handleIconClick("save")}
           tooltipPosition="left"
         />
+
         <IconButton
           icon={<CodeIcon />}
           label="Export Code"
-          isActive={false} // Never active since we don't open the panel
-          onClick={handleCodeIconClick}
+          isActive={false}
+          onClick={handleExportCodeClick}
           tooltipPosition="left"
         />
       </div>
 
-      {/* Add the SettingsPanel outside the sidePanel div */}
-      <SettingsPanel />
+      {activePanelSignal.value && (
+        <div className={styles.contentPanel}>
+          <h2 className={styles.title}>{activePanelSignal.value}</h2>
+          {activePanelSignal.value === "presets" && <PresetPanel />}
+          {activePanelSignal.value === "geometry" && <GeometryPanel />}
+          {activePanelSignal.value === "distortion" && (
+            <div>Distortion Panel</div>
+          )}
+          {activePanelSignal.value === "colors" && <ColorsPanel />}
+          {activePanelSignal.value === "lighting" && <LightingPanel />}
+          {activePanelSignal.value === "camera" && <CameraPanel />}
+          {activePanelSignal.value === "save" && <SavePanel />}
+        </div>
+      )}
     </div>
   );
 };

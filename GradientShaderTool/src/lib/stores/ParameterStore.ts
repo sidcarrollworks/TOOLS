@@ -1,15 +1,132 @@
-import { StoreBase, StoreOptions } from "./StoreBase";
-import type { ReadonlySignal } from "@preact/signals";
-import { facadeSignal } from "../facade/FacadeContext";
-import { useComputed, useSignalEffect } from "@preact/signals-react";
-import { useCallback, useRef } from "preact/hooks";
+import { StoreBase } from "./StoreBase";
+import { facadeSignal } from "../../app";
+import { getUIStore } from "./UIStore";
+import { getHistoryStore } from "./HistoryStore";
+import type { ShaderParams } from "../ShaderApp";
 
 /**
- * Parameter validation result
+ * Parameter descriptor interface
  */
-export interface ValidationResult {
-  valid: boolean;
-  error?: string;
+export interface ParameterDescriptor {
+  /**
+   * Parameter ID
+   */
+  id: string;
+
+  /**
+   * Display name
+   */
+  name: string;
+
+  /**
+   * Parameter group
+   */
+  group?: string;
+
+  /**
+   * Default value
+   */
+  defaultValue: any;
+
+  /**
+   * Minimum value (for numeric parameters)
+   */
+  min?: number;
+
+  /**
+   * Maximum value (for numeric parameters)
+   */
+  max?: number;
+
+  /**
+   * Step value (for numeric parameters)
+   */
+  step?: number;
+
+  /**
+   * Parameter type (number, boolean, color, etc.)
+   */
+  type?: string;
+}
+
+/**
+ * Parameter value with metadata
+ */
+export interface ParameterValue {
+  /**
+   * The current value
+   */
+  value: number | boolean | string | number[];
+
+  /**
+   * Original value (from descriptor)
+   */
+  defaultValue: number | boolean | string | number[];
+
+  /**
+   * Last value before current change
+   */
+  previousValue?: number | boolean | string | number[];
+
+  /**
+   * Time of last change
+   */
+  lastChanged?: number;
+}
+
+/**
+ * Group of parameters
+ */
+export interface ParameterGroup {
+  /**
+   * Group ID
+   */
+  id: string;
+
+  /**
+   * Display name
+   */
+  name: string;
+
+  /**
+   * Parameter IDs in this group
+   */
+  parameterIds: string[];
+
+  /**
+   * Whether the group is expanded
+   */
+  isExpanded: boolean;
+
+  /**
+   * Group order (for sorting)
+   */
+  order: number;
+}
+
+/**
+ * Parameter descriptor with extended metadata
+ */
+export interface EnhancedParameterDescriptor extends ParameterDescriptor {
+  /**
+   * Group this parameter belongs to
+   */
+  groupId?: string;
+
+  /**
+   * Whether the parameter is locked (cannot be changed)
+   */
+  isLocked?: boolean;
+
+  /**
+   * Whether the parameter is hidden from UI
+   */
+  isHidden?: boolean;
+
+  /**
+   * Order within group (for sorting)
+   */
+  order?: number;
 }
 
 /**
@@ -17,64 +134,29 @@ export interface ValidationResult {
  */
 export interface ParameterState {
   /**
-   * All parameters
+   * All available parameters
    */
-  parameters: Record<string, any>;
+  parameters: Record<string, EnhancedParameterDescriptor>;
 
   /**
-   * Validation errors
+   * Current values for all parameters
    */
-  errors: Record<string, string>;
-
-  /**
-   * Parameters that have been modified from defaults
-   */
-  modified: Record<string, boolean>;
-
-  /**
-   * Parameters that are currently being updated (e.g. during a slider drag)
-   */
-  updating: Record<string, boolean>;
-
-  /**
-   * Flag indicating if a batch update is in progress
-   */
-  batchUpdateInProgress: boolean;
-
-  /**
-   * Batch update queue
-   */
-  batchUpdateQueue: Record<string, any>;
-}
-
-/**
- * Parameter store options
- */
-export interface ParameterStoreOptions extends StoreOptions {
-  /**
-   * Enable debouncing for parameter updates
-   */
-  enableDebounce?: boolean;
-
-  /**
-   * Debounce delay in ms
-   */
-  debounceDelay?: number;
-
-  /**
-   * Enable parameter validation
-   */
-  enableValidation?: boolean;
-
-  /**
-   * Initialize from facade
-   */
-  initFromFacade?: boolean;
+  values: Record<string, ParameterValue>;
 
   /**
    * Parameter groups
    */
-  parameterGroups?: Record<string, string[]>;
+  groups: Record<string, ParameterGroup>;
+
+  /**
+   * Is loading parameters
+   */
+  isLoading: boolean;
+
+  /**
+   * Error message
+   */
+  errorMessage: string | null;
 }
 
 /**
@@ -82,555 +164,488 @@ export interface ParameterStoreOptions extends StoreOptions {
  */
 export class ParameterStore extends StoreBase<ParameterState> {
   /**
-   * Default options
-   */
-  private static readonly DEFAULT_OPTIONS: ParameterStoreOptions = {
-    debug: false,
-    enableDebounce: true,
-    debounceDelay: 50,
-    enableValidation: true,
-    initFromFacade: true,
-  };
-
-  /**
-   * Options
-   */
-  private options: ParameterStoreOptions;
-
-  /**
-   * Parameter groups
-   */
-  private parameterGroups: Record<string, string[]> = {};
-
-  /**
-   * Debounce timeouts
-   */
-  private debounceTimeouts: Record<string, number> = {};
-
-  /**
-   * Batch update timeout
-   */
-  private batchUpdateTimeout: number | null = null;
-
-  /**
    * Create a new parameter store
    */
-  constructor(options: ParameterStoreOptions = {}) {
-    const initialState: ParameterState = {
-      parameters: {},
-      errors: {},
-      modified: {},
-      updating: {},
-      batchUpdateInProgress: false,
-      batchUpdateQueue: {},
-    };
+  constructor() {
+    super(
+      {
+        parameters: {},
+        values: {},
+        groups: {},
+        isLoading: false,
+        errorMessage: null,
+      },
+      { name: "ParameterStore", debug: false }
+    );
 
-    super(initialState, {
-      ...ParameterStore.DEFAULT_OPTIONS,
-      ...options,
-    });
-
-    this.options = {
-      ...ParameterStore.DEFAULT_OPTIONS,
-      ...options,
-    };
-
-    this.parameterGroups = options.parameterGroups || {};
-
-    if (this.options.initFromFacade) {
-      this.initFromFacade();
-    }
+    // Initialize parameters when facade is available
+    this.initializeParametersFromFacade();
   }
 
   /**
    * Initialize parameters from facade
    */
-  private initFromFacade(): void {
+  private initializeParametersFromFacade(): void {
     const facade = facadeSignal.value;
-    if (!facade) {
-      if (this.debug) {
-        this.logDebug("initFromFacade: Facade not available");
-      }
-      return;
-    }
+    if (!facade) return;
 
-    // Get all parameters from facade
+    this.set("isLoading", true);
+
     try {
-      const parameters = facade.getAllParameters();
-      this.setState({ parameters });
+      // Since the facade doesn't provide parameter descriptors directly,
+      // we'll create them from the available parameters
+      const allParams = facade.getAllParams() || {};
 
-      if (this.debug) {
-        this.logDebug("Initialized parameters from facade", parameters);
-      }
-    } catch (err) {
-      if (this.debug) {
-        this.logDebug("Error initializing from facade", err);
-      }
-    }
-  }
+      // Initialize parameter objects and values
+      const parameters: Record<string, EnhancedParameterDescriptor> = {};
+      const values: Record<string, ParameterValue> = {};
+      const groupMap: Record<string, string[]> = {};
 
-  /**
-   * Set a parameter value
-   */
-  public setParameter(
-    name: string,
-    value: any,
-    options: { immediate?: boolean } = {}
-  ): boolean {
-    const { immediate = false } = options;
-    const currentValue = this.stateSignal.value.parameters[name];
+      // Process parameters and create descriptors
+      Object.entries(allParams).forEach(([paramId, paramValue]) => {
+        // Infer parameter type
+        const type = typeof paramValue;
 
-    // Skip if value is the same
-    if (currentValue === value) {
-      return true;
-    }
+        // Create a basic descriptor
+        const descriptor: ParameterDescriptor = {
+          id: paramId,
+          name: this.formatParameterName(paramId),
+          defaultValue: paramValue,
+          type: Array.isArray(paramValue) ? "array" : type,
+          // Assume default group for now
+          group: "default",
+        };
 
-    // Mark parameter as modified if it's changing
-    this.set("modified", {
-      ...this.stateSignal.value.modified,
-      [name]: true,
-    });
+        // Add numeric bounds if it's a number
+        if (type === "number") {
+          descriptor.min = 0;
+          descriptor.max = 1;
+          descriptor.step = 0.01;
+        }
 
-    // Mark parameter as updating
-    this.set("updating", {
-      ...this.stateSignal.value.updating,
-      [name]: true,
-    });
+        // Create enhanced descriptor
+        const enhancedDescriptor: EnhancedParameterDescriptor = {
+          ...descriptor,
+          groupId: descriptor.group,
+          isLocked: false,
+          isHidden: false,
+          order: 0,
+        };
 
-    // If validation is enabled, validate the parameter
-    if (this.options.enableValidation) {
-      const validation = this.validateParameter(name, value);
-      if (!validation.valid) {
-        // Update errors
-        this.set("errors", {
-          ...this.stateSignal.value.errors,
-          [name]: validation.error || "Invalid value",
-        });
+        parameters[paramId] = enhancedDescriptor;
 
-        // Mark parameter as not updating
-        this.set("updating", {
-          ...this.stateSignal.value.updating,
-          [name]: false,
-        });
+        // Set up parameter value
+        values[paramId] = {
+          value: paramValue,
+          defaultValue: paramValue,
+          lastChanged: Date.now(),
+        };
 
-        return false;
-      }
-
-      // Clear error if parameter is valid
-      const errors = { ...this.stateSignal.value.errors };
-      delete errors[name];
-      this.set("errors", errors);
-    }
-
-    // If debouncing is enabled and not immediate, debounce the update
-    if (this.options.enableDebounce && !immediate) {
-      this.debounceParameterUpdate(name, value);
-      return true;
-    }
-
-    // Update the parameter immediately
-    this.updateParameterValue(name, value);
-    return true;
-  }
-
-  /**
-   * Debounce a parameter update
-   */
-  private debounceParameterUpdate(name: string, value: any): void {
-    // Clear existing timeout
-    if (this.debounceTimeouts[name]) {
-      window.clearTimeout(this.debounceTimeouts[name]);
-    }
-
-    // If batch update is in progress, add to queue
-    if (this.stateSignal.value.batchUpdateInProgress) {
-      this.set("batchUpdateQueue", {
-        ...this.stateSignal.value.batchUpdateQueue,
-        [name]: value,
-      });
-      return;
-    }
-
-    // Set a new timeout
-    this.debounceTimeouts[name] = window.setTimeout(() => {
-      this.updateParameterValue(name, value);
-      delete this.debounceTimeouts[name];
-    }, this.options.debounceDelay);
-  }
-
-  /**
-   * Update a parameter value and apply to facade
-   */
-  private updateParameterValue(name: string, value: any): void {
-    // Update internal state
-    this.set("parameters", {
-      ...this.stateSignal.value.parameters,
-      [name]: value,
-    });
-
-    // Mark parameter as not updating
-    this.set("updating", {
-      ...this.stateSignal.value.updating,
-      [name]: false,
-    });
-
-    // Apply to facade
-    const facade = facadeSignal.value;
-    if (facade) {
-      facade.setParameter(name, value);
-    }
-  }
-
-  /**
-   * Update multiple parameters at once
-   */
-  public updateParameters(
-    updates: Record<string, any>,
-    options: { immediate?: boolean } = {}
-  ): boolean {
-    const { immediate = false } = options;
-
-    // Skip if no updates
-    if (Object.keys(updates).length === 0) {
-      return true;
-    }
-
-    // If debouncing is enabled and not immediate, batch the updates
-    if (this.options.enableDebounce && !immediate) {
-      // Mark batch update in progress
-      this.set("batchUpdateInProgress", true);
-
-      // Add updates to queue
-      const queue = { ...this.stateSignal.value.batchUpdateQueue };
-      Object.entries(updates).forEach(([name, value]) => {
-        queue[name] = value;
-
-        // Mark parameter as updating
-        this.set("updating", {
-          ...this.stateSignal.value.updating,
-          [name]: true,
-        });
-
-        // Mark parameter as modified
-        this.set("modified", {
-          ...this.stateSignal.value.modified,
-          [name]: true,
-        });
+        // Add to group map
+        const groupId = enhancedDescriptor.groupId || "default";
+        if (!groupMap[groupId]) {
+          groupMap[groupId] = [];
+        }
+        groupMap[groupId].push(paramId);
       });
 
-      this.set("batchUpdateQueue", queue);
+      // Create parameter groups
+      const groups: Record<string, ParameterGroup> = {};
 
-      // Clear existing timeout
-      if (this.batchUpdateTimeout) {
-        window.clearTimeout(this.batchUpdateTimeout);
-      }
+      Object.entries(groupMap).forEach(([groupId, paramIds], index) => {
+        groups[groupId] = {
+          id: groupId,
+          name: this.formatGroupName(groupId),
+          parameterIds: paramIds,
+          isExpanded: index === 0, // Expand first group by default
+          order: index,
+        };
+      });
 
-      // Set a new timeout
-      this.batchUpdateTimeout = window.setTimeout(() => {
-        this.processBatchUpdateQueue();
-        this.batchUpdateTimeout = null;
-      }, this.options.debounceDelay);
-
-      return true;
+      // Update store state
+      this.setState({
+        parameters,
+        values,
+        groups,
+        isLoading: false,
+      });
+    } catch (error) {
+      console.error("Failed to load parameters:", error);
+      this.setState({
+        errorMessage: "Failed to load parameters",
+        isLoading: false,
+      });
+      getUIStore().showToast("Failed to load parameters", "error");
     }
-
-    // Process updates immediately
-    const facade = facadeSignal.value;
-    if (facade) {
-      const result = facade.updateParameters(updates);
-
-      if (result) {
-        // Update internal state
-        this.set("parameters", {
-          ...this.stateSignal.value.parameters,
-          ...updates,
-        });
-
-        // Mark parameters as modified
-        const modified = { ...this.stateSignal.value.modified };
-        Object.keys(updates).forEach((name) => {
-          modified[name] = true;
-        });
-        this.set("modified", modified);
-      }
-
-      return result;
-    }
-
-    return false;
   }
 
   /**
-   * Process the batch update queue
+   * Format a parameter ID into a display name
    */
-  private processBatchUpdateQueue(): void {
-    const queue = this.stateSignal.value.batchUpdateQueue;
+  private formatParameterName(paramId: string): string {
+    // Convert camelCase or snake_case to Title Case
+    return paramId
+      .replace(/([A-Z])/g, " $1") // camelCase to space-separated
+      .replace(/_/g, " ") // snake_case to space-separated
+      .replace(/^\w/, (c) => c.toUpperCase()) // Capitalize first letter
+      .trim();
+  }
 
-    // Skip if queue is empty
-    if (Object.keys(queue).length === 0) {
-      this.set("batchUpdateInProgress", false);
-      return;
-    }
+  /**
+   * Format a group ID into a display name
+   */
+  private formatGroupName(groupId: string): string {
+    if (groupId === "default") return "General";
 
-    // Apply all updates to facade
-    const facade = facadeSignal.value;
-    if (facade) {
-      facade.updateParameters(queue);
-
-      // Update internal state
-      this.set("parameters", {
-        ...this.stateSignal.value.parameters,
-        ...queue,
-      });
-    }
-
-    // Clear updating flags
-    const updating = { ...this.stateSignal.value.updating };
-    Object.keys(queue).forEach((name) => {
-      updating[name] = false;
-    });
-    this.set("updating", updating);
-
-    // Clear queue and batch update flag
-    this.set("batchUpdateQueue", {});
-    this.set("batchUpdateInProgress", false);
+    // Convert camelCase or snake_case to Title Case
+    return groupId
+      .replace(/([A-Z])/g, " $1") // camelCase to space-separated
+      .replace(/_/g, " ") // snake_case to space-separated
+      .replace(/^\w/, (c) => c.toUpperCase()) // Capitalize first letter
+      .trim();
   }
 
   /**
    * Get a parameter value
    */
-  public getParameter(name: string): any {
-    return this.stateSignal.value.parameters[name];
+  public getValue(parameterId: string): any {
+    const paramValue = this.get("values")[parameterId];
+    return paramValue ? paramValue.value : undefined;
   }
 
   /**
-   * Get a parameter as a signal
+   * Get a parameter descriptor
    */
-  public selectParameter(name: string): ReadonlySignal<any> {
-    return this.selectComputed(
-      (state) => state.parameters[name],
-      ["parameters"]
-    );
+  public getParameter(
+    parameterId: string
+  ): EnhancedParameterDescriptor | undefined {
+    return this.get("parameters")[parameterId];
+  }
+
+  /**
+   * Set a parameter value
+   */
+  public setValue(
+    parameterId: string,
+    value: any,
+    recordHistory: boolean = true
+  ): boolean {
+    const facade = facadeSignal.value;
+    if (!facade) {
+      getUIStore().showToast(
+        "Cannot update parameter: Application not ready",
+        "error"
+      );
+      return false;
+    }
+
+    const parameter = this.getParameter(parameterId);
+    if (!parameter) {
+      getUIStore().showToast(`Parameter not found: ${parameterId}`, "error");
+      return false;
+    }
+
+    // Check if parameter is locked
+    if (parameter.isLocked) {
+      getUIStore().showToast(
+        `Parameter is locked: ${parameter.name}`,
+        "warning"
+      );
+      return false;
+    }
+
+    try {
+      // Get current value for history
+      const currentValue = this.getValue(parameterId);
+
+      // Apply to facade - use type assertion since we know this is a valid parameter
+      facade.updateParam(parameterId as keyof ShaderParams, value);
+
+      // Update our store
+      const values = { ...this.get("values") };
+      values[parameterId] = {
+        ...values[parameterId],
+        previousValue: currentValue,
+        value: value,
+        lastChanged: Date.now(),
+      };
+
+      this.set("values", values);
+
+      // Record in history if needed
+      if (recordHistory && getHistoryStore) {
+        const historyStore = getHistoryStore();
+        const prevParams = { [parameterId]: currentValue };
+        const newParams = { [parameterId]: value };
+
+        historyStore.recordAction(
+          `Changed ${parameter.name}`,
+          prevParams,
+          newParams,
+          "parameter-change"
+        );
+      }
+
+      return true;
+    } catch (error) {
+      console.error(`Failed to set parameter ${parameterId}:`, error);
+      getUIStore().showToast(
+        `Failed to update parameter: ${parameter.name}`,
+        "error"
+      );
+      return false;
+    }
+  }
+
+  /**
+   * Reset a parameter to its default value
+   */
+  public resetParameter(parameterId: string): boolean {
+    const parameter = this.getParameter(parameterId);
+    if (!parameter) {
+      getUIStore().showToast(`Parameter not found: ${parameterId}`, "error");
+      return false;
+    }
+
+    const paramValue = this.get("values")[parameterId];
+    if (!paramValue) return false;
+
+    return this.setValue(parameterId, paramValue.defaultValue);
+  }
+
+  /**
+   * Reset all parameters to their default values
+   */
+  public resetAllParameters(): boolean {
+    const facade = facadeSignal.value;
+    if (!facade) {
+      getUIStore().showToast(
+        "Cannot reset parameters: Application not ready",
+        "error"
+      );
+      return false;
+    }
+
+    try {
+      // Get current values for history
+      const currentValues = { ...facade.getAllParams() };
+      const defaultValues: Record<string, any> = {};
+
+      // Build default values
+      Object.values(this.get("parameters")).forEach((param) => {
+        defaultValues[param.id] = param.defaultValue;
+      });
+
+      // Apply defaults
+      facade.batchUpdateParams(defaultValues);
+
+      // Update our store
+      const values = { ...this.get("values") };
+
+      Object.keys(values).forEach((paramId) => {
+        values[paramId] = {
+          ...values[paramId],
+          previousValue: values[paramId].value,
+          value: values[paramId].defaultValue,
+          lastChanged: Date.now(),
+        };
+      });
+
+      this.set("values", values);
+
+      // Record in history
+      if (getHistoryStore) {
+        const historyStore = getHistoryStore();
+        historyStore.recordAction(
+          "Reset all parameters",
+          currentValues,
+          defaultValues,
+          "reset-all"
+        );
+      }
+
+      getUIStore().showToast("All parameters reset to defaults", "success");
+      return true;
+    } catch (error) {
+      console.error("Failed to reset parameters:", error);
+      getUIStore().showToast("Failed to reset parameters", "error");
+      return false;
+    }
+  }
+
+  /**
+   * Toggle parameter locked state
+   */
+  public toggleParameterLock(parameterId: string): boolean {
+    const parameters = { ...this.get("parameters") };
+    const parameter = parameters[parameterId];
+
+    if (!parameter) {
+      getUIStore().showToast(`Parameter not found: ${parameterId}`, "error");
+      return false;
+    }
+
+    // Toggle lock state
+    parameter.isLocked = !parameter.isLocked;
+
+    // Update parameters
+    parameters[parameterId] = parameter;
+    this.set("parameters", parameters);
+
+    const action = parameter.isLocked ? "Locked" : "Unlocked";
+    getUIStore().showToast(`${action} parameter: ${parameter.name}`, "info");
+    return true;
+  }
+
+  /**
+   * Toggle group expanded state
+   */
+  public toggleGroupExpanded(groupId: string): boolean {
+    const groups = { ...this.get("groups") };
+    const group = groups[groupId];
+
+    if (!group) {
+      getUIStore().showToast(`Group not found: ${groupId}`, "error");
+      return false;
+    }
+
+    // Toggle state
+    group.isExpanded = !group.isExpanded;
+
+    // Update groups
+    groups[groupId] = group;
+    this.set("groups", groups);
+
+    return true;
   }
 
   /**
    * Get all parameters in a group
    */
-  public getParameterGroup(groupName: string): Record<string, any> {
-    const group = this.parameterGroups[groupName];
-    if (!group) {
-      return {};
-    }
+  public getParametersInGroup(groupId: string): EnhancedParameterDescriptor[] {
+    const group = this.get("groups")[groupId];
+    if (!group) return [];
 
-    const result: Record<string, any> = {};
-    group.forEach((name) => {
-      result[name] = this.getParameter(name);
-    });
-
-    return result;
+    return group.parameterIds
+      .map((id) => this.get("parameters")[id])
+      .filter((param) => param && !param.isHidden);
   }
 
   /**
-   * Get all parameters in a group as signals
+   * Batch update parameters
    */
-  public selectParameterGroup(
-    groupName: string
-  ): Record<string, ReadonlySignal<any>> {
-    const group = this.parameterGroups[groupName];
-    if (!group) {
-      return {};
-    }
-
-    const result: Record<string, ReadonlySignal<any>> = {};
-    group.forEach((name) => {
-      result[name] = this.selectParameter(name);
-    });
-
-    return result;
-  }
-
-  /**
-   * Reset all parameters to defaults
-   */
-  public resetParameters(): void {
-    const facade = facadeSignal.value;
-    if (facade) {
-      facade.resetParameters();
-
-      // Update internal state with defaults
-      const parameters = facade.getAllParameters();
-      this.setState({
-        parameters,
-        modified: {},
-        errors: {},
-        updating: {},
-      });
-    }
-  }
-
-  /**
-   * Check if a parameter is modified
-   */
-  public isModified(name: string): boolean {
-    return !!this.stateSignal.value.modified[name];
-  }
-
-  /**
-   * Check if a parameter is being updated
-   */
-  public isUpdating(name: string): boolean {
-    return !!this.stateSignal.value.updating[name];
-  }
-
-  /**
-   * Get parameter error
-   */
-  public getError(name: string): string | undefined {
-    return this.stateSignal.value.errors[name];
-  }
-
-  /**
-   * Validate a parameter value
-   */
-  private validateParameter(name: string, value: any): ValidationResult {
+  public batchUpdateParameters(
+    updates: Record<string, any>,
+    recordHistory: boolean = true
+  ): boolean {
     const facade = facadeSignal.value;
     if (!facade) {
-      return { valid: true };
+      getUIStore().showToast(
+        "Cannot update parameters: Application not ready",
+        "error"
+      );
+      return false;
     }
 
     try {
-      const valid = facade.validateParameter(name, value);
-      return { valid };
-    } catch (err) {
-      return {
-        valid: false,
-        error: err instanceof Error ? err.message : "Invalid value",
-      };
+      // Get current values for history
+      const prevParams: Record<string, any> = {};
+      Object.keys(updates).forEach((id) => {
+        prevParams[id] = this.getValue(id);
+      });
+
+      // Apply updates to facade
+      facade.batchUpdateParams(updates);
+
+      // Update our store
+      const values = { ...this.get("values") };
+
+      Object.entries(updates).forEach(([id, value]) => {
+        if (values[id]) {
+          values[id] = {
+            ...values[id],
+            previousValue: values[id].value,
+            value: value,
+            lastChanged: Date.now(),
+          };
+        }
+      });
+
+      this.set("values", values);
+
+      // Record in history
+      if (recordHistory && getHistoryStore) {
+        const historyStore = getHistoryStore();
+        historyStore.recordAction(
+          `Updated ${Object.keys(updates).length} parameters`,
+          prevParams,
+          updates,
+          "batch-update"
+        );
+      }
+
+      return true;
+    } catch (error) {
+      console.error("Failed to batch update parameters:", error);
+      getUIStore().showToast("Failed to update parameters", "error");
+      return false;
+    }
+  }
+
+  /**
+   * Check if any parameters have been modified from defaults
+   */
+  public hasModifiedParameters(): boolean {
+    const values = this.get("values");
+
+    return Object.values(values).some((paramValue) => {
+      return (
+        JSON.stringify(paramValue.value) !==
+        JSON.stringify(paramValue.defaultValue)
+      );
+    });
+  }
+
+  /**
+   * Synchronize our store with current facade values
+   */
+  public syncWithFacade(): void {
+    const facade = facadeSignal.value;
+    if (!facade) return;
+
+    try {
+      const values = { ...this.get("values") };
+      const parameters = this.get("parameters");
+
+      // Update all known parameters
+      Object.keys(parameters).forEach((id) => {
+        // Use type assertion to tell TypeScript this is a valid parameter name
+        const currentValue = facade.getParam(id as keyof ShaderParams);
+
+        if (values[id]) {
+          values[id] = {
+            ...values[id],
+            value: currentValue,
+          };
+        }
+      });
+
+      this.set("values", values);
+    } catch (error) {
+      console.error("Failed to sync with facade:", error);
     }
   }
 }
 
-/**
- * Hook for using a parameter
- */
-export function useParameter(name: string) {
-  const store = useParameterStore();
-  const value = useComputed(() => store.getParameter(name));
-  const isUpdating = useComputed(() => store.isUpdating(name));
-  const error = useComputed(() => store.getError(name));
-
-  const setValue = useCallback(
-    (newValue: any, options?: { immediate?: boolean }) => {
-      return store.setParameter(name, newValue, options);
-    },
-    [store, name]
-  );
-
-  return { value, setValue, isUpdating, error };
-}
-
-/**
- * Hook for using multiple parameters
- */
-export function useParameterGroup(names: string[]) {
-  const store = useParameterStore();
-
-  const values = useComputed(() => {
-    const result: Record<string, any> = {};
-    names.forEach((name) => {
-      result[name] = store.getParameter(name);
-    });
-    return result;
-  });
-
-  const updating = useComputed(() => {
-    const result: Record<string, boolean> = {};
-    names.forEach((name) => {
-      result[name] = store.isUpdating(name);
-    });
-    return result;
-  });
-
-  const errors = useComputed(() => {
-    const result: Record<string, string | undefined> = {};
-    names.forEach((name) => {
-      result[name] = store.getError(name);
-    });
-    return result;
-  });
-
-  const setValue = useCallback(
-    (name: string, value: any, options?: { immediate?: boolean }) => {
-      return store.setParameter(name, value, options);
-    },
-    [store]
-  );
-
-  const setValues = useCallback(
-    (values: Record<string, any>, options?: { immediate?: boolean }) => {
-      return store.updateParameters(values, options);
-    },
-    [store]
-  );
-
-  return { values, updating, errors, setValue, setValues };
-}
-
-// Store instance
-let parameterStoreInstance: ParameterStore | null = null;
+// Singleton instance
+let parameterStore: ParameterStore | null = null;
 
 /**
  * Get the parameter store instance
  */
 export function getParameterStore(): ParameterStore {
-  if (!parameterStoreInstance) {
-    parameterStoreInstance = new ParameterStore();
+  if (!parameterStore) {
+    parameterStore = new ParameterStore();
   }
-  return parameterStoreInstance;
-}
-
-/**
- * Hook for using the parameter store
- */
-export function useParameterStore(): ParameterStore {
-  return getParameterStore();
-}
-
-/**
- * Initialize parameter store with facade
- */
-export function initializeParameterStore(): void {
-  // Initialize the store
-  const store = getParameterStore();
-
-  // Subscribe to facade changes
-  useSignalEffect(() => {
-    const facade = facadeSignal.value;
-    if (facade) {
-      // Subscribe to parameter changes from the facade
-      const handleParameterUpdate = (event: {
-        parameter: string;
-        value: any;
-      }) => {
-        const { parameter, value } = event;
-        store.setState({
-          parameters: {
-            ...store.getState().parameters,
-            [parameter]: value,
-          },
-          updating: {
-            ...store.getState().updating,
-            [parameter]: false,
-          },
-        });
-      };
-
-      facade.on("parameter:update", handleParameterUpdate);
-
-      // Cleanup
-      return () => {
-        facade.off("parameter:update", handleParameterUpdate);
-      };
-    }
-  });
+  return parameterStore;
 }
