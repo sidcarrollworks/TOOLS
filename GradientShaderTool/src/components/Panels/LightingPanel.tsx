@@ -1,52 +1,70 @@
 import type { FunctionComponent } from "preact";
 import { useComputed } from "@preact/signals";
+import { useState, useEffect } from "preact/hooks";
 import "./Panel.css";
 import { FigmaInput } from "../FigmaInput";
-import {
-  getPanelSettings,
-  getSettingValue,
-  updateSettingValue,
-} from "../../lib/settings/store";
-import type { SettingGroup } from "../../lib/settings/types";
-import { useFacade } from "../../lib/facade/FacadeContext";
-import { useDebounce } from "../../lib/hooks/useDebounce";
+import { getLightingStore } from "../../lib/stores/LightingStore";
+import { Button } from "../UI/Button";
 
 interface LightingPanelProps {
   // No props needed for now
 }
 
 const LightingPanel: FunctionComponent<LightingPanelProps> = () => {
-  // Get the facade instance using the hook
-  const facade = useFacade();
+  // Use the lighting store
+  const lightingStore = getLightingStore();
 
-  // Get the lighting panel settings
-  const lightingPanelConfigSignal = getPanelSettings("lighting");
-  const lightingPanelConfig = useComputed(
-    () => lightingPanelConfigSignal.value
-  );
+  // Local state for lighting values
+  const [direction, setDirection] = useState({ x: 0.5, y: 0.5, z: 0.5 });
+  const [intensities, setIntensities] = useState({
+    diffuse: 0.8,
+    ambient: 0.2,
+    rimLight: 0.5,
+  });
 
-  // Create debounced update function
-  const updateLightingWithDebounce = useDebounce(
-    (id: string, value: number) => {
-      updateSettingValue(id, value);
-      // The shader param update is now handled by updateSettingValue
-    },
-    5
-  );
+  // Sync local state with store
+  useEffect(() => {
+    // Initial sync
+    setDirection(lightingStore.get("direction"));
+    setIntensities(lightingStore.get("intensities"));
 
-  // If no settings are available, show a placeholder
-  if (!lightingPanelConfig.value) {
-    return <div className="noSettings">No lighting settings available</div>;
-  }
+    // No need for interval here as lighting doesn't have any external updates like camera does
+  }, []);
 
-  // Find the lighting settings group
-  const lightingGroup = lightingPanelConfig.value.groups.find(
-    (group: SettingGroup) => group.id === "lighting"
-  );
+  // Handle light direction changes from UI
+  const handleDirectionChange = (axis: "x" | "y" | "z", value: number) => {
+    // Update local state for immediate feedback
+    setDirection((prev) => ({
+      ...prev,
+      [axis]: value,
+    }));
 
-  // Handle lighting value change
-  const handleLightingChange = (id: string, value: number) => {
-    updateLightingWithDebounce(id, value);
+    // Update the store (which updates the facade)
+    lightingStore.setDirectionAxis(axis, value);
+  };
+
+  // Handle light intensity changes from UI
+  const handleIntensityChange = (
+    type: "diffuse" | "ambient" | "rimLight",
+    value: number
+  ) => {
+    // Update local state for immediate feedback
+    setIntensities((prev) => ({
+      ...prev,
+      [type]: value,
+    }));
+
+    // Update the store (which updates the facade)
+    lightingStore.setIntensity(type, value);
+  };
+
+  // Handle reset lighting button
+  const handleResetLighting = () => {
+    lightingStore.reset();
+
+    // Update local state
+    setDirection({ x: 0.5, y: 0.5, z: 0.5 });
+    setIntensities({ diffuse: 0.8, ambient: 0.2, rimLight: 0.5 });
   };
 
   return (
@@ -56,27 +74,27 @@ const LightingPanel: FunctionComponent<LightingPanelProps> = () => {
         <h3 className="groupTitle">Position</h3>
         <FigmaInput
           label="X"
-          value={getSettingValue("lightDirX") as number}
+          value={direction.x}
           min={-1}
           max={1}
           step={0.01}
-          onChange={(value) => handleLightingChange("lightDirX", value)}
+          onChange={(value) => handleDirectionChange("x", value)}
         />
         <FigmaInput
           label="Y"
-          value={getSettingValue("lightDirY") as number}
+          value={direction.y}
           min={-1}
           max={1}
           step={0.01}
-          onChange={(value) => handleLightingChange("lightDirY", value)}
+          onChange={(value) => handleDirectionChange("y", value)}
         />
         <FigmaInput
           label="Z"
-          value={getSettingValue("lightDirZ") as number}
+          value={direction.z}
           min={-1}
           max={1}
           step={0.01}
-          onChange={(value) => handleLightingChange("lightDirZ", value)}
+          onChange={(value) => handleDirectionChange("z", value)}
         />
       </div>
 
@@ -85,28 +103,34 @@ const LightingPanel: FunctionComponent<LightingPanelProps> = () => {
         <h3 className="groupTitle">Intensity</h3>
         <FigmaInput
           label="Diffuse"
-          value={getSettingValue("diffuseIntensity") as number}
+          value={intensities.diffuse}
           min={0}
           max={1}
           step={0.01}
-          onChange={(value) => handleLightingChange("diffuseIntensity", value)}
+          onChange={(value) => handleIntensityChange("diffuse", value)}
         />
         <FigmaInput
           label="Ambient"
-          value={getSettingValue("ambientIntensity") as number}
+          value={intensities.ambient}
           min={0}
           max={1}
           step={0.01}
-          onChange={(value) => handleLightingChange("ambientIntensity", value)}
+          onChange={(value) => handleIntensityChange("ambient", value)}
         />
         <FigmaInput
           label="Rim"
-          value={getSettingValue("rimLightIntensity") as number}
+          value={intensities.rimLight}
           min={0}
           max={1}
           step={0.01}
-          onChange={(value) => handleLightingChange("rimLightIntensity", value)}
+          onChange={(value) => handleIntensityChange("rimLight", value)}
         />
+      </div>
+
+      <div className="settingsGroup">
+        <Button variant="primary" size="small" onClick={handleResetLighting}>
+          Reset Lighting
+        </Button>
       </div>
     </div>
   );

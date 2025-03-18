@@ -373,6 +373,13 @@ export class GeometryStore extends StoreBase<GeometryState> {
   }
 
   /**
+   * Get the facade instance
+   */
+  public getFacade(): IShaderAppFacade | null {
+    return facadeSignal.value;
+  }
+
+  /**
    * Dispose the store
    */
   public dispose(): void {

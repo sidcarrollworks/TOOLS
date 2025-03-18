@@ -2,8 +2,9 @@ import type { FunctionComponent } from "preact";
 import { useState } from "preact/hooks";
 import { Button } from "../UI";
 import { ExportPanel } from "./ExportPanel";
-import { facadeSignal } from "../../app";
-import type { IShaderAppFacade } from "../../lib/facade/types";
+import { useComputed } from "@preact/signals";
+import { getExportStore } from "../../lib/stores/ExportStore";
+import { getUIStore } from "../../lib/stores/UIStore";
 
 interface ExportButtonProps {
   label?: string;
@@ -20,6 +21,10 @@ export const ExportButton: FunctionComponent<ExportButtonProps> = ({
   isOpen: externalIsOpen,
   onOpenChange: externalOnOpenChange,
 }) => {
+  // Get the stores
+  const exportStore = getExportStore();
+  const uiStore = getUIStore();
+
   // Use internal state if external state is not provided
   const [internalIsOpen, setInternalIsOpen] = useState(false);
 
@@ -27,11 +32,15 @@ export const ExportButton: FunctionComponent<ExportButtonProps> = ({
   const isOpen = externalIsOpen !== undefined ? externalIsOpen : internalIsOpen;
   const onOpenChange = externalOnOpenChange || setInternalIsOpen;
 
-  const facadeValue = facadeSignal.value;
-  const facade: IShaderAppFacade | undefined = facadeValue || undefined;
-
   const handleOpenChange = (open: boolean) => {
     onOpenChange(open);
+
+    // Track modal state in UIStore if we're opening
+    if (open) {
+      uiStore.openModal("export");
+    } else {
+      uiStore.closeModal();
+    }
   };
 
   console.log("ExportButton rendering with isOpen:", isOpen);
@@ -46,11 +55,7 @@ export const ExportButton: FunctionComponent<ExportButtonProps> = ({
         {label}
       </Button>
 
-      <ExportPanel
-        isOpen={isOpen}
-        onOpenChange={handleOpenChange}
-        facade={facade}
-      />
+      <ExportPanel isOpen={isOpen} onOpenChange={handleOpenChange} />
     </>
   );
 };

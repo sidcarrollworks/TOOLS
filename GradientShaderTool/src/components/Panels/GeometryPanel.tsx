@@ -1,159 +1,266 @@
 import type { FunctionComponent } from "preact";
 import { useComputed } from "@preact/signals";
+import { useState, useEffect } from "preact/hooks";
 import "./Panel.css";
 import Select from "../UI/Select";
 import { FigmaInput } from "../FigmaInput";
 import { Checkbox } from "../UI/Checkbox";
-import {
-  getPanelSettings,
-  getSettingValue,
-  updateSettingValue,
-} from "../../lib/settings/store";
-import type {
-  SettingGroup,
-  SelectSetting,
-  SliderSetting,
-} from "../../lib/settings/types";
-import { facadeSignal } from "../../app";
-import { useDebounce } from "../../lib/hooks/useDebounce";
+import { getGeometryStore } from "../../lib/stores/GeometryStore";
+import { getParameterStore } from "../../lib/stores/ParameterStore";
 
 interface GeometryPanelProps {
   // No props needed for now
 }
 
+// Type for different geometry settings
+interface GeometrySettings {
+  [key: string]: {
+    label: string;
+    settings: Array<{
+      id: string;
+      label: string;
+      min: number;
+      max: number;
+      step: number;
+    }>;
+  };
+}
+
+// Define settings for each geometry type
+const GEOMETRY_SETTINGS: GeometrySettings = {
+  plane: {
+    label: "Plane",
+    settings: [
+      {
+        id: "planeWidth",
+        label: "Width",
+        min: 0.1,
+        max: 10,
+        step: 0.1,
+      },
+      {
+        id: "planeHeight",
+        label: "Height",
+        min: 0.1,
+        max: 10,
+        step: 0.1,
+      },
+      {
+        id: "planeSegments",
+        label: "Segments",
+        min: 4,
+        max: 512,
+        step: 1,
+      },
+    ],
+  },
+  sphere: {
+    label: "Sphere",
+    settings: [
+      {
+        id: "sphereRadius",
+        label: "Radius",
+        min: 0.1,
+        max: 5,
+        step: 0.1,
+      },
+      {
+        id: "sphereWidthSegments",
+        label: "Width Segments",
+        min: 4,
+        max: 128,
+        step: 1,
+      },
+      {
+        id: "sphereHeightSegments",
+        label: "Height Segments",
+        min: 4,
+        max: 128,
+        step: 1,
+      },
+    ],
+  },
+  cube: {
+    label: "Cube",
+    settings: [
+      {
+        id: "cubeWidthSegments",
+        label: "Width Segments",
+        min: 1,
+        max: 64,
+        step: 1,
+      },
+      {
+        id: "cubeHeightSegments",
+        label: "Height Segments",
+        min: 1,
+        max: 64,
+        step: 1,
+      },
+      {
+        id: "cubeDepthSegments",
+        label: "Depth Segments",
+        min: 1,
+        max: 64,
+        step: 1,
+      },
+    ],
+  },
+};
+
 export const GeometryPanel: FunctionComponent<GeometryPanelProps> = () => {
-  // Use facadeSignal instead of useFacade
-  const facade = useComputed(() => facadeSignal.value);
+  // Use the geometry store
+  const geometryStore = getGeometryStore();
+  const parameterStore = getParameterStore();
 
-  // Get the geometry panel settings
-  const geometryPanelConfigSignal = getPanelSettings("geometry");
-  const geometryPanelConfig = useComputed(
-    () => geometryPanelConfigSignal.value
+  // Local state for geometry values
+  const [geometryType, setGeometryType] = useState("plane");
+  const [geometryParams, setGeometryParams] = useState<Record<string, number>>(
+    {}
   );
+  const [showWireframe, setShowWireframe] = useState(false);
 
-  // Get the current geometry type
-  const geometryType = useComputed(
-    () => getSettingValue("geometryType") as string
-  );
+  // Sync local state with store
+  useEffect(() => {
+    // Initial sync for geometry type
+    const currentGeometryType = geometryStore.get("geometryType");
+    setGeometryType(currentGeometryType);
 
-  // Create debounced update function with geometry recreation
-  const updateGeometryWithDebounce = useDebounce((id: string, value: any) => {
-    // Update the setting value in the store
-    updateSettingValue(id, value);
+    // Get all current parameter values using the facade for accurate values
+    const facade = geometryStore.getFacade();
+    if (facade && facade.isInitialized()) {
+      const params: Record<string, number> = {};
 
-    // Recreate the geometry after updating the parameter
-    // This needs to be done manually since it's a special operation
-    if (facade.value && facade.value.isInitialized()) {
-      // Use a generic method to trigger geometry update
-      facade.value.updateParam(id as any, value, { recreateGeometry: true });
+      // Get values for all possible geometry parameters
+      for (const type in GEOMETRY_SETTINGS) {
+        GEOMETRY_SETTINGS[type].settings.forEach((setting) => {
+          const value = facade.getParam(setting.id as any);
+          if (value !== undefined) {
+            params[setting.id] = value;
+          }
+        });
+      }
+
+      setGeometryParams(params);
+
+      // Get wireframe setting
+      const wireframeValue = facade.getParam("showWireframe");
+      if (wireframeValue !== undefined) {
+        setShowWireframe(wireframeValue);
+      }
+    } else {
+      // Fallback to parameter store if facade isn't available
+      const params: Record<string, number> = {};
+
+      // Get values for all possible geometry parameters
+      for (const type in GEOMETRY_SETTINGS) {
+        GEOMETRY_SETTINGS[type].settings.forEach((setting) => {
+          const value = parameterStore.getValue(setting.id);
+          if (value !== undefined) {
+            params[setting.id] = value;
+          }
+        });
+      }
+
+      setGeometryParams(params);
+
+      // Get wireframe setting
+      const wireframeValue = parameterStore.getValue("showWireframe");
+      if (wireframeValue !== undefined) {
+        setShowWireframe(wireframeValue);
+      }
     }
-  }, 50);
-
-  // If no settings are available, show a placeholder
-  if (!geometryPanelConfig.value) {
-    return <div className="noSettings">No geometry settings available</div>;
-  }
-
-  // Find the geometry type setting group
-  const typeGroup = geometryPanelConfig.value.groups.find(
-    (group: SettingGroup) => group.id === "geometryType"
-  );
-
-  // Find the type setting
-  const typeSetting = typeGroup?.settings.find(
-    (setting): setting is SelectSetting => setting.id === "geometryType"
-  );
-
-  // Find the settings group for the current geometry type
-  const currentTypeSettings = geometryPanelConfig.value.groups.find(
-    (group: SettingGroup) => group.id === `${geometryType.value}Settings`
-  );
+  }, []);
 
   // Handle geometry type change
   const handleTypeChange = (value: string) => {
-    // Convert string value to number
-    const numericValue = parseInt(value, 10);
+    console.log("Changing geometry type to:", value);
 
-    // Update the setting value in the store
-    updateSettingValue("geometryType", numericValue);
+    // Update local state for immediate feedback
+    setGeometryType(value);
 
-    // Force geometry recreation when type changes
-    if (facade.value && facade.value.isInitialized()) {
-      // Use a generic method to trigger geometry update
-      facade.value.updateParam("geometryType" as any, numericValue, {
-        recreateGeometry: true,
-      });
+    // Update the store (which updates the facade)
+    geometryStore.setGeometryType(value);
+  };
+
+  // Handle geometry parameter change
+  const handleParamChange = (paramId: string, value: number) => {
+    // Update local state for immediate feedback
+    setGeometryParams((prev) => ({
+      ...prev,
+      [paramId]: value,
+    }));
+
+    // Update the parameter store
+    parameterStore.setValue(paramId, value);
+
+    // Trigger geometry rebuild for certain parameters
+    // We need to trigger recreation to update the geometry
+    const facade = geometryStore.getFacade();
+    if (facade) {
+      facade.updateParam(paramId as any, value, { recreateGeometry: true });
     }
   };
 
-  // Handle slider value change
-  const handleSliderChange = (id: string, value: number) => {
-    updateGeometryWithDebounce(id, value);
+  // Handle wireframe toggle
+  const handleWireframeChange = (checked: boolean) => {
+    // Update local state for immediate feedback
+    setShowWireframe(checked);
+
+    // Update the parameter
+    parameterStore.setValue("showWireframe", checked);
   };
 
-  // Handle checkbox change (for wireframe)
-  const handleCheckboxChange = (id: string, checked: boolean) => {
-    updateSettingValue(id, checked);
+  // Get geometry type options
+  const getGeometryTypeOptions = () => {
+    return Object.keys(GEOMETRY_SETTINGS).map((type) => ({
+      value: type,
+      label: GEOMETRY_SETTINGS[type].label,
+    }));
   };
 
-  // Get the label for the current geometry type
+  // Get label for current geometry type
   const getGeometryTypeLabel = () => {
-    const option = typeSetting?.options.find(
-      (opt) => opt.value.toString() === geometryType.value
-    );
-    return option ? option.label : "Select type";
+    return GEOMETRY_SETTINGS[geometryType]?.label || "Select type";
+  };
+
+  // Get current geometry settings
+  const getCurrentGeometrySettings = () => {
+    return GEOMETRY_SETTINGS[geometryType]?.settings || [];
   };
 
   return (
     <div className="panel">
       {/* Geometry Type Select */}
-      {typeSetting && (
-        <div className="settingRow">
-          <label className="label">{typeSetting.label}</label>
-          <Select.Root
-            value={(getSettingValue("geometryType") as string).toString()}
-            onValueChange={handleTypeChange}
-          >
-            <Select.Trigger>{getGeometryTypeLabel()}</Select.Trigger>
-            <Select.Content>
-              {typeSetting.options.map((option) => (
-                <Select.Item
-                  key={option.value.toString()}
-                  value={option.value.toString()}
-                >
-                  {option.label}
-                </Select.Item>
-              ))}
-            </Select.Content>
-          </Select.Root>
-        </div>
-      )}
+      <div className="settingRow">
+        <label className="label">Shape Type</label>
+        <Select.Root value={geometryType} onValueChange={handleTypeChange}>
+          <Select.Trigger>{getGeometryTypeLabel()}</Select.Trigger>
+          <Select.Content>
+            {getGeometryTypeOptions().map((option) => (
+              <Select.Item key={option.value} value={option.value}>
+                {option.label}
+              </Select.Item>
+            ))}
+          </Select.Content>
+        </Select.Root>
+      </div>
 
       {/* Geometry Settings */}
       <div className="settingsGroup">
-        <h3 className="groupTitle">Shape</h3>
+        <h3 className="groupTitle">Shape Settings</h3>
 
-        {/* Render sliders for the current geometry type */}
-        {currentTypeSettings &&
-          currentTypeSettings.settings.map((setting) => {
-            if (setting.type === "slider") {
-              const sliderSetting = setting as SliderSetting;
-              const currentValue = getSettingValue(setting.id) as number;
-
-              return (
-                <FigmaInput
-                  key={setting.id}
-                  label={setting.label}
-                  value={currentValue}
-                  min={sliderSetting.min}
-                  max={sliderSetting.max}
-                  step={sliderSetting.step}
-                  onChange={(value) => handleSliderChange(setting.id, value)}
-                />
-              );
-            }
-            return null;
-          })}
+        {getCurrentGeometrySettings().map((setting) => (
+          <FigmaInput
+            key={setting.id}
+            label={setting.label}
+            value={geometryParams[setting.id] || 0}
+            min={setting.min}
+            max={setting.max}
+            step={setting.step}
+            onChange={(value) => handleParamChange(setting.id, value)}
+          />
+        ))}
       </div>
 
       {/* Wireframe Toggle */}
@@ -161,8 +268,8 @@ export const GeometryPanel: FunctionComponent<GeometryPanelProps> = () => {
         <h3 className="groupTitle">Display</h3>
         <Checkbox
           label="Show Wireframe"
-          checked={getSettingValue("showWireframe") as boolean}
-          onChange={(checked) => handleCheckboxChange("showWireframe", checked)}
+          checked={showWireframe}
+          onChange={handleWireframeChange}
         />
       </div>
     </div>
