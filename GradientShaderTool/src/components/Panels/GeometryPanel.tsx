@@ -8,6 +8,14 @@ import { Checkbox } from "../UI/Checkbox";
 import { SettingsGroup, SettingsField } from "../UI/SettingsGroup";
 import { getGeometryStore } from "../../lib/stores/GeometryStore";
 import { getParameterStore } from "../../lib/stores/ParameterStore";
+import {
+  initializeGeometryParameters,
+  syncGeometryParameters,
+  syncWireframeState,
+  updateGeometryParameter,
+  updateWireframeState,
+  updateGeometryType,
+} from "../../lib/stores/GeometryInitializer";
 
 interface GeometryPanelProps {
   // No props needed for now
@@ -98,27 +106,6 @@ const GEOMETRY_SETTINGS: GeometrySettings = {
         max: 64,
         step: 1,
       },
-      {
-        id: "cubeWidthSegments",
-        label: "Width Segments",
-        min: 1,
-        max: 64,
-        step: 1,
-      },
-      {
-        id: "cubeHeightSegments",
-        label: "Height Segments",
-        min: 1,
-        max: 64,
-        step: 1,
-      },
-      {
-        id: "cubeDepthSegments",
-        label: "Depth Segments",
-        min: 1,
-        max: 64,
-        step: 1,
-      },
     ],
   },
 };
@@ -141,86 +128,16 @@ export const GeometryPanel: FunctionComponent<GeometryPanelProps> = () => {
     const currentGeometryType = geometryStore.get("geometryType");
     setGeometryType(currentGeometryType);
 
-    // Get all current parameter values using the facade for accurate values
-    const facade = geometryStore.getFacade();
-    if (facade && facade.isInitialized()) {
-      const params: Record<string, number> = {};
+    // Initialize geometry parameters if needed
+    initializeGeometryParameters();
 
-      // Get values for all possible geometry parameters
-      for (const type in GEOMETRY_SETTINGS) {
-        GEOMETRY_SETTINGS[type].settings.forEach((setting) => {
-          const value = facade.getParam(setting.id as any);
-          if (value !== undefined) {
-            params[setting.id] = value;
-          }
-        });
-      }
+    // Sync all geometry parameters to local state
+    const params: Record<string, number> = {};
+    const updatedParams = syncGeometryParameters(params, currentGeometryType);
+    setGeometryParams(updatedParams);
 
-      // Special handling for cube - initialize unified segments
-      if (currentGeometryType === "cube") {
-        // Use width segments as the base for unified segments
-        const segments = facade.getParam("cubeWidthSegments");
-        if (segments !== undefined) {
-          params.cubeSegments = segments;
-        }
-
-        // Initialize cube size if not set
-        const cubeSize = facade.getParam("cubeSize");
-        if (cubeSize === undefined) {
-          // Default cube size is 1
-          const defaultSize = 1.0;
-          params.cubeSize = defaultSize;
-          facade.updateParam("cubeSize", defaultSize);
-          parameterStore.setValue("cubeSize", defaultSize);
-        }
-      }
-
-      setGeometryParams(params);
-
-      // Get wireframe setting
-      const wireframeValue = facade.getParam("showWireframe");
-      if (wireframeValue !== undefined) {
-        setShowWireframe(wireframeValue);
-      }
-    } else {
-      // Fallback to parameter store if facade isn't available
-      const params: Record<string, number> = {};
-
-      // Get values for all possible geometry parameters
-      for (const type in GEOMETRY_SETTINGS) {
-        GEOMETRY_SETTINGS[type].settings.forEach((setting) => {
-          const value = parameterStore.getValue(setting.id);
-          if (value !== undefined) {
-            params[setting.id] = value;
-          }
-        });
-      }
-
-      // Special handling for cube - initialize unified segments
-      if (currentGeometryType === "cube") {
-        // Use width segments as the base for unified segments
-        const segments = parameterStore.getValue("cubeWidthSegments");
-        if (segments !== undefined) {
-          params.cubeSegments = segments;
-        }
-
-        // Initialize cube size if not set
-        const cubeSize = parameterStore.getValue("cubeSize");
-        if (cubeSize === undefined) {
-          // Default cube size is 1
-          params.cubeSize = 1.0;
-          parameterStore.setValue("cubeSize", 1.0);
-        }
-      }
-
-      setGeometryParams(params);
-
-      // Get wireframe setting
-      const wireframeValue = parameterStore.getValue("showWireframe");
-      if (wireframeValue !== undefined) {
-        setShowWireframe(wireframeValue);
-      }
-    }
+    // Get wireframe state
+    setShowWireframe(syncWireframeState());
   }, []);
 
   // Add effect to keep wireframe in sync with parameter store
@@ -230,12 +147,16 @@ export const GeometryPanel: FunctionComponent<GeometryPanelProps> = () => {
 
     // Set up an effect to watch the signal
     const effect = computed(() => {
-      const wireframeValue = parameterStore.getValue("showWireframe");
-      if (wireframeValue !== undefined && wireframeValue !== showWireframe) {
-        setShowWireframe(wireframeValue);
+      // Get current wireframe state from parameter store
+      const currentWireframeState = syncWireframeState();
+
+      // Update local state if it's different
+      if (currentWireframeState !== showWireframe) {
+        setShowWireframe(currentWireframeState);
       }
+
       // Return the value to ensure proper tracking
-      return wireframeValue;
+      return currentWireframeState;
     });
 
     // Return cleanup function
@@ -251,8 +172,8 @@ export const GeometryPanel: FunctionComponent<GeometryPanelProps> = () => {
     // Update local state for immediate feedback
     setGeometryType(value);
 
-    // Update the store (which updates the facade)
-    geometryStore.setGeometryType(value);
+    // Update geometry type in store and facade
+    updateGeometryType(value);
   };
 
   // Handle geometry parameter change
@@ -263,50 +184,8 @@ export const GeometryPanel: FunctionComponent<GeometryPanelProps> = () => {
       [paramId]: value,
     }));
 
-    // Update the parameter store
-    parameterStore.setValue(paramId, value);
-
-    // Special handling for cube segments
-    if (paramId === "cubeSegments") {
-      // Update all segment parameters to the same value for consistency
-      setGeometryParams((prev) => ({
-        ...prev,
-        cubeWidthSegments: value,
-        cubeHeightSegments: value,
-        cubeDepthSegments: value,
-      }));
-
-      // Update all individual segment parameters
-      parameterStore.setValue("cubeWidthSegments", value);
-      parameterStore.setValue("cubeHeightSegments", value);
-      parameterStore.setValue("cubeDepthSegments", value);
-
-      // Update the facade for all segment parameters
-      const facade = geometryStore.getFacade();
-      if (facade) {
-        facade.updateParam("cubeWidthSegments", value, {
-          recreateGeometry: true,
-        });
-        facade.updateParam("cubeHeightSegments", value, {
-          recreateGeometry: false,
-        });
-        facade.updateParam("cubeDepthSegments", value, {
-          recreateGeometry: false,
-        });
-      }
-    } else if (paramId === "cubeSize") {
-      // Simply update the size in the facade
-      const facade = geometryStore.getFacade();
-      if (facade) {
-        facade.updateParam("cubeSize", value, { recreateGeometry: true });
-      }
-    } else {
-      // Trigger geometry rebuild for other parameters
-      const facade = geometryStore.getFacade();
-      if (facade) {
-        facade.updateParam(paramId as any, value, { recreateGeometry: true });
-      }
-    }
+    // Update the parameter in store and facade
+    updateGeometryParameter(paramId, value);
   };
 
   // Handle wireframe toggle
@@ -314,14 +193,8 @@ export const GeometryPanel: FunctionComponent<GeometryPanelProps> = () => {
     // Update local state for immediate feedback
     setShowWireframe(checked);
 
-    // Update the parameter store
-    parameterStore.setValue("showWireframe", checked);
-
-    // Ensure the change is applied to the facade directly as well
-    const facade = geometryStore.getFacade();
-    if (facade && facade.isInitialized()) {
-      facade.updateParam("showWireframe", checked);
-    }
+    // Update wireframe state in store and facade
+    updateWireframeState(checked);
   };
 
   // Get geometry type options

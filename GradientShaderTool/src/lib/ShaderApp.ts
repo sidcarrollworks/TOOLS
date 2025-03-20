@@ -23,6 +23,7 @@ export interface ShaderParams {
 
   // Cube geometry
   cubeSize: number;
+  cubeSegments: number;
   cubeWidthSegments: number;
   cubeHeightSegments: number;
   cubeDepthSegments: number;
@@ -184,6 +185,7 @@ export class ShaderApp {
 
       // Cube geometry
       cubeSize: 1,
+      cubeSegments: 1,
       cubeWidthSegments: 1,
       cubeHeightSegments: 1,
       cubeDepthSegments: 1,

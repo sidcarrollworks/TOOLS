@@ -12,12 +12,7 @@ import {
   updateSettingValue,
   batchUpdateSettings,
 } from "../../lib/settings/store";
-import type {
-  SettingGroup,
-  SelectSetting,
-  SliderSetting,
-  ColorSetting,
-} from "../../lib/settings/types";
+import type { SettingGroup, SelectSetting } from "../../lib/settings/types";
 import { facadeSignal } from "../../app";
 import { useDebounce } from "../../lib/hooks/useDebounce";
 import { getExportStore } from "../../lib/stores/index";
@@ -148,7 +143,6 @@ export const ColorsPanel: FunctionComponent<ColorsPanelProps> = () => {
         <SettingsGroup title="Colors" collapsible={false} header={false}>
           {colorsGroup.settings.map((setting) => {
             if (setting.type === "color") {
-              const colorSetting = setting as ColorSetting;
               const currentValue = getSettingValue(setting.id) as string;
 
               return (

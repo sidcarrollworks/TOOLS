@@ -301,9 +301,9 @@ export class SceneManager {
           this.app.params.cubeSize,
           this.app.params.cubeSize,
           this.app.params.cubeSize,
-          this.app.params.cubeWidthSegments,
-          this.app.params.cubeHeightSegments,
-          this.app.params.cubeDepthSegments
+          this.app.params.cubeSegments,
+          this.app.params.cubeSegments,
+          this.app.params.cubeSegments
         );
         break;
       case "plane":
@@ -671,9 +671,9 @@ export class SceneManager {
             this.app.params.cubeSize,
             this.app.params.cubeSize,
             this.app.params.cubeSize,
-            this.app.params.cubeWidthSegments,
-            this.app.params.cubeHeightSegments,
-            this.app.params.cubeDepthSegments
+            this.app.params.cubeSegments,
+            this.app.params.cubeSegments,
+            this.app.params.cubeSegments
           );
           break;
         case "plane":

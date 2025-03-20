@@ -11,6 +11,7 @@ export interface GeometryParameters {
   planeSegments?: number;
   sphereWidthSegments?: number;
   sphereHeightSegments?: number;
+  cubeSegments?: number;
   cubeWidthSegments?: number;
   cubeHeightSegments?: number;
   cubeDepthSegments?: number;
@@ -119,7 +120,7 @@ export class GeometryStore extends StoreBase<GeometryState> {
           resolution = params.sphereWidthSegments || resolution;
           break;
         case "cube":
-          resolution = params.cubeWidthSegments || resolution;
+          resolution = params.cubeSegments || resolution;
           break;
       }
 
@@ -151,7 +152,7 @@ export class GeometryStore extends StoreBase<GeometryState> {
       case "sphere":
         return "sphereWidthSegments"; // Using width for simplicity
       case "cube":
-        return "cubeWidthSegments"; // Using width for simplicity
+        return "cubeSegments"; // Using a unified segments parameter
       default:
         return "planeSegments";
     }

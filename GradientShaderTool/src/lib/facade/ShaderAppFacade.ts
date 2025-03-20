@@ -972,9 +972,7 @@ export class ShaderAppFacade extends EventEmitter implements IShaderAppFacade {
       "sphereWidthSegments",
       "sphereHeightSegments",
       "cubeSize",
-      "cubeWidthSegments",
-      "cubeHeightSegments",
-      "cubeDepthSegments",
+      "cubeSegments",
     ];
 
     return geometryParams.includes(paramName as string);

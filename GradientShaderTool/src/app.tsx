@@ -24,6 +24,8 @@ import { KeyboardHintsContainer } from "./components/KeyboardHints/KeyboardHints
 // Import store initialization
 import { initializeStores, initializeStoresWithFacade } from "./lib/stores";
 import { OrbitControlsSync } from "./components/ShaderCanvas/OrbitControlsSync";
+import { initializePresetStore } from "./lib/stores/presetInitializer";
+import { initializeGeometryParameters } from "./lib/stores/GeometryInitializer";
 
 // Create signals for app state
 export const facadeSignal = signal<IShaderAppFacade | null>(null);
@@ -250,6 +252,10 @@ export const App: ComponentType = () => {
       initializeStores();
       // Initialize stores with facade
       initializeStoresWithFacade();
+      // Initialize preset store with our predefined presets
+      initializePresetStore();
+      // Initialize geometry parameters
+      initializeGeometryParameters();
       console.log("Stores initialized with facade");
       console.log("Stores initialized");
 

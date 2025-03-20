@@ -30,9 +30,7 @@ export const DEFAULT_MOCK_PARAMS: Partial<ShaderParams> = {
   sphereWidthSegments: 32,
   sphereHeightSegments: 32,
   cubeSize: 5,
-  cubeWidthSegments: 1,
-  cubeHeightSegments: 1,
-  cubeDepthSegments: 1,
+  cubeSegments: 1,
 
   // Color parameters
   gradientMode: 0,
@@ -657,9 +655,7 @@ void main() {
       "sphereWidthSegments",
       "sphereHeightSegments",
       "cubeSize",
-      "cubeWidthSegments",
-      "cubeHeightSegments",
-      "cubeDepthSegments",
+      "cubeSegments",
     ];
 
     return geometryParams.includes(paramName as string);
@@ -680,9 +676,7 @@ void main() {
       sphereWidthSegments: (value) => this.validateNumberRange(value, 4, 256),
       sphereHeightSegments: (value) => this.validateNumberRange(value, 4, 256),
       cubeSize: (value) => this.validateNumberRange(value, 0.1, 100),
-      cubeWidthSegments: (value) => this.validateNumberRange(value, 1, 64),
-      cubeHeightSegments: (value) => this.validateNumberRange(value, 1, 64),
-      cubeDepthSegments: (value) => this.validateNumberRange(value, 1, 64),
+      cubeSegments: (value) => this.validateNumberRange(value, 1, 64),
 
       // Color validation
       color1: (value) => this.validateColor(value),
