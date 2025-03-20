@@ -1,6 +1,7 @@
 import { StoreBase } from "./StoreBase";
 import { facadeSignal } from "../../app";
 import { getUIStore } from "./UIStore";
+import { getDistortionStore } from "./DistortionStore";
 import type { PresetInfo } from "../facade/types";
 
 /**
@@ -206,12 +207,56 @@ export class PresetStore extends StoreBase<PresetState> {
     }
 
     try {
+      console.log(`Applying preset "${preset.name}" (${presetId})`);
+
+      // If the preset has stored parameters, explicitly check for distortion values
+      if (preset.parameters && Object.keys(preset.parameters).length > 0) {
+        const distortionParams = [
+          "normalNoiseScaleX",
+          "normalNoiseScaleY",
+          "normalNoiseStrength",
+          "normalNoiseShiftX",
+          "normalNoiseShiftY",
+          "normalNoiseShiftSpeed",
+        ];
+
+        const hasDistortionParams = distortionParams.some(
+          (key) => key in preset.parameters
+        );
+        console.log(
+          `Preset has stored distortion parameters: ${hasDistortionParams}`
+        );
+        console.log(
+          "Distortion parameters in preset:",
+          distortionParams.map((key) => `${key}: ${preset.parameters[key]}`)
+        );
+      }
+
       // Use the facade's applyPreset method
       const success = facade.applyPreset(preset.name);
 
       if (success) {
         // Now that it's applied, save the current parameters to our preset
         const currentParams = facade.getAllParams();
+
+        // Log all parameters
+        console.log("Current parameters after applying preset:", currentParams);
+
+        // Check for distortion parameters
+        const distortionParams = {
+          normalNoiseScaleX: currentParams["normalNoiseScaleX"],
+          normalNoiseScaleY: currentParams["normalNoiseScaleY"],
+          normalNoiseStrength: currentParams["normalNoiseStrength"],
+          normalNoiseShiftX: currentParams["normalNoiseShiftX"],
+          normalNoiseShiftY: currentParams["normalNoiseShiftY"],
+          normalNoiseShiftSpeed: currentParams["normalNoiseShiftSpeed"],
+        };
+        console.log(
+          "Distortion parameters after applying preset:",
+          distortionParams
+        );
+
+        // Update the preset parameters
         preset.parameters = { ...currentParams };
         preset.dateModified = Date.now();
 
@@ -226,6 +271,11 @@ export class PresetStore extends StoreBase<PresetState> {
           currentPresetId: presetId,
           isModified: false,
         });
+
+        // Force the distortion store to sync with the facade
+        const distortionStore = getDistortionStore();
+        distortionStore.syncWithFacade();
+        console.log("Forced distortion store sync after preset application");
 
         getUIStore().showToast(`Applied preset: ${preset.name}`, "success");
         return true;

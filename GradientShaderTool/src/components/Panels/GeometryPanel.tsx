@@ -1,10 +1,11 @@
 import type { FunctionComponent } from "preact";
-import { useComputed } from "@preact/signals";
+import { useComputed, computed } from "@preact/signals";
 import { useState, useEffect } from "preact/hooks";
 import "./Panel.css";
 import Select from "../UI/Select";
 import { FigmaInput } from "../FigmaInput";
 import { Checkbox } from "../UI/Checkbox";
+import { SettingsGroup, SettingsField } from "../UI/SettingsGroup";
 import { getGeometryStore } from "../../lib/stores/GeometryStore";
 import { getParameterStore } from "../../lib/stores/ParameterStore";
 
@@ -84,6 +85,20 @@ const GEOMETRY_SETTINGS: GeometrySettings = {
     label: "Cube",
     settings: [
       {
+        id: "cubeSize",
+        label: "Size",
+        min: 0.1,
+        max: 10,
+        step: 0.1,
+      },
+      {
+        id: "cubeSegments",
+        label: "Segments",
+        min: 1,
+        max: 64,
+        step: 1,
+      },
+      {
         id: "cubeWidthSegments",
         label: "Width Segments",
         min: 1,
@@ -141,6 +156,25 @@ export const GeometryPanel: FunctionComponent<GeometryPanelProps> = () => {
         });
       }
 
+      // Special handling for cube - initialize unified segments
+      if (currentGeometryType === "cube") {
+        // Use width segments as the base for unified segments
+        const segments = facade.getParam("cubeWidthSegments");
+        if (segments !== undefined) {
+          params.cubeSegments = segments;
+        }
+
+        // Initialize cube size if not set
+        const cubeSize = facade.getParam("cubeSize");
+        if (cubeSize === undefined) {
+          // Default cube size is 1
+          const defaultSize = 1.0;
+          params.cubeSize = defaultSize;
+          facade.updateParam("cubeSize", defaultSize);
+          parameterStore.setValue("cubeSize", defaultSize);
+        }
+      }
+
       setGeometryParams(params);
 
       // Get wireframe setting
@@ -162,6 +196,23 @@ export const GeometryPanel: FunctionComponent<GeometryPanelProps> = () => {
         });
       }
 
+      // Special handling for cube - initialize unified segments
+      if (currentGeometryType === "cube") {
+        // Use width segments as the base for unified segments
+        const segments = parameterStore.getValue("cubeWidthSegments");
+        if (segments !== undefined) {
+          params.cubeSegments = segments;
+        }
+
+        // Initialize cube size if not set
+        const cubeSize = parameterStore.getValue("cubeSize");
+        if (cubeSize === undefined) {
+          // Default cube size is 1
+          params.cubeSize = 1.0;
+          parameterStore.setValue("cubeSize", 1.0);
+        }
+      }
+
       setGeometryParams(params);
 
       // Get wireframe setting
@@ -171,6 +222,27 @@ export const GeometryPanel: FunctionComponent<GeometryPanelProps> = () => {
       }
     }
   }, []);
+
+  // Add effect to keep wireframe in sync with parameter store
+  useEffect(() => {
+    // Use the store's signal to monitor state changes
+    const stateSignal = parameterStore.getSignal();
+
+    // Set up an effect to watch the signal
+    const effect = computed(() => {
+      const wireframeValue = parameterStore.getValue("showWireframe");
+      if (wireframeValue !== undefined && wireframeValue !== showWireframe) {
+        setShowWireframe(wireframeValue);
+      }
+      // Return the value to ensure proper tracking
+      return wireframeValue;
+    });
+
+    // Return cleanup function
+    return () => {
+      effect.value; // Access the value to prevent immediate garbage collection
+    };
+  }, [showWireframe, parameterStore]);
 
   // Handle geometry type change
   const handleTypeChange = (value: string) => {
@@ -194,11 +266,46 @@ export const GeometryPanel: FunctionComponent<GeometryPanelProps> = () => {
     // Update the parameter store
     parameterStore.setValue(paramId, value);
 
-    // Trigger geometry rebuild for certain parameters
-    // We need to trigger recreation to update the geometry
-    const facade = geometryStore.getFacade();
-    if (facade) {
-      facade.updateParam(paramId as any, value, { recreateGeometry: true });
+    // Special handling for cube segments
+    if (paramId === "cubeSegments") {
+      // Update all segment parameters to the same value for consistency
+      setGeometryParams((prev) => ({
+        ...prev,
+        cubeWidthSegments: value,
+        cubeHeightSegments: value,
+        cubeDepthSegments: value,
+      }));
+
+      // Update all individual segment parameters
+      parameterStore.setValue("cubeWidthSegments", value);
+      parameterStore.setValue("cubeHeightSegments", value);
+      parameterStore.setValue("cubeDepthSegments", value);
+
+      // Update the facade for all segment parameters
+      const facade = geometryStore.getFacade();
+      if (facade) {
+        facade.updateParam("cubeWidthSegments", value, {
+          recreateGeometry: true,
+        });
+        facade.updateParam("cubeHeightSegments", value, {
+          recreateGeometry: false,
+        });
+        facade.updateParam("cubeDepthSegments", value, {
+          recreateGeometry: false,
+        });
+      }
+    } else if (paramId === "cubeSize") {
+      // Simply update the size in the facade
+      const facade = geometryStore.getFacade();
+      if (facade) {
+        facade.updateParam("cubeSize", value, { recreateGeometry: true });
+      }
+    } else {
+      // Trigger geometry rebuild for other parameters
+      const facade = geometryStore.getFacade();
+      if (facade) {
+        facade.updateParam(paramId as any, value, { recreateGeometry: true });
+      }
     }
   };
 
@@ -207,8 +314,14 @@ export const GeometryPanel: FunctionComponent<GeometryPanelProps> = () => {
     // Update local state for immediate feedback
     setShowWireframe(checked);
 
-    // Update the parameter
+    // Update the parameter store
     parameterStore.setValue("showWireframe", checked);
+
+    // Ensure the change is applied to the facade directly as well
+    const facade = geometryStore.getFacade();
+    if (facade && facade.isInitialized()) {
+      facade.updateParam("showWireframe", checked);
+    }
   };
 
   // Get geometry type options
@@ -230,10 +343,10 @@ export const GeometryPanel: FunctionComponent<GeometryPanelProps> = () => {
   };
 
   return (
-    <div className="panel">
+    <SettingsGroup title="Geometry Settings" collapsible={false} header={false}>
       {/* Geometry Type Select */}
       <div className="settingRow">
-        <label className="label">Shape Type</label>
+        <label className="label">Type</label>
         <Select.Root value={geometryType} onValueChange={handleTypeChange}>
           <Select.Trigger>{getGeometryTypeLabel()}</Select.Trigger>
           <Select.Content>
@@ -246,22 +359,106 @@ export const GeometryPanel: FunctionComponent<GeometryPanelProps> = () => {
         </Select.Root>
       </div>
 
-      {/* Geometry Settings */}
-      <div className="settingsGroup">
-        <h3 className="groupTitle">Shape Settings</h3>
+      {/* Geometry Settings - Restructured to have separate SettingsField components */}
+      {geometryType === "plane" && (
+        <>
+          <SettingsField label="Dimensions" inputDir="row" labelDir="column">
+            <FigmaInput
+              key="planeWidth"
+              value={geometryParams.planeWidth || 0}
+              min={0.1}
+              max={10}
+              step={0.1}
+              onChange={(value) => handleParamChange("planeWidth", value)}
+              dragIcon="W"
+            />
+            <FigmaInput
+              key="planeHeight"
+              value={geometryParams.planeHeight || 0}
+              min={0.1}
+              max={10}
+              step={0.1}
+              onChange={(value) => handleParamChange("planeHeight", value)}
+              dragIcon="H"
+            />
+          </SettingsField>
+          <SettingsField label="Resolution">
+            <FigmaInput
+              key="planeSegments"
+              value={geometryParams.planeSegments || 0}
+              min={4}
+              max={512}
+              step={1}
+              onChange={(value) => handleParamChange("planeSegments", value)}
+            />
+          </SettingsField>
+        </>
+      )}
 
-        {getCurrentGeometrySettings().map((setting) => (
-          <FigmaInput
-            key={setting.id}
-            label={setting.label}
-            value={geometryParams[setting.id] || 0}
-            min={setting.min}
-            max={setting.max}
-            step={setting.step}
-            onChange={(value) => handleParamChange(setting.id, value)}
-          />
-        ))}
-      </div>
+      {geometryType === "sphere" && (
+        <>
+          <SettingsField label="Radius">
+            <FigmaInput
+              key="sphereRadius"
+              value={geometryParams.sphereRadius || 0}
+              min={0.1}
+              max={5}
+              step={0.1}
+              onChange={(value) => handleParamChange("sphereRadius", value)}
+              dragIcon="R"
+            />
+          </SettingsField>
+          <SettingsField label="Resolution">
+            <FigmaInput
+              key="sphereWidthSegments"
+              value={geometryParams.sphereWidthSegments || 0}
+              min={4}
+              max={128}
+              step={1}
+              onChange={(value) =>
+                handleParamChange("sphereWidthSegments", value)
+              }
+              dragIcon="W"
+            />
+            <FigmaInput
+              key="sphereHeightSegments"
+              value={geometryParams.sphereHeightSegments || 0}
+              min={4}
+              max={128}
+              step={1}
+              onChange={(value) =>
+                handleParamChange("sphereHeightSegments", value)
+              }
+              dragIcon="H"
+            />
+          </SettingsField>
+        </>
+      )}
+
+      {geometryType === "cube" && (
+        <>
+          <SettingsField label="Size">
+            <FigmaInput
+              key="cubeSize"
+              value={geometryParams.cubeSize || 0}
+              min={0.1}
+              max={10}
+              step={0.1}
+              onChange={(value) => handleParamChange("cubeSize", value)}
+            />
+          </SettingsField>
+          <SettingsField label="Resolution">
+            <FigmaInput
+              key="cubeSegments"
+              value={geometryParams.cubeSegments || 0}
+              min={1}
+              max={64}
+              step={1}
+              onChange={(value) => handleParamChange("cubeSegments", value)}
+            />
+          </SettingsField>
+        </>
+      )}
 
       {/* Wireframe Toggle */}
       <div className="settingsGroup">
@@ -272,7 +469,7 @@ export const GeometryPanel: FunctionComponent<GeometryPanelProps> = () => {
           onChange={handleWireframeChange}
         />
       </div>
-    </div>
+    </SettingsGroup>
   );
 };
 

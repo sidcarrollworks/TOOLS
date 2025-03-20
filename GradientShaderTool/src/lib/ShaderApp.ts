@@ -222,7 +222,7 @@ export class ShaderApp {
       gradientShiftSpeed: 0.05,
 
       // Colors
-      gradientMode: 0, // 0: B-spline, 1: Linear, 2: Step, 3: Smooth step, 4: Direct mapping
+      gradientMode: 0, // 0: B-spline, 1: Linear, 2: Step, 3: Smooth step
       color1: "#ff0000",
       color2: "#00ff00",
       color3: "#0000ff",

@@ -122,14 +122,6 @@ void main() {
         // Smooth step (softer transitions)
         chosenColor = smoothStepGradient(uColors, t);
     }
-    else if (uGradientMode == 4) {
-        // Direct mapping (raw noise to color index)
-        // This gives more distinct color regions without interpolation
-        float scaledT = t * 4.0; // Scale to 0-4 range
-        int index = int(floor(scaledT)); // Get integer part
-        index = clamp(index, 0, 3); // Ensure index is in valid range
-        chosenColor = uColors[index];
-    }
     else {
         // Fallback to B-spline
         chosenColor = bSpline(c1, c2, c3, c4, t);

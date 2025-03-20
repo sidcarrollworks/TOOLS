@@ -7,6 +7,8 @@ import { facadeSignal } from "../../app";
 import { getCameraStore } from "../../lib/stores/CameraStore";
 import { getUIStore } from "../../lib/stores/UIStore";
 import { Button } from "../UI/Button";
+import { SettingsGroup } from "../UI/SettingsGroup";
+import { SettingsField } from "../UI/SettingsGroup/SettingsGroup";
 
 interface CameraPanelProps {
   // No props needed for now
@@ -130,74 +132,79 @@ export const CameraPanel: FunctionComponent<CameraPanelProps> = () => {
       </div> */}
 
       {/* Field of View */}
-      <div className="settingsGroup">
-        <FigmaInput
-          label="FOV"
-          value={fov}
-          min={15}
-          max={90}
-          step={1}
-          onChange={handleFovChange}
-        />
-      </div>
+      <SettingsGroup collapsible={false} header={false}>
+        <SettingsField label="FOV">
+          <FigmaInput
+            value={fov}
+            min={15}
+            max={90}
+            step={1}
+            onChange={handleFovChange}
+          />
+        </SettingsField>
+      </SettingsGroup>
 
       {/* Camera Position */}
-      <div className="settingsGroup">
-        <h3 className="groupTitle">Position</h3>
-        <FigmaInput
-          label="X"
-          value={position.x}
-          min={-10}
-          max={10}
-          step={0.1}
-          onChange={(value) => handlePositionChange("x", value)}
-        />
-        <FigmaInput
-          label="Y"
-          value={position.y}
-          min={-10}
-          max={10}
-          step={0.1}
-          onChange={(value) => handlePositionChange("y", value)}
-        />
-        <FigmaInput
-          label="Z"
-          value={position.z}
-          min={-10}
-          max={10}
-          step={0.1}
-          onChange={(value) => handlePositionChange("z", value)}
-        />
-      </div>
+      <SettingsGroup title="Position" collapsible={false} header={false}>
+        <SettingsField label="X">
+          <FigmaInput
+            value={position.x}
+            min={-10}
+            max={10}
+            step={0.1}
+            onChange={(value) => handlePositionChange("x", value)}
+          />
+        </SettingsField>
+        <SettingsField label="Y">
+          <FigmaInput
+            value={position.y}
+            min={-10}
+            max={10}
+            step={0.1}
+            onChange={(value) => handlePositionChange("y", value)}
+          />
+        </SettingsField>
+        <SettingsField label="Z">
+          <FigmaInput
+            value={position.z}
+            min={-10}
+            max={10}
+            step={0.1}
+            onChange={(value) => handlePositionChange("z", value)}
+          />
+        </SettingsField>
+      </SettingsGroup>
 
       {/* Camera Target */}
-      <div className="settingsGroup">
-        <h3 className="groupTitle">Look At Point</h3>
-        <FigmaInput
-          label="X"
-          value={target.x}
-          min={-10}
-          max={10}
-          step={0.1}
-          onChange={(value) => handleTargetChange("x", value)}
-        />
-        <FigmaInput
-          label="Y"
-          value={target.y}
-          min={-10}
-          max={10}
-          step={0.1}
-          onChange={(value) => handleTargetChange("y", value)}
-        />
-        <FigmaInput
-          label="Z"
-          value={target.z}
-          min={-10}
-          max={10}
-          step={0.1}
-          onChange={(value) => handleTargetChange("z", value)}
-        />
-      </div>
+      <SettingsGroup title="Look At Point" collapsible={false} header={false}>
+        <SettingsField label="X">
+          <FigmaInput
+            value={target.x}
+            min={-10}
+            max={10}
+            step={0.1}
+            onChange={(value) => handleTargetChange("x", value)}
+          />
+        </SettingsField>
+        <SettingsField label="Y">
+          <FigmaInput
+            value={target.y}
+            min={-10}
+            max={10}
+            step={0.1}
+            onChange={(value) => handleTargetChange("y", value)}
+          />
+        </SettingsField>
+        <SettingsField label="Z">
+          <FigmaInput
+            value={target.z}
+            min={-10}
+            max={10}
+            step={0.1}
+            onChange={(value) => handleTargetChange("z", value)}
+          />
+        </SettingsField>
+      </SettingsGroup>
 
       <div className="settingsGroup">
         <Button variant="primary" size="small" onClick={handleResetCamera}>

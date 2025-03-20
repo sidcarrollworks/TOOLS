@@ -1,44 +1,51 @@
 /* SettingsGroup styles */
 
-.settings-group {
-  border: 1px solid var(--color-border, #444);
+.settingsGroup {
+  /* border: 1px solid var(--color-border, #444);
   border-radius: 4px;
-  margin-bottom: 16px;
+  
   background-color: var(--color-background-secondary, #2a2a2a);
-  overflow: hidden;
+  overflow: hidden; */
+
+  display: flex;
+  flex-direction: column;
+
+  width: 100%;
+  margin-bottom: 16px;
 }
 
-.settings-group-header {
+.settingsGroupHeader {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: 10px 12px;
+  /* padding: 10px 12px; */
   background-color: var(--color-background-tertiary, #333);
   border-bottom: 1px solid var(--color-border, #444);
 }
 
-.settings-group-header.collapsible {
+.collapsible {
   cursor: pointer;
 }
 
-.settings-group-header.collapsible:hover {
+.collapsible:hover {
   background-color: var(--color-background-hover, #3a3a3a);
 }
 
-.settings-group-title {
+.settingsGroupTitle {
   display: flex;
   align-items: center;
-  font-weight: 600;
-  font-size: 14px;
-  color: var(--color-text-primary, #eee);
+  font-weight: 500;
+  font-size: 12px;
+  color: var(--text-secondary, #aaa);
+  margin-bottom: 8px;
   line-height: 1.2;
 }
 
-.settings-group-title-text {
+.settingsGroupTitleText {
   margin-right: 8px;
 }
 
-.settings-group-badge {
+.settingsGroupBadge {
   display: inline-block;
   background-color: var(--color-accent, #4b9cdb);
   color: var(--color-text-inverted, #fff);
@@ -49,7 +56,7 @@
   margin-left: 8px;
 }
 
-.settings-group-status {
+.settingsGroupStatus {
   font-size: 12px;
   padding: 2px 6px;
   border-radius: 10px;
@@ -57,96 +64,112 @@
   margin-left: 8px;
 }
 
-.settings-group-status.updating {
+.updating {
   background-color: var(--color-updating, #f9a825);
   color: var(--color-text-dark, #000);
 }
 
-.settings-group-status.error {
+.error {
   background-color: var(--color-error, #e53935);
   color: var(--color-text-inverted, #fff);
 }
 
-.settings-group-status.modified {
+.modified {
   background-color: var(--color-modified, #43a047);
   color: var(--color-text-inverted, #fff);
 }
 
-.settings-group-toggle {
+.settingsGroupToggle {
   display: flex;
   align-items: center;
-  color: var(--color-text-secondary, #aaa);
+  color: var(--text-secondary, #aaa);
   font-size: 18px;
 }
 
-.settings-group-description {
+.settingsGroupDescription {
   padding: 8px 12px;
   font-size: 12px;
-  color: var(--color-text-secondary, #aaa);
+  color: var(--text-secondary, #aaa);
   background-color: var(--color-background-tertiary, #333);
   border-bottom: 1px solid var(--color-border, #444);
 }
 
-.settings-group-content {
-  padding: 12px;
-}
-
-.settings-group-content.hidden {
+.hidden {
   display: none;
 }
 
-.settings-group.collapsed {
+.collapsed {
   margin-bottom: 8px;
 }
 
 /* SettingsField styles */
 
-.settings-field {
+.settingsField {
   margin-bottom: 10px;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
 }
 
-.settings-field:last-child {
+.settingsField:last-child {
   margin-bottom: 0;
 }
 
-.settings-field-label {
+.settingsFieldLabel {
   display: block;
   margin-bottom: 4px;
   font-size: 12px;
-  color: var(--color-text-secondary, #aaa);
+  color: var(--text-primary, #fff);
 }
 
-.settings-field-required {
+.settingsFieldRequired {
   color: var(--color-error, #e53935);
   margin-left: 2px;
 }
 
-.settings-field-input {
+.settingsFieldInput {
   display: flex;
   align-items: center;
+  gap: 10px;
+  justify-content: space-between;
 }
 
-.settings-field-input > * {
+.settingsFieldInput > * {
   flex: 1;
 }
 
-.settings-field-help {
+.settingsFieldHelp {
   font-size: 11px;
-  color: var(--color-text-secondary, #aaa);
+  color: var(--text-secondary, #aaa);
   margin-top: 2px;
 }
 
-.settings-field-error {
+.settingsFieldError {
   font-size: 11px;
   color: var(--color-error, #e53935);
   margin-top: 2px;
 }
 
-.settings-field.has-error .settings-field-label {
+.hasError .settingsFieldLabel {
   color: var(--color-error, #e53935);
 }
 
-.settings-field.disabled {
+.disabled {
   opacity: 0.5;
   pointer-events: none;
+}
+
+.row {
+  flex-direction: row;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+}
+
+.row label {
+  margin: 0;
+}
+
+.column {
+  flex-direction: column;
 }

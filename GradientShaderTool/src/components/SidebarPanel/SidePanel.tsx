@@ -24,7 +24,7 @@ import SavePanel from "../Panels/SavePanel";
 import DistortionPanel from "../Panels/DistortionPanel";
 
 // Create a signal for the active panel
-export const activePanelSignal = signal<string | null>(null);
+export const activePanelSignal = signal<string | null>("presets");
 // Create a signal for the sidepanel visibility
 export const sidePanelVisibleSignal = signal<boolean>(true);
 

@@ -22,11 +22,7 @@ import {
 import type { IShaderAppFacade } from "./lib/facade/types";
 import { KeyboardHintsContainer } from "./components/KeyboardHints/KeyboardHintsContainer";
 // Import store initialization
-import {
-  initializeStores,
-  initializeStoresWithFacade,
-  disposeStores,
-} from "./lib/stores";
+import { initializeStores, initializeStoresWithFacade } from "./lib/stores";
 import { OrbitControlsSync } from "./components/ShaderCanvas/OrbitControlsSync";
 
 // Create signals for app state
@@ -250,9 +246,12 @@ export const App: ComponentType = () => {
       // Connect settings to the facade
       connectSettingsToShaderApp(facade);
 
+      // Initialize stores
+      initializeStores();
       // Initialize stores with facade
       initializeStoresWithFacade();
       console.log("Stores initialized with facade");
+      console.log("Stores initialized");
 
       // Disable adaptive resolution to maintain high quality
       facade.updateParam("useAdaptiveResolution", false);

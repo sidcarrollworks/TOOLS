@@ -7,6 +7,7 @@ type ButtonSize = "small" | "medium" | "large";
 interface ButtonProps extends JSX.HTMLAttributes<HTMLButtonElement> {
   variant?: ButtonVariant;
   size?: ButtonSize;
+  disabled?: boolean;
   children: preact.ComponentChildren;
 }
 

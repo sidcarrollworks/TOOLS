@@ -1,6 +1,6 @@
 import { useState, useCallback } from "preact/hooks";
 import { type FunctionComponent, type ComponentChildren } from "preact";
-import "./SettingsGroup.css";
+import styles from "./SettingsGroup.module.css";
 import { ChevronDown, ChevronUp } from "../Icons/index";
 
 /**
@@ -10,7 +10,7 @@ export interface SettingsGroupProps {
   /**
    * Title of the settings group
    */
-  title: string;
+  title?: string;
 
   /**
    * Optional description of the settings group
@@ -26,6 +26,11 @@ export interface SettingsGroupProps {
    * Whether the group is collapsed by default
    */
   defaultCollapsed?: boolean;
+
+  /**
+   * Whether to show the header
+   */
+  header?: boolean;
 
   /**
    * Children components
@@ -67,6 +72,7 @@ export const SettingsGroup: FunctionComponent<SettingsGroupProps> = ({
   description,
   collapsible = true,
   defaultCollapsed = false,
+  header = true,
   children,
   className = "",
   status = null,
@@ -88,42 +94,62 @@ export const SettingsGroup: FunctionComponent<SettingsGroupProps> = ({
   }, [collapsed, collapsible, onToggle]);
 
   return (
-    <div
-      className={`settings-group ${className} ${collapsed ? "collapsed" : ""}`}
-    >
-      <div
-        className={`settings-group-header ${collapsible ? "collapsible" : ""}`}
-        onClick={handleToggle}
-        title={tooltip}
-      >
-        <div className="settings-group-title">
-          <span className="settings-group-title-text">{title}</span>
+    <div className={`${styles.settingsGroup} ${className}`}>
+      {header && (
+        <div
+          className={`${styles.settingsGroupHeader} ${
+            collapsible ? styles.collapsible : ""
+          }`}
+          onClick={handleToggle}
+          title={tooltip}
+        >
+          <div className={styles.settingsGroupTitle}>
+            <span className={styles.settingsGroupTitleText}>{title}</span>
 
-          {badge && <span className="settings-group-badge">{badge}</span>}
+            {badge && (
+              <span className={styles.settingsGroupBadge}>{badge}</span>
+            )}
 
-          {status && (
-            <span className={`settings-group-status ${status}`}>
-              {status === "updating" && "Updating..."}
-              {status === "error" && "Error"}
-              {status === "modified" && "Modified"}
+            {status && (
+              <span
+                className={`${styles.settingsGroupStatus} ${styles[status]}`}
+              >
+                {status === "updating" && "Updating..."}
+                {status === "error" && "Error"}
+                {status === "modified" && "Modified"}
+              </span>
+            )}
+          </div>
+
+          {collapsible && (
+            <span className={styles.settingsGroupToggle}>
+              {collapsed ? <ChevronDown /> : <ChevronUp />}
             </span>
           )}
         </div>
-
-        {collapsible && (
-          <span className="settings-group-toggle">
-            {collapsed ? <ChevronDown /> : <ChevronUp />}
-          </span>
-        )}
-      </div>
-
-      {description && (
-        <div className="settings-group-description">{description}</div>
       )}
 
-      <div className={`settings-group-content ${collapsed ? "hidden" : ""}`}>
-        {children}
-      </div>
+      {description && (
+        <div className={styles.settingsGroupDescription}>{description}</div>
+      )}
+
+      {/* if header is false and title is not empty, render the title as a h3 */}
+      {!header && title && (
+        <h3 className={styles.settingsGroupTitle}>{title}</h3>
+      )}
+
+      {/* Render children directly when header is false, otherwise wrap in the content div */}
+      {!header ? (
+        children
+      ) : (
+        <div
+          className={`${styles.settingsGroupContent} ${
+            collapsed ? styles.hidden : ""
+          }`}
+        >
+          {children}
+        </div>
+      )}
     </div>
   );
 };
@@ -176,6 +202,16 @@ export interface SettingsFieldProps {
    * Optional ID for the field (for accessibility)
    */
   id?: string;
+
+  /**
+   * Direction of the input group
+   */
+  inputDir?: "row" | "column";
+
+  /**
+   * Diretion of the field label
+   */
+  labelDir?: "row" | "column";
 }
 
 /**
@@ -191,23 +227,33 @@ export const SettingsField: FunctionComponent<SettingsFieldProps> = ({
   required = false,
   disabled = false,
   id,
+  inputDir = "column",
+  labelDir = "row",
 }) => {
   return (
     <div
-      className={`settings-field ${className} ${error ? "has-error" : ""} ${
-        disabled ? "disabled" : ""
+      className={`${styles.settingsField} ${className} ${
+        error ? styles.hasError : ""
+      } ${disabled ? styles.disabled : ""} ${
+        labelDir === "row" ? styles.row : styles.column
       }`}
     >
-      <label className="settings-field-label" title={tooltip} htmlFor={id}>
+      <label className={styles.settingsFieldLabel} title={tooltip} htmlFor={id}>
         {label}
-        {required && <span className="settings-field-required">*</span>}
+        {required && <span className={styles.settingsFieldRequired}>*</span>}
       </label>
 
-      <div className="settings-field-input">{children}</div>
+      <div
+        className={`${styles.settingsFieldInput} ${
+          inputDir === "row" ? styles.row : styles.column
+        }`}
+      >
+        {children}
+      </div>
 
-      {helpText && <div className="settings-field-help">{helpText}</div>}
+      {helpText && <div className={styles.settingsFieldHelp}>{helpText}</div>}
 
-      {error && <div className="settings-field-error">{error}</div>}
+      {error && <div className={styles.settingsFieldError}>{error}</div>}
     </div>
   );
 };

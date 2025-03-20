@@ -5,6 +5,7 @@ import "./Panel.css";
 import { FigmaInput } from "../FigmaInput";
 import { getLightingStore } from "../../lib/stores/LightingStore";
 import { Button } from "../UI/Button";
+import { SettingsField, SettingsGroup } from "../UI/SettingsGroup";
 
 interface LightingPanelProps {
   // No props needed for now
@@ -70,62 +71,69 @@ const LightingPanel: FunctionComponent<LightingPanelProps> = () => {
   return (
     <div className="panel">
       {/* Lighting Position */}
-      <div className="settingsGroup">
-        <h3 className="groupTitle">Position</h3>
-        <FigmaInput
-          label="X"
-          value={direction.x}
-          min={-1}
-          max={1}
-          step={0.01}
-          onChange={(value) => handleDirectionChange("x", value)}
-        />
-        <FigmaInput
-          label="Y"
-          value={direction.y}
-          min={-1}
-          max={1}
-          step={0.01}
-          onChange={(value) => handleDirectionChange("y", value)}
-        />
-        <FigmaInput
-          label="Z"
-          value={direction.z}
-          min={-1}
-          max={1}
-          step={0.01}
-          onChange={(value) => handleDirectionChange("z", value)}
-        />
-      </div>
+
+      <SettingsGroup title="Position" collapsible={false} header={false}>
+        <SettingsField label="X" labelDir="row">
+          <FigmaInput
+            value={direction.x}
+            min={-1}
+            max={1}
+            step={0.01}
+            onChange={(value) => handleDirectionChange("x", value)}
+          />
+        </SettingsField>
+
+        <SettingsField label="Y" labelDir="row">
+          <FigmaInput
+            value={direction.y}
+            min={-1}
+            max={1}
+            step={0.01}
+            onChange={(value) => handleDirectionChange("y", value)}
+          />
+        </SettingsField>
+
+        <SettingsField label="Z" labelDir="row">
+          <FigmaInput
+            value={direction.z}
+            min={-1}
+            max={1}
+            step={0.01}
+            onChange={(value) => handleDirectionChange("z", value)}
+          />
+        </SettingsField>
+      </SettingsGroup>
 
       {/* Lighting Intensity */}
-      <div className="settingsGroup">
-        <h3 className="groupTitle">Intensity</h3>
-        <FigmaInput
-          label="Diffuse"
-          value={intensities.diffuse}
-          min={0}
-          max={1}
-          step={0.01}
-          onChange={(value) => handleIntensityChange("diffuse", value)}
-        />
-        <FigmaInput
-          label="Ambient"
-          value={intensities.ambient}
-          min={0}
-          max={1}
-          step={0.01}
-          onChange={(value) => handleIntensityChange("ambient", value)}
-        />
-        <FigmaInput
-          label="Rim"
-          value={intensities.rimLight}
-          min={0}
-          max={1}
-          step={0.01}
-          onChange={(value) => handleIntensityChange("rimLight", value)}
-        />
-      </div>
+      <SettingsGroup title="Intensity" collapsible={false} header={false}>
+        <SettingsField label="Diffuse" labelDir="row">
+          <FigmaInput
+            value={intensities.diffuse}
+            min={0}
+            max={1}
+            step={0.01}
+            onChange={(value) => handleIntensityChange("diffuse", value)}
+          />
+        </SettingsField>
+        <SettingsField label="Ambient" labelDir="row">
+          <FigmaInput
+            value={intensities.ambient}
+            min={0}
+            max={1}
+            step={0.01}
+            onChange={(value) => handleIntensityChange("ambient", value)}
+          />
+        </SettingsField>
+        <SettingsField label="Rim" labelDir="row">
+          <FigmaInput
+            value={intensities.rimLight}
+            min={0}
+            max={1}
+            step={0.01}
+            onChange={(value) => handleIntensityChange("rimLight", value)}
+          />
+        </SettingsField>
+      </SettingsGroup>
 
       <div className="settingsGroup">
         <Button variant="primary" size="small" onClick={handleResetLighting}>

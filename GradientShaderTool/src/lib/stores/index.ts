@@ -10,6 +10,7 @@ import { getHistoryStore } from "./HistoryStore";
 import { getExportStore } from "./ExportStore";
 import { getCameraStore } from "./CameraStore";
 import { getLightingStore } from "./LightingStore";
+import { getDistortionStore } from "./DistortionStore";
 import { facadeSignal } from "../../app";
 
 // Store registry for debugging and management
@@ -27,6 +28,7 @@ export interface StoreRegistry {
   export: ReturnType<typeof getExportStore>;
   camera: ReturnType<typeof getCameraStore>;
   lighting: ReturnType<typeof getLightingStore>;
+  distortion: ReturnType<typeof getDistortionStore>;
   [key: string]: any;
 }
 
@@ -42,6 +44,7 @@ export function initializeStores(): void {
   const exportStore = getExportStore();
   const cameraStore = getCameraStore();
   const lightingStore = getLightingStore();
+  const distortionStore = getDistortionStore();
 
   console.info("All stores initialized");
 }
@@ -138,6 +141,33 @@ export function initializeStoresWithFacade(): void {
         },
       });
     }
+
+    // Handle distortion parameter changes
+    if (
+      [
+        "normalNoiseScaleX",
+        "normalNoiseScaleY",
+        "normalNoiseStrength",
+        "normalNoiseShiftX",
+        "normalNoiseShiftY",
+        "normalNoiseShiftSpeed",
+      ].includes(paramName)
+    ) {
+      const distortionStore = getDistortionStore();
+
+      // Get current values from facade (using 'as any' to bypass type checking)
+      const normalNoiseScaleX = facade.getParam("normalNoiseScaleX" as any);
+      const normalNoiseScaleY = facade.getParam("normalNoiseScaleY" as any);
+      const normalNoiseStrength = facade.getParam("normalNoiseStrength" as any);
+      const normalNoiseShiftX = facade.getParam("normalNoiseShiftX" as any);
+      const normalNoiseShiftY = facade.getParam("normalNoiseShiftY" as any);
+      const normalNoiseShiftSpeed = facade.getParam(
+        "normalNoiseShiftSpeed" as any
+      );
+
+      // Update store without triggering facade updates to avoid infinite loops
+      distortionStore.syncWithFacade();
+    }
   });
 
   facade.on("geometry-changed", (data) => {
@@ -151,9 +181,61 @@ export function initializeStoresWithFacade(): void {
   facade.on("preset-applied", (data) => {
     const { presetName } = data;
 
-    // Handle preset applied
+    // Sync all stores with the facade after preset is applied
     const parameterStore = getParameterStore();
     parameterStore.syncWithFacade();
+
+    // Sync distortion store
+    const distortionStore = getDistortionStore();
+    distortionStore.syncWithFacade();
+
+    // Sync camera store
+    const cameraStore = getCameraStore();
+    if (cameraStore) {
+      // Get camera values from facade
+      const cameraPosX = facade.getParam("cameraPosX");
+      const cameraPosY = facade.getParam("cameraPosY");
+      const cameraPosZ = facade.getParam("cameraPosZ");
+      const cameraTargetX = facade.getParam("cameraTargetX");
+      const cameraTargetY = facade.getParam("cameraTargetY");
+      const cameraTargetZ = facade.getParam("cameraTargetZ");
+
+      // Update camera store
+      cameraStore.updateFromFacade(
+        cameraPosX,
+        cameraPosY,
+        cameraPosZ,
+        cameraTargetX,
+        cameraTargetY,
+        cameraTargetZ
+      );
+    }
+
+    // Sync lighting store
+    const lightingStore = getLightingStore();
+    if (lightingStore) {
+      // Get lighting values from facade
+      const lightDirX = facade.getParam("lightDirX");
+      const lightDirY = facade.getParam("lightDirY");
+      const lightDirZ = facade.getParam("lightDirZ");
+      const diffuseIntensity = facade.getParam("diffuseIntensity");
+      const ambientIntensity = facade.getParam("ambientIntensity");
+      const rimLightIntensity = facade.getParam("rimLightIntensity");
+
+      // Update lighting store with facade values
+      lightingStore.setState({
+        direction: {
+          x: lightDirX !== undefined ? lightDirX : 0.5,
+          y: lightDirY !== undefined ? lightDirY : 0.5,
+          z: lightDirZ !== undefined ? lightDirZ : 0.5,
+        },
+        intensities: {
+          diffuse: diffuseIntensity !== undefined ? diffuseIntensity : 0.8,
+          ambient: ambientIntensity !== undefined ? ambientIntensity : 0.2,
+          rimLight: rimLightIntensity !== undefined ? rimLightIntensity : 0.5,
+        },
+      });
+    }
 
     // Display toast
     const uiStore = getUIStore();
@@ -180,6 +262,12 @@ export function disposeStores(): void {
     cameraStore.dispose();
   }
 
+  // Clean up distortion store resources
+  const distortionStore = getDistortionStore();
+  if (distortionStore) {
+    distortionStore.dispose();
+  }
+
   // Clean up other store resources if needed
 }
 
@@ -193,4 +281,5 @@ export {
   getExportStore,
   getCameraStore,
   getLightingStore,
+  getDistortionStore,
 };

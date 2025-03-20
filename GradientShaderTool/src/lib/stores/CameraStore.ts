@@ -383,16 +383,16 @@ export class CameraStore extends StoreBase<CameraState> {
       return;
     }
 
-    console.log("CameraStore: Updating from facade", {
-      from: {
-        position: currentPosition,
-        target: currentTarget,
-      },
-      to: {
-        position: { x: posX, y: posY, z: posZ },
-        target: { x: targetX, y: targetY, z: targetZ },
-      },
-    });
+    // console.log("CameraStore: Updating from facade", {
+    //   from: {
+    //     position: currentPosition,
+    //     target: currentTarget,
+    //   },
+    //   to: {
+    //     position: { x: posX, y: posY, z: posZ },
+    //     target: { x: targetX, y: targetY, z: targetZ },
+    //   },
+    // });
 
     // Update status
     this.set(

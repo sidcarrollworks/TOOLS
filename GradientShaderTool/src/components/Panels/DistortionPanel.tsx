@@ -1,126 +1,184 @@
 import type { FunctionComponent } from "preact";
-import { useComputed } from "@preact/signals";
+import { useState, useEffect } from "preact/hooks";
 import "./Panel.css";
 import { FigmaInput } from "../FigmaInput";
 import { DirectionControl } from "../DirectionControl";
-import {
-  getPanelSettings,
-  getSettingValue,
-  updateSettingValue,
-} from "../../lib/settings/store";
-import type { SettingGroup, SliderSetting } from "../../lib/settings/types";
-import { useFacade } from "../../lib/facade/FacadeContext";
-import { useDebounce } from "../../lib/hooks/useDebounce";
+import { getDistortionStore } from "../../lib/stores/DistortionStore";
+import { getUIStore } from "../../lib/stores/UIStore";
+import { SettingsGroup, SettingsField } from "../UI/SettingsGroup";
+
+import { facadeSignal } from "../../app";
 
 interface DistortionPanelProps {
   // No props needed for now
 }
 
 export const DistortionPanel: FunctionComponent<DistortionPanelProps> = () => {
-  // Get the facade instance using the hook
-  const facade = useFacade();
+  // Get the distortion store
+  const distortionStore = getDistortionStore();
+  const uiStore = getUIStore();
 
-  // Get the distortion panel settings
-  const distortionPanelConfigSignal = getPanelSettings("distortion");
-  const distortionPanelConfig = useComputed(
-    () => distortionPanelConfigSignal.value
-  );
+  // Local state for distortion values
+  const [noiseScaleX, setNoiseScaleX] = useState(3.0);
+  const [noiseScaleY, setNoiseScaleY] = useState(3.0);
+  const [noiseStrength, setNoiseStrength] = useState(0.5);
+  const [shiftX, setShiftX] = useState(0);
+  const [shiftY, setShiftY] = useState(0);
+  const [shiftSpeed, setShiftSpeed] = useState(0.2);
 
-  // Create debounced update function
-  const updateDistortionWithDebounce = useDebounce(
-    (id: string, value: number) => {
-      updateSettingValue(id, value);
-      // The shader param update is now handled by updateSettingValue
-    },
-    5
-  );
+  // Force update counter for direction control
+  const [updateCounter, setUpdateCounter] = useState(0);
 
-  // Handle flow direction changes immediately without debounce
-  const handleFlowDirectionChange = (id: string, value: number) => {
-    console.log(`DEBUG DistortionPanel direct update (${id}):`, value);
-    // Update directly without debounce
-    updateSettingValue(id, value);
-  };
+  // Sync state with store using proper subscription
+  useEffect(() => {
+    // Sync function to update local state from store
+    const syncWithStore = () => {
+      const storeState = distortionStore.getState();
+      setNoiseScaleX(storeState.normalNoise.scaleX);
+      setNoiseScaleY(storeState.normalNoise.scaleY);
+      setNoiseStrength(storeState.normalNoise.strength);
+      setShiftX(storeState.shift.x);
+      setShiftY(storeState.shift.y);
+      setShiftSpeed(storeState.shift.speed);
 
-  // Handle slider value change
-  const handleSliderChange = (id: string, value: number) => {
-    // For flow direction controls, use immediate updates
-    if (id.includes("NoiseShift")) {
-      handleFlowDirectionChange(id, value);
-    } else {
-      // For other sliders, use debounced updates
-      updateDistortionWithDebounce(id, value);
+      // We no longer need to force update with counter
+      // Direction control will update based on prop changes
+    };
+
+    // Get values from facade first
+    const facade = facadeSignal.value;
+    if (facade) {
+      console.log("DistortionPanel: Syncing store with facade on mount");
+      distortionStore.syncWithFacade();
     }
+
+    // Initial sync
+    syncWithStore();
+
+    // Get the store signal and create an effect to watch it
+    const storeSignal = distortionStore.getSignal();
+
+    // Setup subscription
+    const unsubscribe = storeSignal.subscribe(syncWithStore);
+
+    // Setup event listeners for facade
+    if (facade) {
+      const handlePresetApplied = () => {
+        // Ensure store is in sync with facade before we sync with store
+        distortionStore.syncWithFacade();
+        // Then sync our local state with the store
+        syncWithStore();
+        // We don't need to force direction control updates via key changes
+      };
+
+      facade.on("preset-applied", handlePresetApplied);
+
+      return () => {
+        unsubscribe();
+        facade.off("preset-applied", handlePresetApplied);
+      };
+    }
+
+    return unsubscribe;
+  }, []);
+
+  // Handle noise scale X changes
+  const handleNoiseScaleXChange = (value: number) => {
+    // Update local state first
+    setNoiseScaleX(value);
+    // Then update the store
+    distortionStore.updateNormalNoiseScaleX(value);
   };
 
-  // If no settings are available, show a placeholder
-  if (!distortionPanelConfig.value) {
-    return <div className="noSettings">No distortion settings available</div>;
-  }
+  // Handle noise scale Y changes
+  const handleNoiseScaleYChange = (value: number) => {
+    setNoiseScaleY(value);
+    distortionStore.updateNormalNoiseScaleY(value);
+  };
 
-  // Find the normal noise settings group
-  const normalNoiseGroup = distortionPanelConfig.value.groups.find(
-    (group: SettingGroup) => group.id === "normalNoise"
-  );
+  // Handle noise strength changes
+  const handleNoiseStrengthChange = (value: number) => {
+    setNoiseStrength(value);
+    distortionStore.updateNormalNoiseStrength(value);
+  };
 
-  // Find the normal noise shift settings group
-  const normalNoiseShiftGroup = distortionPanelConfig.value.groups.find(
-    (group: SettingGroup) => group.id === "normalNoiseShift"
-  );
+  // Handle flow direction X changes
+  const handleShiftXChange = (value: number) => {
+    setShiftX(value);
+    distortionStore.updateNoiseShiftX(value);
+  };
+
+  // Handle flow direction Y changes
+  const handleShiftYChange = (value: number) => {
+    setShiftY(value);
+    distortionStore.updateNoiseShiftY(value);
+  };
+
+  // Handle flow speed changes
+  const handleShiftSpeedChange = (value: number) => {
+    setShiftSpeed(value);
+    distortionStore.updateNoiseShiftSpeed(value);
+  };
+
+  // Handle reset button click
+  const handleReset = () => {
+    distortionStore.reset();
+
+    // No need to manually sync with store after reset
+    // The subscription will handle that automatically
+
+    uiStore.showToast("Distortion settings reset to defaults", "success");
+  };
 
   return (
-    <div className="panel">
-      {/* Noise Settings */}
-      <div className="settingsGroup">
-        {/* Render sliders for noise settings */}
-        {normalNoiseGroup &&
-          normalNoiseGroup.settings.map((setting) => {
-            if (setting.type === "slider") {
-              const sliderSetting = setting as SliderSetting;
-              const currentValue = getSettingValue(setting.id) as number;
-
-              return (
-                <FigmaInput
-                  key={setting.id}
-                  label={setting.label}
-                  value={currentValue}
-                  min={sliderSetting.min}
-                  max={sliderSetting.max}
-                  step={sliderSetting.step}
-                  onChange={(value) => handleSliderChange(setting.id, value)}
-                />
-              );
-            }
-            return null;
-          })}
-
-        <DirectionControl
-          valueX={getSettingValue("normalNoiseShiftX") as number}
-          valueY={getSettingValue("normalNoiseShiftY") as number}
-          speed={getSettingValue("normalNoiseShiftSpeed") as number}
-          min={-1}
-          max={1}
-          minSpeed={0}
-          maxSpeed={1}
-          step={0.01}
-          onChangeX={(value) => {
-            console.log("DEBUG DistortionPanel onChangeX:", value);
-            // Use direct update without debounce
-            handleFlowDirectionChange("normalNoiseShiftX", value);
-          }}
-          onChangeY={(value) => {
-            console.log("DEBUG DistortionPanel onChangeY:", value);
-            // Use direct update without debounce
-            handleFlowDirectionChange("normalNoiseShiftY", value);
-          }}
-          onChangeSpeed={(value) => {
-            console.log("DEBUG DistortionPanel onChangeSpeed:", value);
-            // Use direct update without debounce
-            handleFlowDirectionChange("normalNoiseShiftSpeed", value);
-          }}
+    // <div className="panel">
+    <SettingsGroup title="Noise Settings" collapsible={false} header={false}>
+      <SettingsField label="Scale" inputDir="row" labelDir="column">
+        <FigmaInput
+          value={noiseScaleX}
+          min={1}
+          max={10}
+          step={0.1}
+          onChange={handleNoiseScaleXChange}
+          dragIcon="X"
         />
-      </div>
-    </div>
+
+        <FigmaInput
+          value={noiseScaleY}
+          min={1}
+          max={10}
+          step={0.1}
+          onChange={handleNoiseScaleYChange}
+          dragIcon="Y"
+        />
+      </SettingsField>
+
+      <SettingsField label="Strength" labelDir="column">
+        <FigmaInput
+          value={noiseStrength}
+          min={0}
+          max={1}
+          step={0.01}
+          onChange={handleNoiseStrengthChange}
+        />
+      </SettingsField>
+
+      {/* Don't use a key that changes with every update */}
+      <DirectionControl
+        valueX={shiftX}
+        valueY={shiftY}
+        speed={shiftSpeed}
+        min={-1}
+        max={1}
+        minSpeed={0}
+        maxSpeed={1}
+        step={0.01}
+        onChangeX={handleShiftXChange}
+        onChangeY={handleShiftYChange}
+        onChangeSpeed={handleShiftSpeedChange}
+      />
+    </SettingsGroup>
+    // </div>
   );
 };
 

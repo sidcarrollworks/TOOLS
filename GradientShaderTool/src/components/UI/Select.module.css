@@ -67,6 +67,17 @@
   transition: background-color var(--transition-fast);
 }
 
+/* item is first or last element */
+.item:first-child {
+  border-top-left-radius: 3px;
+  border-top-right-radius: 3px;
+}
+
+.item:last-child {
+  border-bottom-left-radius: 3px;
+  border-bottom-right-radius: 3px;
+}
+
 .item:hover {
   background-color: var(--gray-4);
 }

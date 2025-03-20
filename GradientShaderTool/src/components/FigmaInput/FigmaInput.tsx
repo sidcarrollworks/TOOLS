@@ -13,7 +13,7 @@ export const setPresetApplying = (applying: boolean) => {
   isPresetBeingApplied = applying;
 };
 
-interface FigmaInputProps {
+export interface FigmaInputProps {
   label?: string | preact.JSX.Element;
   value: number;
   min: number;
@@ -24,6 +24,7 @@ interface FigmaInputProps {
   disabled?: boolean;
   className?: string;
   usePointerLock?: boolean;
+  dragIcon?: string | preact.JSX.Element;
 }
 
 export const FigmaInput: FunctionComponent<FigmaInputProps> = ({
@@ -37,6 +38,7 @@ export const FigmaInput: FunctionComponent<FigmaInputProps> = ({
   disabled = false,
   className = "",
   usePointerLock = true,
+  dragIcon,
 }) => {
   // Add an ID for debugging
   const inputId = useRef(
@@ -146,20 +148,24 @@ export const FigmaInput: FunctionComponent<FigmaInputProps> = ({
           className={`${styles.dragIcon}`}
           onMouseDown={handleDragStart}
         >
-          <svg
-            xmlns="http://www.w3.org/2000/svg"
-            width="16"
-            height="16"
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            stroke-width="1.5"
-            stroke-linecap="round"
-            stroke-linejoin="round"
-          >
-            <path d="m9 7-5 5 5 5" />
-            <path d="m15 7 5 5-5 5" />
-          </svg>
+          {dragIcon ? (
+            dragIcon
+          ) : (
+            <svg
+              xmlns="http://www.w3.org/2000/svg"
+              width="16"
+              height="16"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="1.5"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+            >
+              <path d="m9 7-5 5 5 5" />
+              <path d="m15 7 5 5-5 5" />
+            </svg>
+          )}
         </div>
         <div
           ref={progressBarRef}

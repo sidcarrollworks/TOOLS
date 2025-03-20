@@ -1,82 +1,100 @@
 import type { FunctionComponent } from "preact";
-import { useComputed } from "@preact/signals";
+import { useSignal, useComputed } from "@preact/signals";
 import "./Panel.css";
 import { Button } from "../UI/Button";
 import { Checkbox } from "../UI/Checkbox";
-import {
-  getPanelSettings,
-  getSettingValue,
-  updateSettingValue,
-} from "../../lib/settings/store";
-import type { SettingGroup } from "../../lib/settings/types";
-import { useFacade } from "../../lib/facade/FacadeContext";
+import { getExportStore } from "../../lib/stores/index";
+import { SettingsGroup, SettingsField } from "../UI/SettingsGroup";
+import { getSettingValue, updateSettingValue } from "../../lib/settings/store";
+import { facadeSignal } from "../../app";
 
 interface SavePanelProps {
   // No props needed for now
 }
 
 const SavePanel: FunctionComponent<SavePanelProps> = () => {
-  // Get the facade instance using the hook
-  const facade = useFacade();
+  // Get the export store
+  const exportStore = getExportStore();
+  const facade = facadeSignal.value;
 
-  // Get the save panel settings
-  const savePanelConfigSignal = getPanelSettings("save");
-  const savePanelConfig = useComputed(() => savePanelConfigSignal.value);
+  // Get the image settings from the store
+  const imageSettings = useComputed(() => exportStore.get("imageSettings"));
+  const isExporting = useComputed(() => exportStore.get("isExporting"));
 
-  // If no settings are available, show a placeholder
-  if (!savePanelConfig.value) {
-    return <div className="noSettings">No save settings available</div>;
-  }
-
-  // Find the save options group
-  const saveOptionsGroup = savePanelConfig.value.groups.find(
-    (group: SettingGroup) => group.id === "saveOptions"
-  );
+  // Local state to track UI changes before applying
+  const transparentBg = useSignal(imageSettings.value.transparent);
+  const highQuality = useSignal(imageSettings.value.highQuality);
 
   // Handle checkbox change
-  const handleCheckboxChange = (id: string, checked: boolean) => {
-    updateSettingValue(id, checked);
+  const handleCheckboxChange = (
+    setting: "transparent" | "highQuality",
+    checked: boolean
+  ) => {
+    if (setting === "transparent") {
+      transparentBg.value = checked;
+
+      // Also update the global settings store so it stays in sync with
+      // the transparentBackground setting in the ColorsPanel
+      updateSettingValue("transparentBackground", checked);
+
+      // Update the facade directly if available to ensure immediate visual feedback
+      if (facade) {
+        facade.updateParam("exportTransparentBg", checked);
+      }
+    } else {
+      highQuality.value = checked;
+    }
+
+    // Update the export store with the new setting
+    exportStore.updateImageSettings({
+      [setting]: checked,
+    });
   };
 
   // Handle save image button click
-  const handleSaveImage = () => {
-    if (facade.isInitialized()) {
-      facade.exportAsImage({
-        transparent: getSettingValue("transparentBackground"),
-        highQuality: getSettingValue("exportHighQuality"),
-      });
+  const handleSaveImage = async () => {
+    try {
+      // Ensure transparent setting is synced with the global setting before export
+      const globalTransparentSetting = getSettingValue("transparentBackground");
+      if (transparentBg.value !== globalTransparentSetting) {
+        transparentBg.value = !!globalTransparentSetting;
+        exportStore.updateImageSettings({
+          transparent: !!globalTransparentSetting,
+        });
+      }
+
+      // Export the image with current settings
+      await exportStore.exportImage();
+
+      // Download the exported image
+      exportStore.downloadLastExport();
+    } catch (error) {
+      console.error("Failed to save image:", error);
     }
   };
 
   return (
-    <div className="panel">
-      {/* Export Options */}
-      <div className="settingsGroup">
-        {/* Transparent Background Toggle */}
+    <div>
+      <SettingsGroup title="Export Options" collapsible={false} header={false}>
         <Checkbox
           label="Transparent Background"
-          checked={getSettingValue("exportTransparentBg") as boolean}
-          onChange={(checked) =>
-            handleCheckboxChange("exportTransparentBg", checked)
-          }
+          checked={transparentBg.value}
+          onChange={(checked) => handleCheckboxChange("transparent", checked)}
         />
 
-        {/* High Quality Toggle */}
         <Checkbox
           label="High Quality"
-          checked={getSettingValue("exportHighQuality") as boolean}
-          onChange={(checked) =>
-            handleCheckboxChange("exportHighQuality", checked)
-          }
+          checked={highQuality.value}
+          onChange={(checked) => handleCheckboxChange("highQuality", checked)}
         />
-      </div>
-
-      {/* Export Buttons */}
-      <div className="settingsGroup">
-        <Button onClick={handleSaveImage} variant="primary">
-          Save Image
-        </Button>
-      </div>
+      </SettingsGroup>
+      <Button
+        onClick={handleSaveImage}
+        variant="primary"
+        disabled={isExporting.value}
+      >
+        {isExporting.value ? "Exporting..." : "Save Image"}
+      </Button>
     </div>
   );
 };

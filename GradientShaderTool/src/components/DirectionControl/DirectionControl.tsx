@@ -60,10 +60,44 @@ export const DirectionControl: FunctionalComponent<DirectionControlProps> = ({
     `direction-control-${Math.random().toString(36).substr(2, 9)}`
   ).current;
 
+  // Generate a key that changes when valueX, valueY, or speed change significantly
+  // This will force the component to re-initialize when preset values change
+  const componentKey = `direction-control-${valueX.toFixed(3)}-${valueY.toFixed(
+    3
+  )}-${speed.toFixed(3)}`;
+
   // Create signals for the component state
   const signalsRef = useRef<DirectionSignals | null>(null);
 
-  // Initialize signals if not already done
+  // Always re-initialize signals when key values change
+  useEffect(() => {
+    // Initialize or re-initialize signals
+    const valueXSignal = signal(valueX);
+    const valueYSignal = signal(valueY);
+    const isDraggingSignal = signal(false);
+    const isHoveredSignal = signal(false);
+
+    signalsRef.current = {
+      valueX: valueXSignal,
+      valueY: valueYSignal,
+      isDragging: isDraggingSignal,
+      isHovered: isHoveredSignal,
+      magnitude: computed(() => {
+        return Math.sqrt(
+          valueXSignal.value * valueXSignal.value +
+            valueYSignal.value * valueYSignal.value
+        );
+      }),
+    };
+
+    console.log("DirectionControl signals re-initialized:", {
+      valueX,
+      valueY,
+      speed,
+    });
+  }, [valueX, valueY, speed]);
+
+  // Continue with the rest of the initialization conditionally
   if (!signalsRef.current) {
     const valueXSignal = signal(valueX);
     const valueYSignal = signal(valueY);

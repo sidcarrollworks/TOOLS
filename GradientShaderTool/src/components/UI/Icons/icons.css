@@ -12,12 +12,12 @@
   align-items: center;
   justify-content: center;
   border-radius: 4px;
-  color: var(--color-text-secondary, #aaa);
+  color: var(--text-secondary, #aaa);
   transition: color 0.2s, background-color 0.2s;
 }
 
 .icon-button:hover {
-  color: var(--color-text-primary, #eee);
+  color: var(--text-primary, #eee);
   background-color: rgba(255, 255, 255, 0.1);
 }
 

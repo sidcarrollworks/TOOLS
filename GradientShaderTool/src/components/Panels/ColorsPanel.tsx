@@ -1,11 +1,12 @@
 import type { FunctionComponent } from "preact";
 import { useComputed } from "@preact/signals";
-import { useRef } from "preact/hooks";
+
 import "./Panel.css";
 import Select from "../UI/Select";
 import { FigmaInput } from "../FigmaInput";
 import { DirectionControl } from "../DirectionControl";
-import { Checkbox } from "../UI/Checkbox";
+import { Checkbox, ColorInput } from "../UI";
+import { SettingsField, SettingsGroup } from "../UI/SettingsGroup";
 import {
   getPanelSettings,
   getSettingValue,
@@ -20,6 +21,7 @@ import type {
 } from "../../lib/settings/types";
 import { facadeSignal } from "../../app";
 import { useDebounce } from "../../lib/hooks/useDebounce";
+import { getExportStore } from "../../lib/stores/index";
 
 interface ColorsPanelProps {
   // No props needed for now
@@ -28,6 +30,9 @@ interface ColorsPanelProps {
 export const ColorsPanel: FunctionComponent<ColorsPanelProps> = () => {
   // Use facadeSignal instead of useFacade
   const facade = useComputed(() => facadeSignal.value);
+
+  // Get the export store to keep transparent setting in sync
+  const exportStore = getExportStore();
 
   // Get the colors panel settings
   const colorsPanelConfigSignal = getPanelSettings("colors");
@@ -54,6 +59,22 @@ export const ColorsPanel: FunctionComponent<ColorsPanelProps> = () => {
     } else {
       // For other sliders, use debounced updates
       updateSettingWithDebounce(id, value);
+    }
+  };
+
+  // Handle transparent background toggle
+  const handleTransparentBackgroundChange = (checked: boolean) => {
+    // Update the settings store
+    updateSettingValue("transparentBackground", checked);
+
+    // Also update the export store to keep them in sync
+    exportStore.updateImageSettings({
+      transparent: checked,
+    });
+
+    // Update the facade directly if available to ensure immediate visual feedback
+    if (facade.value) {
+      facade.value.updateParam("exportTransparentBg", checked);
     }
   };
 
@@ -100,11 +121,9 @@ export const ColorsPanel: FunctionComponent<ColorsPanelProps> = () => {
   return (
     <div className="panel">
       {/* Gradient Mode Select */}
-      <div className="settingsGroup">
-        <h3 className="groupTitle">Gradient</h3>
+      <SettingsGroup title="Gradient" collapsible={false} header={false}>
         {gradientModeSetting && (
-          <div className="settingRow">
-            <label className="label">{gradientModeSetting.label}</label>
+          <SettingsField label={gradientModeSetting.label}>
             <Select.Root
               value={(getSettingValue("gradientMode") as number).toString()}
               onValueChange={handleGradientModeChange}
@@ -121,62 +140,57 @@ export const ColorsPanel: FunctionComponent<ColorsPanelProps> = () => {
                 ))}
               </Select.Content>
             </Select.Root>
-          </div>
+          </SettingsField>
         )}
-      </div>
+      </SettingsGroup>
 
       {/* Colors */}
       {colorsGroup && (
-        <div className="settingsGroup">
+        <SettingsGroup title="Colors" collapsible={false} header={false}>
           {colorsGroup.settings.map((setting) => {
             if (setting.type === "color") {
               const colorSetting = setting as ColorSetting;
               const currentValue = getSettingValue(setting.id) as string;
 
               return (
-                <div key={setting.id} className="colorRow">
-                  <label className="label">{setting.label}</label>
-                  <div className="colorPickerContainer">
-                    <input
-                      type="color"
-                      className="colorPicker"
-                      value={currentValue}
-                      onChange={(e) =>
-                        handleColorChange(
-                          setting.id,
-                          (e.target as HTMLInputElement).value
-                        )
-                      }
-                    />
-                    <span className="colorValue">{currentValue}</span>
-                  </div>
-                </div>
+                <SettingsField key={setting.id} label={setting.label}>
+                  <ColorInput
+                    value={currentValue}
+                    onChange={(value: string) =>
+                      handleColorChange(setting.id, value)
+                    }
+                    debounce={5}
+                  />
+                </SettingsField>
               );
             }
             return null;
           })}
-        </div>
+        </SettingsGroup>
       )}
 
       {/* Color Noise Settings */}
-      <div className="settingsGroup">
-        <h3 className="groupTitle">Color Noise</h3>
-        <FigmaInput
-          label="Scale"
-          value={getSettingValue("colorNoiseScale") as number}
-          min={0}
-          max={10}
-          step={0.1}
-          onChange={(value) => handleSliderChange("colorNoiseScale", value)}
-        />
-        <FigmaInput
-          label="Speed"
-          value={getSettingValue("colorNoiseSpeed") as number}
-          min={0}
-          max={1}
-          step={0.01}
-          onChange={(value) => handleSliderChange("colorNoiseSpeed", value)}
-        />
+
+      <SettingsGroup title="Color Noise" collapsible={false} header={false}>
+        <SettingsField label="Scale" labelDir="row">
+          <FigmaInput
+            value={getSettingValue("colorNoiseScale") as number}
+            min={0}
+            max={10}
+            step={0.1}
+            onChange={(value) => handleSliderChange("colorNoiseScale", value)}
+          />
+        </SettingsField>
+
+        <SettingsField label="Speed" labelDir="row">
+          <FigmaInput
+            value={getSettingValue("colorNoiseSpeed") as number}
+            min={0}
+            max={1}
+            step={0.01}
+            onChange={(value) => handleSliderChange("colorNoiseSpeed", value)}
+          />
+        </SettingsField>
 
         <DirectionControl
           valueX={getSettingValue("gradientShiftX") as number}
@@ -200,7 +214,7 @@ export const ColorsPanel: FunctionComponent<ColorsPanelProps> = () => {
             handleFlowDirectionChange("gradientShiftSpeed", value);
           }}
         />
-      </div>
+      </SettingsGroup>
 
       {/* Background Settings */}
       <div className="settingsGroup">
@@ -212,9 +226,7 @@ export const ColorsPanel: FunctionComponent<ColorsPanelProps> = () => {
           checked={
             (getSettingValue("transparentBackground") as boolean) ?? false
           }
-          onChange={(checked) => {
-            updateSettingValue("transparentBackground", checked);
-          }}
+          onChange={handleTransparentBackgroundChange}
         />
 
         {/* Background Color */}
