@@ -62,6 +62,11 @@ export interface SettingsGroupProps {
    * Optional callback for when the group is collapsed/expanded
    */
   onToggle?: (collapsed: boolean) => void;
+
+  /**
+   * Whether to display the group in a grid layout
+   */
+  grid?: boolean;
 }
 
 /**
@@ -79,6 +84,7 @@ export const SettingsGroup: FunctionComponent<SettingsGroupProps> = ({
   tooltip,
   badge,
   onToggle,
+  grid = false,
 }) => {
   const [collapsed, setCollapsed] = useState(defaultCollapsed);
 
@@ -94,7 +100,11 @@ export const SettingsGroup: FunctionComponent<SettingsGroupProps> = ({
   }, [collapsed, collapsible, onToggle]);
 
   return (
-    <div className={`${styles.settingsGroup} ${className}`}>
+    <div
+      className={`${styles.settingsGroup} ${className} ${
+        grid ? styles.grid : ""
+      }`}
+    >
       {header && (
         <div
           className={`${styles.settingsGroupHeader} ${

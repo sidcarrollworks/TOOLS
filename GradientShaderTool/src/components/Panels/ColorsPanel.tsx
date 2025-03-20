@@ -1,7 +1,6 @@
 import type { FunctionComponent } from "preact";
 import { useComputed } from "@preact/signals";
 
-import "./Panel.css";
 import Select from "../UI/Select";
 import { FigmaInput } from "../FigmaInput";
 import { DirectionControl } from "../DirectionControl";
@@ -119,7 +118,7 @@ export const ColorsPanel: FunctionComponent<ColorsPanelProps> = () => {
   };
 
   return (
-    <div className="panel">
+    <>
       {/* Gradient Mode Select */}
       <SettingsGroup title="Gradient" collapsible={false} header={false}>
         {gradientModeSetting && (
@@ -217,40 +216,29 @@ export const ColorsPanel: FunctionComponent<ColorsPanelProps> = () => {
       </SettingsGroup>
 
       {/* Background Settings */}
-      <div className="settingsGroup">
-        <h3 className="groupTitle">Background</h3>
-
-        {/* Transparent Background Toggle */}
-        <Checkbox
-          label="Transparent"
-          checked={
-            (getSettingValue("transparentBackground") as boolean) ?? false
-          }
-          onChange={handleTransparentBackgroundChange}
-        />
+      <SettingsGroup title="Background" collapsible={false} header={false}>
+        <SettingsField label="Transparent">
+          {/* Transparent Background Toggle */}
+          <Checkbox
+            checked={
+              (getSettingValue("transparentBackground") as boolean) ?? false
+            }
+            onChange={handleTransparentBackgroundChange}
+          />
+        </SettingsField>
 
         {/* Background Color */}
-        <div className="colorRow">
-          <label className="label">Color</label>
-          <div className="colorPickerContainer">
-            <input
-              type="color"
-              className="colorPicker"
-              value={getSettingValue("backgroundColor") as string}
-              onChange={(e) =>
-                handleColorChange(
-                  "backgroundColor",
-                  (e.target as HTMLInputElement).value
-                )
-              }
-            />
-            <span className="colorValue">
-              {getSettingValue("backgroundColor") as string}
-            </span>
-          </div>
-        </div>
-      </div>
-    </div>
+        <SettingsField label="Color">
+          <ColorInput
+            value={getSettingValue("backgroundColor") as string}
+            onChange={(value: string) =>
+              handleColorChange("backgroundColor", value)
+            }
+            debounce={5}
+          />
+        </SettingsField>
+      </SettingsGroup>
+    </>
   );
 };
 

@@ -3,7 +3,7 @@ import { useState } from "preact/hooks";
 import { CardButton } from "../UI/CardButton";
 import { getPanelSettings } from "../../lib/settings/store";
 import { useComputed } from "@preact/signals";
-import "./Panel.css";
+
 import type {
   PanelConfig,
   SettingGroup,
@@ -13,6 +13,7 @@ import { facadeSignal } from "../../app";
 import { initializeSettingsFromShaderApp } from "../../lib/settings/initApp";
 import { setPresetApplying } from "../FigmaInput/FigmaInput";
 import { settingToParamMap } from "../../lib/settings/mappings";
+import { SettingsGroup } from "../UI/SettingsGroup/SettingsGroup";
 
 interface PresetPanelProps {
   // No props needed for now
@@ -86,7 +87,7 @@ export const PresetPanel: FunctionComponent<PresetPanelProps> = () => {
   };
 
   return (
-    <div className="presetGrid">
+    <SettingsGroup collapsible={false} header={false} grid>
       {presets.map((preset: ButtonSetting) => {
         const isLastApplied = lastAppliedPreset === preset.id;
 
@@ -99,7 +100,7 @@ export const PresetPanel: FunctionComponent<PresetPanelProps> = () => {
           />
         );
       })}
-    </div>
+    </SettingsGroup>
   );
 };
 

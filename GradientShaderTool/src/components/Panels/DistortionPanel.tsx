@@ -1,6 +1,6 @@
 import type { FunctionComponent } from "preact";
 import { useState, useEffect } from "preact/hooks";
-import "./Panel.css";
+
 import { FigmaInput } from "../FigmaInput";
 import { DirectionControl } from "../DirectionControl";
 import { getDistortionStore } from "../../lib/stores/DistortionStore";
@@ -131,37 +131,38 @@ export const DistortionPanel: FunctionComponent<DistortionPanelProps> = () => {
   };
 
   return (
-    // <div className="panel">
-    <SettingsGroup title="Noise Settings" collapsible={false} header={false}>
-      <SettingsField label="Scale" inputDir="row" labelDir="column">
-        <FigmaInput
-          value={noiseScaleX}
-          min={1}
-          max={10}
-          step={0.1}
-          onChange={handleNoiseScaleXChange}
-          dragIcon="X"
-        />
+    <>
+      <SettingsGroup collapsible={false} header={false}>
+        <SettingsField label="Scale" inputDir="row" labelDir="column">
+          <FigmaInput
+            value={noiseScaleX}
+            min={1}
+            max={10}
+            step={0.1}
+            onChange={handleNoiseScaleXChange}
+            dragIcon="X"
+          />
 
-        <FigmaInput
-          value={noiseScaleY}
-          min={1}
-          max={10}
-          step={0.1}
-          onChange={handleNoiseScaleYChange}
-          dragIcon="Y"
-        />
-      </SettingsField>
+          <FigmaInput
+            value={noiseScaleY}
+            min={1}
+            max={10}
+            step={0.1}
+            onChange={handleNoiseScaleYChange}
+            dragIcon="Y"
+          />
+        </SettingsField>
 
-      <SettingsField label="Strength" labelDir="column">
-        <FigmaInput
-          value={noiseStrength}
-          min={0}
-          max={1}
-          step={0.01}
-          onChange={handleNoiseStrengthChange}
-        />
-      </SettingsField>
+        <SettingsField label="Strength" labelDir="column">
+          <FigmaInput
+            value={noiseStrength}
+            min={0}
+            max={1}
+            step={0.01}
+            onChange={handleNoiseStrengthChange}
+          />
+        </SettingsField>
+      </SettingsGroup>
 
       {/* Don't use a key that changes with every update */}
       <DirectionControl
@@ -177,8 +178,7 @@ export const DistortionPanel: FunctionComponent<DistortionPanelProps> = () => {
         onChangeY={handleShiftYChange}
         onChangeSpeed={handleShiftSpeedChange}
       />
-    </SettingsGroup>
-    // </div>
+    </>
   );
 };
 

@@ -1,6 +1,6 @@
 import type { FunctionComponent } from "preact";
 import { useSignal, useComputed } from "@preact/signals";
-import "./Panel.css";
+
 import { Button } from "../UI/Button";
 import { Checkbox } from "../UI/Checkbox";
 import { getExportStore } from "../../lib/stores/index";
@@ -74,8 +74,8 @@ const SavePanel: FunctionComponent<SavePanelProps> = () => {
   };
 
   return (
-    <div>
-      <SettingsGroup title="Export Options" collapsible={false} header={false}>
+    <>
+      <SettingsGroup collapsible={false} header={false}>
         <Checkbox
           label="Transparent Background"
           checked={transparentBg.value}
@@ -91,11 +91,12 @@ const SavePanel: FunctionComponent<SavePanelProps> = () => {
       <Button
         onClick={handleSaveImage}
         variant="primary"
+        size="small"
         disabled={isExporting.value}
       >
         {isExporting.value ? "Exporting..." : "Save Image"}
       </Button>
-    </div>
+    </>
   );
 };
 

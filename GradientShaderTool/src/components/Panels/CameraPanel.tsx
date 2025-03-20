@@ -1,7 +1,6 @@
 import type { FunctionComponent } from "preact";
 import { useComputed } from "@preact/signals";
 import { useRef, useEffect, useState } from "preact/hooks";
-import "./Panel.css";
 import { FigmaInput } from "../FigmaInput";
 import { facadeSignal } from "../../app";
 import { getCameraStore } from "../../lib/stores/CameraStore";
@@ -120,7 +119,7 @@ export const CameraPanel: FunctionComponent<CameraPanelProps> = () => {
   };
 
   return (
-    <div className="panel">
+    <>
       {/* Status information (for debugging) */}
       {/* <div className="settingsGroup">
         <p className="statusText" style={{ fontSize: "11px", color: "#888" }}>
@@ -206,12 +205,10 @@ export const CameraPanel: FunctionComponent<CameraPanelProps> = () => {
         </SettingsField>
       </SettingsGroup>
 
-      <div className="settingsGroup">
-        <Button variant="primary" size="small" onClick={handleResetCamera}>
-          Reset Camera
-        </Button>
-      </div>
-    </div>
+      <Button variant="primary" size="small" onClick={handleResetCamera}>
+        Reset Camera
+      </Button>
+    </>
   );
 };
 

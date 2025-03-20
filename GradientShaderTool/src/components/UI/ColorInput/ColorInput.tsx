@@ -280,7 +280,7 @@ export const ColorInput: FunctionComponent<ColorInputProps> = ({
         />
 
         {/* Recent Colors Button */}
-        {recentColors.length > 0 && (
+        {/* {recentColors.length > 0 && (
           <button
             type="button"
             className={styles.recentColorsButton}
@@ -291,7 +291,7 @@ export const ColorInput: FunctionComponent<ColorInputProps> = ({
           >
             <span className={styles.recentColorsIcon}>▼</span>
           </button>
-        )}
+        )} */}
       </div>
 
       {/* Recent Colors Panel */}

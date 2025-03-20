@@ -1,7 +1,7 @@
 import type { FunctionComponent } from "preact";
 import { useComputed, computed } from "@preact/signals";
 import { useState, useEffect } from "preact/hooks";
-import "./Panel.css";
+
 import Select from "../UI/Select";
 import { FigmaInput } from "../FigmaInput";
 import { Checkbox } from "../UI/Checkbox";
@@ -343,133 +343,133 @@ export const GeometryPanel: FunctionComponent<GeometryPanelProps> = () => {
   };
 
   return (
-    <SettingsGroup title="Geometry Settings" collapsible={false} header={false}>
+    <>
       {/* Geometry Type Select */}
-      <div className="settingRow">
-        <label className="label">Type</label>
-        <Select.Root value={geometryType} onValueChange={handleTypeChange}>
-          <Select.Trigger>{getGeometryTypeLabel()}</Select.Trigger>
-          <Select.Content>
-            {getGeometryTypeOptions().map((option) => (
-              <Select.Item key={option.value} value={option.value}>
-                {option.label}
-              </Select.Item>
-            ))}
-          </Select.Content>
-        </Select.Root>
-      </div>
+      <SettingsGroup collapsible={false} header={false}>
+        <SettingsField label="Type">
+          <Select.Root value={geometryType} onValueChange={handleTypeChange}>
+            <Select.Trigger>{getGeometryTypeLabel()}</Select.Trigger>
+            <Select.Content>
+              {getGeometryTypeOptions().map((option) => (
+                <Select.Item key={option.value} value={option.value}>
+                  {option.label}
+                </Select.Item>
+              ))}
+            </Select.Content>
+          </Select.Root>
+        </SettingsField>
+      </SettingsGroup>
 
-      {/* Geometry Settings - Restructured to have separate SettingsField components */}
-      {geometryType === "plane" && (
-        <>
-          <SettingsField label="Dimensions" inputDir="row" labelDir="column">
-            <FigmaInput
-              key="planeWidth"
-              value={geometryParams.planeWidth || 0}
-              min={0.1}
-              max={10}
-              step={0.1}
-              onChange={(value) => handleParamChange("planeWidth", value)}
-              dragIcon="W"
-            />
-            <FigmaInput
-              key="planeHeight"
-              value={geometryParams.planeHeight || 0}
-              min={0.1}
-              max={10}
-              step={0.1}
-              onChange={(value) => handleParamChange("planeHeight", value)}
-              dragIcon="H"
-            />
-          </SettingsField>
-          <SettingsField label="Resolution">
-            <FigmaInput
-              key="planeSegments"
-              value={geometryParams.planeSegments || 0}
-              min={4}
-              max={512}
-              step={1}
-              onChange={(value) => handleParamChange("planeSegments", value)}
-            />
-          </SettingsField>
-        </>
-      )}
+      <SettingsGroup collapsible={false} header={false}>
+        {/* Geometry Settings - Restructured to have separate SettingsField components */}
+        {geometryType === "plane" && (
+          <>
+            <SettingsField label="Dimensions" inputDir="row" labelDir="column">
+              <FigmaInput
+                key="planeWidth"
+                value={geometryParams.planeWidth || 0}
+                min={0.1}
+                max={10}
+                step={0.1}
+                onChange={(value) => handleParamChange("planeWidth", value)}
+                dragIcon="W"
+              />
+              <FigmaInput
+                key="planeHeight"
+                value={geometryParams.planeHeight || 0}
+                min={0.1}
+                max={10}
+                step={0.1}
+                onChange={(value) => handleParamChange("planeHeight", value)}
+                dragIcon="H"
+              />
+            </SettingsField>
+            <SettingsField label="Resolution" labelDir="column">
+              <FigmaInput
+                key="planeSegments"
+                value={geometryParams.planeSegments || 0}
+                min={4}
+                max={512}
+                step={1}
+                onChange={(value) => handleParamChange("planeSegments", value)}
+              />
+            </SettingsField>
+          </>
+        )}
 
-      {geometryType === "sphere" && (
-        <>
-          <SettingsField label="Radius">
-            <FigmaInput
-              key="sphereRadius"
-              value={geometryParams.sphereRadius || 0}
-              min={0.1}
-              max={5}
-              step={0.1}
-              onChange={(value) => handleParamChange("sphereRadius", value)}
-              dragIcon="R"
-            />
-          </SettingsField>
-          <SettingsField label="Resolution">
-            <FigmaInput
-              key="sphereWidthSegments"
-              value={geometryParams.sphereWidthSegments || 0}
-              min={4}
-              max={128}
-              step={1}
-              onChange={(value) =>
-                handleParamChange("sphereWidthSegments", value)
-              }
-              dragIcon="W"
-            />
-            <FigmaInput
-              key="sphereHeightSegments"
-              value={geometryParams.sphereHeightSegments || 0}
-              min={4}
-              max={128}
-              step={1}
-              onChange={(value) =>
-                handleParamChange("sphereHeightSegments", value)
-              }
-              dragIcon="H"
-            />
-          </SettingsField>
-        </>
-      )}
+        {geometryType === "sphere" && (
+          <>
+            <SettingsField label="Radius">
+              <FigmaInput
+                key="sphereRadius"
+                value={geometryParams.sphereRadius || 0}
+                min={0.1}
+                max={5}
+                step={0.1}
+                onChange={(value) => handleParamChange("sphereRadius", value)}
+                dragIcon="R"
+              />
+            </SettingsField>
+            <SettingsField label="Resolution">
+              <FigmaInput
+                key="sphereWidthSegments"
+                value={geometryParams.sphereWidthSegments || 0}
+                min={4}
+                max={128}
+                step={1}
+                onChange={(value) =>
+                  handleParamChange("sphereWidthSegments", value)
+                }
+                dragIcon="W"
+              />
+              <FigmaInput
+                key="sphereHeightSegments"
+                value={geometryParams.sphereHeightSegments || 0}
+                min={4}
+                max={128}
+                step={1}
+                onChange={(value) =>
+                  handleParamChange("sphereHeightSegments", value)
+                }
+                dragIcon="H"
+              />
+            </SettingsField>
+          </>
+        )}
 
-      {geometryType === "cube" && (
-        <>
-          <SettingsField label="Size">
-            <FigmaInput
-              key="cubeSize"
-              value={geometryParams.cubeSize || 0}
-              min={0.1}
-              max={10}
-              step={0.1}
-              onChange={(value) => handleParamChange("cubeSize", value)}
-            />
-          </SettingsField>
-          <SettingsField label="Resolution">
-            <FigmaInput
-              key="cubeSegments"
-              value={geometryParams.cubeSegments || 0}
-              min={1}
-              max={64}
-              step={1}
-              onChange={(value) => handleParamChange("cubeSegments", value)}
-            />
-          </SettingsField>
-        </>
-      )}
+        {geometryType === "cube" && (
+          <>
+            <SettingsField label="Size">
+              <FigmaInput
+                key="cubeSize"
+                value={geometryParams.cubeSize || 0}
+                min={0.1}
+                max={10}
+                step={0.1}
+                onChange={(value) => handleParamChange("cubeSize", value)}
+              />
+            </SettingsField>
+            <SettingsField label="Resolution">
+              <FigmaInput
+                key="cubeSegments"
+                value={geometryParams.cubeSegments || 0}
+                min={1}
+                max={64}
+                step={1}
+                onChange={(value) => handleParamChange("cubeSegments", value)}
+              />
+            </SettingsField>
+          </>
+        )}
+      </SettingsGroup>
 
       {/* Wireframe Toggle */}
-      <div className="settingsGroup">
-        <h3 className="groupTitle">Display</h3>
-        <Checkbox
-          label="Show Wireframe"
-          checked={showWireframe}
-          onChange={handleWireframeChange}
-        />
-      </div>
-    </SettingsGroup>
+      <SettingsGroup title="Display" collapsible={false} header={false}>
+        <SettingsField label="Wireframe">
+          <Checkbox checked={showWireframe} onChange={handleWireframeChange} />
+        </SettingsField>
+      </SettingsGroup>
+    </>
   );
 };
 

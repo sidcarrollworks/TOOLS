@@ -1,7 +1,7 @@
 import type { FunctionComponent } from "preact";
 import { useComputed } from "@preact/signals";
 import { useState, useEffect } from "preact/hooks";
-import "./Panel.css";
+
 import { FigmaInput } from "../FigmaInput";
 import { getLightingStore } from "../../lib/stores/LightingStore";
 import { Button } from "../UI/Button";
@@ -69,7 +69,7 @@ const LightingPanel: FunctionComponent<LightingPanelProps> = () => {
   };
 
   return (
-    <div className="panel">
+    <>
       {/* Lighting Position */}
 
       <SettingsGroup title="Position" collapsible={false} header={false}>
@@ -135,12 +135,10 @@ const LightingPanel: FunctionComponent<LightingPanelProps> = () => {
         </SettingsField>
       </SettingsGroup>
 
-      <div className="settingsGroup">
-        <Button variant="primary" size="small" onClick={handleResetLighting}>
-          Reset Lighting
-        </Button>
-      </div>
-    </div>
+      <Button variant="primary" size="small" onClick={handleResetLighting}>
+        Reset Lighting
+      </Button>
+    </>
   );
 };
 
