@@ -6,56 +6,39 @@ import { FigmaInput } from "../FigmaInput";
 import { getLightingStore } from "../../lib/stores/LightingStore";
 import { Button } from "../UI/Button";
 import { SettingsField, SettingsGroup } from "../UI/SettingsGroup";
-import { getLightingInitializer } from "../../lib/stores/LightingInitializer";
+import {
+  getLightingInitializer,
+  getLightingParameter,
+} from "../../lib/stores/LightingInitializer";
+import { useSignalValue } from "../../lib/hooks/useSignals";
+import { facadeSignal } from "../../app";
 
 interface LightingPanelProps {
   // No props needed for now
 }
 
 const LightingPanel: FunctionComponent<LightingPanelProps> = () => {
-  console.log("LightingPanel: Component rendering");
+  // Get the lighting initializer
+  const lightingInitializer = getLightingInitializer();
 
-  // Use the lighting store and initializer
-  const lightingStore = getLightingStore();
-  const initializer = getLightingInitializer();
+  // Use signal values directly with custom hooks
+  const lightDirX = useSignalValue(getLightingParameter("lightDirX"));
+  const lightDirY = useSignalValue(getLightingParameter("lightDirY"));
+  const lightDirZ = useSignalValue(getLightingParameter("lightDirZ"));
 
-  // Get signals directly from the initializer
-  const {
-    lightDirX,
-    lightDirY,
-    lightDirZ,
-    diffuseIntensity,
-    ambientIntensity,
-    rimLightIntensity,
-  } = initializer;
+  const diffuseIntensity = useSignalValue(
+    getLightingParameter("diffuseIntensity")
+  );
+  const ambientIntensity = useSignalValue(
+    getLightingParameter("ambientIntensity")
+  );
+  const rimLightIntensity = useSignalValue(
+    getLightingParameter("rimLightIntensity")
+  );
 
-  // Subscribe to changes when the component mounts
-  useEffect(() => {
-    console.log("LightingPanel: Setting up effect");
-
-    // Log current values
-    console.log("LightingPanel: Current signal values:", {
-      lightDirX: lightDirX.value,
-      lightDirY: lightDirY.value,
-      lightDirZ: lightDirZ.value,
-      diffuseIntensity: diffuseIntensity.value,
-      ambientIntensity: ambientIntensity.value,
-      rimLightIntensity: rimLightIntensity.value,
-    });
-
-    // Ensure we have the latest values from the facade
-    console.log("LightingPanel: Syncing initializer with facade");
-    initializer.syncWithFacade();
-
-    return () => {
-      console.log("LightingPanel: Cleanup effect");
-    };
-  }, []);
-
-  // Handle light direction changes from UI
+  // Create update handlers using the initializer's methods
   const handleDirectionChange = (axis: "x" | "y" | "z", value: number) => {
-    console.log(`LightingPanel: Direction change - ${axis}: ${value}`);
-    initializer.updateDirectionAxis(axis, value);
+    lightingInitializer.updateDirectionAxis(axis, value);
   };
 
   // Handle light intensity changes from UI
@@ -63,24 +46,39 @@ const LightingPanel: FunctionComponent<LightingPanelProps> = () => {
     type: "diffuse" | "ambient" | "rimLight",
     value: number
   ) => {
-    console.log(`LightingPanel: Intensity change - ${type}: ${value}`);
-    initializer.updateIntensity(type, value);
+    lightingInitializer.updateIntensity(type, value);
   };
 
   // Handle reset lighting button
   const handleResetLighting = () => {
-    console.log("LightingPanel: Reset lighting requested");
-    initializer.reset();
+    lightingInitializer.reset();
   };
+
+  // Handle facade preset events
+  useEffect(() => {
+    const facade = facadeSignal.value;
+
+    if (facade) {
+      const handlePresetApplied = () => {
+        // Sync initializer with facade
+        lightingInitializer.syncWithFacade();
+      };
+
+      facade.on("preset-applied", handlePresetApplied);
+
+      return () => {
+        facade.off("preset-applied", handlePresetApplied);
+      };
+    }
+  }, []);
 
   return (
     <>
       {/* Lighting Position */}
-
       <SettingsGroup title="Position" collapsible={false} header={false}>
         <SettingsField label="X" labelDir="row">
           <FigmaInput
-            value={lightDirX.value}
+            value={lightDirX}
             min={-1}
             max={1}
             step={0.01}
@@ -90,7 +88,7 @@ const LightingPanel: FunctionComponent<LightingPanelProps> = () => {
 
         <SettingsField label="Y" labelDir="row">
           <FigmaInput
-            value={lightDirY.value}
+            value={lightDirY}
             min={-1}
             max={1}
             step={0.01}
@@ -100,7 +98,7 @@ const LightingPanel: FunctionComponent<LightingPanelProps> = () => {
 
         <SettingsField label="Z" labelDir="row">
           <FigmaInput
-            value={lightDirZ.value}
+            value={lightDirZ}
             min={-1}
             max={1}
             step={0.01}
@@ -113,7 +111,7 @@ const LightingPanel: FunctionComponent<LightingPanelProps> = () => {
       <SettingsGroup title="Intensity" collapsible={false} header={false}>
         <SettingsField label="Diffuse" labelDir="row">
           <FigmaInput
-            value={diffuseIntensity.value}
+            value={diffuseIntensity}
             min={0}
             max={1}
             step={0.01}
@@ -122,7 +120,7 @@ const LightingPanel: FunctionComponent<LightingPanelProps> = () => {
         </SettingsField>
         <SettingsField label="Ambient" labelDir="row">
           <FigmaInput
-            value={ambientIntensity.value}
+            value={ambientIntensity}
             min={0}
             max={1}
             step={0.01}
@@ -131,7 +129,7 @@ const LightingPanel: FunctionComponent<LightingPanelProps> = () => {
         </SettingsField>
         <SettingsField label="Rim" labelDir="row">
           <FigmaInput
-            value={rimLightIntensity.value}
+            value={rimLightIntensity}
             min={0}
             max={1}
             step={0.01}

@@ -1,21 +1,18 @@
 import type { FunctionComponent } from "preact";
-import { useComputed, computed } from "@preact/signals";
-import { useState, useEffect } from "preact/hooks";
+import { useEffect } from "preact/hooks";
 
 import Select from "../UI/Select";
 import { FigmaInput } from "../FigmaInput";
 import { Checkbox } from "../UI/Checkbox";
 import { SettingsGroup, SettingsField } from "../UI/SettingsGroup";
 import { getGeometryStore } from "../../lib/stores/GeometryStore";
-import { getParameterStore } from "../../lib/stores/ParameterStore";
+import { getUIStore } from "../../lib/stores/UIStore";
 import {
-  initializeGeometryParameters,
-  syncGeometryParameters,
-  syncWireframeState,
-  updateGeometryParameter,
-  updateWireframeState,
-  updateGeometryType,
+  getGeometryInitializer,
+  getGeometryParameter,
 } from "../../lib/stores/GeometryInitializer";
+import { useSignalValue } from "../../lib/hooks/useSignals";
+import { facadeSignal } from "../../app";
 
 interface GeometryPanelProps {
   // No props needed for now
@@ -111,90 +108,88 @@ const GEOMETRY_SETTINGS: GeometrySettings = {
 };
 
 export const GeometryPanel: FunctionComponent<GeometryPanelProps> = () => {
-  // Use the geometry store
+  // Get the geometry initializer and store
+  const geometryInitializer = getGeometryInitializer();
   const geometryStore = getGeometryStore();
-  const parameterStore = getParameterStore();
 
-  // Local state for geometry values
-  const [geometryType, setGeometryType] = useState("plane");
-  const [geometryParams, setGeometryParams] = useState<Record<string, number>>(
-    {}
+  // Get UI store for toast messages
+  const uiStore = getUIStore();
+
+  // Use signal values directly with custom hooks
+  const geometryType = useSignalValue(getGeometryParameter("geometryType"));
+  const showWireframe = useSignalValue(getGeometryParameter("wireframe"));
+
+  // Use signal values for geometry parameters
+  const planeWidth = useSignalValue(getGeometryParameter("planeWidth"));
+  const planeHeight = useSignalValue(getGeometryParameter("planeHeight"));
+  const planeSegments = useSignalValue(getGeometryParameter("planeSegments"));
+
+  const sphereRadius = useSignalValue(getGeometryParameter("sphereRadius"));
+  const sphereWidthSegments = useSignalValue(
+    getGeometryParameter("sphereWidthSegments")
   );
-  const [showWireframe, setShowWireframe] = useState(false);
+  const sphereHeightSegments = useSignalValue(
+    getGeometryParameter("sphereHeightSegments")
+  );
 
-  // Sync local state with store
+  const cubeSize = useSignalValue(getGeometryParameter("cubeSize"));
+  const cubeSegments = useSignalValue(getGeometryParameter("cubeSegments"));
+
+  // Handle facade preset events
   useEffect(() => {
-    // Initial sync for geometry type
-    const currentGeometryType = geometryStore.get("geometryType");
-    setGeometryType(currentGeometryType);
+    const facade = facadeSignal.value;
 
-    // Initialize geometry parameters if needed
-    initializeGeometryParameters();
+    if (facade) {
+      const handlePresetApplied = () => {
+        console.log("GeometryPanel: Preset applied event detected");
+        // Sync initializer with facade
+        geometryInitializer.syncWithFacade();
+        console.log("GeometryPanel: Completed sync with facade after preset");
+      };
 
-    // Sync all geometry parameters to local state
-    const params: Record<string, number> = {};
-    const updatedParams = syncGeometryParameters(params, currentGeometryType);
-    setGeometryParams(updatedParams);
+      facade.on("preset-applied", handlePresetApplied);
 
-    // Get wireframe state
-    setShowWireframe(syncWireframeState());
+      return () => {
+        facade.off("preset-applied", handlePresetApplied);
+      };
+    }
   }, []);
-
-  // Add effect to keep wireframe in sync with parameter store
-  useEffect(() => {
-    // Use the store's signal to monitor state changes
-    const stateSignal = parameterStore.getSignal();
-
-    // Set up an effect to watch the signal
-    const effect = computed(() => {
-      // Get current wireframe state from parameter store
-      const currentWireframeState = syncWireframeState();
-
-      // Update local state if it's different
-      if (currentWireframeState !== showWireframe) {
-        setShowWireframe(currentWireframeState);
-      }
-
-      // Return the value to ensure proper tracking
-      return currentWireframeState;
-    });
-
-    // Return cleanup function
-    return () => {
-      effect.value; // Access the value to prevent immediate garbage collection
-    };
-  }, [showWireframe, parameterStore]);
 
   // Handle geometry type change
   const handleTypeChange = (value: string) => {
-    console.log("Changing geometry type to:", value);
-
-    // Update local state for immediate feedback
-    setGeometryType(value);
-
-    // Update geometry type in store and facade
-    updateGeometryType(value);
+    geometryInitializer.updateGeometryType(value);
   };
 
   // Handle geometry parameter change
   const handleParamChange = (paramId: string, value: number) => {
-    // Update local state for immediate feedback
-    setGeometryParams((prev) => ({
-      ...prev,
-      [paramId]: value,
-    }));
-
-    // Update the parameter in store and facade
-    updateGeometryParameter(paramId, value);
+    geometryInitializer.updateGeometryParameter(paramId as any, value);
   };
 
   // Handle wireframe toggle
   const handleWireframeChange = (checked: boolean) => {
-    // Update local state for immediate feedback
-    setShowWireframe(checked);
+    console.log(`GeometryPanel: Wireframe toggled to ${checked}`);
+    geometryInitializer.updateWireframe(checked);
 
-    // Update wireframe state in store and facade
-    updateWireframeState(checked);
+    // For debug, access the facade parameter directly
+    const facade = facadeSignal.value;
+    if (facade) {
+      setTimeout(() => {
+        const facadeValue = facade.getParam("showWireframe");
+        console.log(
+          `GeometryPanel: Facade showWireframe value after update: ${facadeValue}`
+        );
+      }, 100);
+    }
+
+    console.log(
+      `GeometryPanel: After updateWireframe call, wireframe value: ${showWireframe}`
+    );
+  };
+
+  // Handle reset button click
+  const handleReset = () => {
+    geometryInitializer.reset();
+    uiStore.showToast("Geometry settings reset to defaults", "success");
   };
 
   // Get geometry type options
@@ -208,11 +203,6 @@ export const GeometryPanel: FunctionComponent<GeometryPanelProps> = () => {
   // Get label for current geometry type
   const getGeometryTypeLabel = () => {
     return GEOMETRY_SETTINGS[geometryType]?.label || "Select type";
-  };
-
-  // Get current geometry settings
-  const getCurrentGeometrySettings = () => {
-    return GEOMETRY_SETTINGS[geometryType]?.settings || [];
   };
 
   return (
@@ -234,13 +224,12 @@ export const GeometryPanel: FunctionComponent<GeometryPanelProps> = () => {
       </SettingsGroup>
 
       <SettingsGroup collapsible={false} header={false}>
-        {/* Geometry Settings - Restructured to have separate SettingsField components */}
+        {/* Geometry Settings based on type */}
         {geometryType === "plane" && (
           <>
             <SettingsField label="Dimensions" inputDir="row" labelDir="column">
               <FigmaInput
-                key="planeWidth"
-                value={geometryParams.planeWidth || 0}
+                value={planeWidth}
                 min={0.1}
                 max={10}
                 step={0.1}
@@ -248,8 +237,7 @@ export const GeometryPanel: FunctionComponent<GeometryPanelProps> = () => {
                 dragIcon="W"
               />
               <FigmaInput
-                key="planeHeight"
-                value={geometryParams.planeHeight || 0}
+                value={planeHeight}
                 min={0.1}
                 max={10}
                 step={0.1}
@@ -257,10 +245,10 @@ export const GeometryPanel: FunctionComponent<GeometryPanelProps> = () => {
                 dragIcon="H"
               />
             </SettingsField>
-            <SettingsField label="Resolution" labelDir="column">
+
+            <SettingsField label="Segments" labelDir="column">
               <FigmaInput
-                key="planeSegments"
-                value={geometryParams.planeSegments || 0}
+                value={planeSegments}
                 min={4}
                 max={512}
                 step={1}
@@ -272,21 +260,19 @@ export const GeometryPanel: FunctionComponent<GeometryPanelProps> = () => {
 
         {geometryType === "sphere" && (
           <>
-            <SettingsField label="Radius">
+            <SettingsField label="Radius" labelDir="column">
               <FigmaInput
-                key="sphereRadius"
-                value={geometryParams.sphereRadius || 0}
+                value={sphereRadius}
                 min={0.1}
                 max={5}
                 step={0.1}
                 onChange={(value) => handleParamChange("sphereRadius", value)}
-                dragIcon="R"
               />
             </SettingsField>
-            <SettingsField label="Resolution">
+
+            <SettingsField label="Segments" inputDir="row" labelDir="column">
               <FigmaInput
-                key="sphereWidthSegments"
-                value={geometryParams.sphereWidthSegments || 0}
+                value={sphereWidthSegments}
                 min={4}
                 max={128}
                 step={1}
@@ -296,8 +282,7 @@ export const GeometryPanel: FunctionComponent<GeometryPanelProps> = () => {
                 dragIcon="W"
               />
               <FigmaInput
-                key="sphereHeightSegments"
-                value={geometryParams.sphereHeightSegments || 0}
+                value={sphereHeightSegments}
                 min={4}
                 max={128}
                 step={1}
@@ -312,20 +297,19 @@ export const GeometryPanel: FunctionComponent<GeometryPanelProps> = () => {
 
         {geometryType === "cube" && (
           <>
-            <SettingsField label="Size">
+            <SettingsField label="Size" labelDir="column">
               <FigmaInput
-                key="cubeSize"
-                value={geometryParams.cubeSize || 0}
+                value={cubeSize}
                 min={0.1}
                 max={10}
                 step={0.1}
                 onChange={(value) => handleParamChange("cubeSize", value)}
               />
             </SettingsField>
-            <SettingsField label="Resolution">
+
+            <SettingsField label="Segments" labelDir="column">
               <FigmaInput
-                key="cubeSegments"
-                value={geometryParams.cubeSegments || 0}
+                value={cubeSegments}
                 min={1}
                 max={64}
                 step={1}
@@ -334,10 +318,7 @@ export const GeometryPanel: FunctionComponent<GeometryPanelProps> = () => {
             </SettingsField>
           </>
         )}
-      </SettingsGroup>
 
-      {/* Wireframe Toggle */}
-      <SettingsGroup title="Display" collapsible={false} header={false}>
         <SettingsField label="Wireframe">
           <Checkbox checked={showWireframe} onChange={handleWireframeChange} />
         </SettingsField>

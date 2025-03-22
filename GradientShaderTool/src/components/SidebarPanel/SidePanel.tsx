@@ -14,14 +14,16 @@ import {
   CodeIcon,
   X,
 } from "../Icons";
-import PresetPanel from "../Panels/PresetPanel";
-import GeometryPanel from "../Panels/GeometryPanel";
-import ColorsPanel from "../Panels/ColorsPanel";
-import LightingPanel from "../Panels/LightingPanel";
-import CameraPanel from "../Panels/CameraPanel";
-import { facadeSignal } from "../../app";
+import {
+  PresetPanel,
+  GeometryPanel,
+  DistortionPanel,
+  LightingPanel,
+  CameraPanel,
+  ColorsPanel,
+} from "../Panels";
 import SavePanel from "../Panels/SavePanel";
-import DistortionPanel from "../Panels/DistortionPanel";
+import { facadeSignal } from "../../app";
 
 // Create a signal for the active panel
 export const activePanelSignal = signal<string | null>("presets");

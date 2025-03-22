@@ -1,7 +1,10 @@
 import { StoreBase } from "./StoreBase";
 import { facadeSignal } from "../../app";
-import { getUIStore } from "./UIStore";
-import { getHistoryStore } from "./HistoryStore";
+import { SignalStoreBase } from "./SignalStoreBase";
+import {
+  getCameraInitializer,
+  DEFAULT_CAMERA_PARAMETERS,
+} from "./CameraInitializer";
 
 /**
  * Camera state interface
@@ -62,12 +65,22 @@ export interface CameraState {
    * Status message for debugging
    */
   status: string;
+
+  /**
+   * Flag indicating if camera needs update
+   */
+  needsCameraUpdate: boolean;
+
+  /**
+   * Flag indicating if camera needs orbit update
+   */
+  needsOrbitUpdate: boolean;
 }
 
 /**
  * Store for managing camera state
  */
-export class CameraStore extends StoreBase<CameraState> {
+class CameraStoreClass extends SignalStoreBase<CameraState> {
   /**
    * Timeout for debouncing camera updates
    */
@@ -77,270 +90,186 @@ export class CameraStore extends StoreBase<CameraState> {
    * Create a new camera store
    */
   constructor() {
-    super(
-      {
-        position: { x: 0, y: 0, z: 5 },
-        target: { x: 0, y: 0, z: 0 },
-        defaultPosition: { x: 0, y: 0, z: 5 },
-        defaultTarget: { x: 0, y: 0, z: 0 },
-        isUpdating: false,
-        errorMessage: null,
-        updatingFromUI: false,
-        status: "",
+    // Initialize the camera initializer
+    const initializer = getCameraInitializer();
+
+    // Create initial state object
+    const initialState: CameraState = {
+      position: {
+        x: initializer.cameraPositionX.value,
+        y: initializer.cameraPositionY.value,
+        z: initializer.cameraPositionZ.value,
       },
-      { name: "CameraStore", debug: false }
-    );
+      target: {
+        x: initializer.cameraTargetX.value,
+        y: initializer.cameraTargetY.value,
+        z: initializer.cameraTargetZ.value,
+      },
+      defaultPosition: {
+        x: DEFAULT_CAMERA_PARAMETERS.cameraPositionX,
+        y: DEFAULT_CAMERA_PARAMETERS.cameraPositionY,
+        z: DEFAULT_CAMERA_PARAMETERS.cameraPositionZ,
+      },
+      defaultTarget: {
+        x: DEFAULT_CAMERA_PARAMETERS.cameraTargetX,
+        y: DEFAULT_CAMERA_PARAMETERS.cameraTargetY,
+        z: DEFAULT_CAMERA_PARAMETERS.cameraTargetZ,
+      },
+      isUpdating: false,
+      errorMessage: null,
+      updatingFromUI: false,
+      status: "Initialized",
+      needsCameraUpdate: false,
+      needsOrbitUpdate: false,
+    };
 
-    // Initialize from facade when available
-    this.initFromFacade();
-  }
+    // Call parent constructor with initial state
+    super(initialState, {
+      name: "camera",
+      debug: false,
+      autoSyncWithFacade: false,
+    });
 
-  /**
-   * Initialize camera state from facade
-   */
-  private initFromFacade(): void {
+    // Subscribe to initializer signals
+    this.setupSubscriptions();
+
+    // Initialize camera in facade
     const facade = facadeSignal.value;
-    if (!facade) return;
-
-    // Set up polling to sync camera position from the facade
-    const syncIntervalId = window.setInterval(() => {
-      if (!facade || !facade.isInitialized()) return;
-
+    if (facade) {
+      // If facade doesn't have initializeCamera method, we can just skip this step
       try {
-        // Skip if we're currently updating from UI
-        if (this.get("updatingFromUI") || this.get("isUpdating")) {
-          return;
+        if (typeof facade.resetCamera === "function") {
+          facade.resetCamera();
         }
-
-        // Get camera values from facade
-        const cameraPosX = facade.getParam("cameraPosX");
-        const cameraPosY = facade.getParam("cameraPosY");
-        const cameraPosZ = facade.getParam("cameraPosZ");
-        const cameraTargetX = facade.getParam("cameraTargetX");
-        const cameraTargetY = facade.getParam("cameraTargetY");
-        const cameraTargetZ = facade.getParam("cameraTargetZ");
-
-        // Update store with current values
-        this.updateFromFacade(
-          cameraPosX,
-          cameraPosY,
-          cameraPosZ,
-          cameraTargetX,
-          cameraTargetY,
-          cameraTargetZ
-        );
       } catch (error) {
-        console.error("Error syncing camera from facade:", error);
+        console.error("Error initializing camera:", error);
       }
-    }, 250); // Poll every 250ms
+    }
 
-    // Store the interval ID for cleanup
-    this.updateTimeout = syncIntervalId;
+    console.log("CameraStore initialized with signals");
+  }
+
+  private setupSubscriptions() {
+    const initializer = getCameraInitializer();
+
+    // Position change subscriptions
+    initializer.cameraPositionX.subscribe((x) => {
+      this.setState({
+        position: { ...this.getState().position, x },
+        needsCameraUpdate: true,
+        status: `Position X updated: ${x.toFixed(2)}`,
+      });
+    });
+
+    initializer.cameraPositionY.subscribe((y) => {
+      this.setState({
+        position: { ...this.getState().position, y },
+        needsCameraUpdate: true,
+        status: `Position Y updated: ${y.toFixed(2)}`,
+      });
+    });
+
+    initializer.cameraPositionZ.subscribe((z) => {
+      this.setState({
+        position: { ...this.getState().position, z },
+        needsCameraUpdate: true,
+        status: `Position Z updated: ${z.toFixed(2)}`,
+      });
+    });
+
+    // Target change subscriptions
+    initializer.cameraTargetX.subscribe((x) => {
+      this.setState({
+        target: { ...this.getState().target, x },
+        needsCameraUpdate: true,
+        status: `Target X updated: ${x.toFixed(2)}`,
+      });
+    });
+
+    initializer.cameraTargetY.subscribe((y) => {
+      this.setState({
+        target: { ...this.getState().target, y },
+        needsCameraUpdate: true,
+        status: `Target Y updated: ${y.toFixed(2)}`,
+      });
+    });
+
+    initializer.cameraTargetZ.subscribe((z) => {
+      this.setState({
+        target: { ...this.getState().target, z },
+        needsCameraUpdate: true,
+        status: `Target Z updated: ${z.toFixed(2)}`,
+      });
+    });
+
+    // FOV subscription is handled by the facade directly
   }
 
   /**
-   * Update camera position
+   * Set the camera position
    */
-  public setPosition(
-    x: number,
-    y: number,
-    z: number,
-    recordHistory: boolean = true
-  ): boolean {
-    const facade = facadeSignal.value;
-    if (!facade) {
-      this.set("errorMessage", "Cannot update camera: Application not ready");
-      getUIStore().showToast(
-        "Cannot update camera: Application not ready",
-        "error"
-      );
-      return false;
-    }
-
-    // Set updating flag
-    this.set("isUpdating", true);
-
-    // Mark as updating from UI to prevent feedback loops
-    this.set("updatingFromUI", true);
-
-    // Update status
-    this.set(
-      "status",
-      `Position updated from UI at ${new Date().toLocaleTimeString()}`
-    );
-
-    try {
-      // Get current position for history
-      const prevPosition = { ...this.get("position") };
-
-      // Update local state
-      this.set("position", { x, y, z });
-
-      // Apply to facade
-      facade.setCameraPosition(x, y, z);
-
-      // Record in history if needed
-      if (recordHistory && getHistoryStore) {
-        const historyStore = getHistoryStore();
-        historyStore.recordAction(
-          "Changed camera position",
-          { cameraPosition: prevPosition },
-          { cameraPosition: { x, y, z } },
-          "camera-change"
-        );
-      }
-
-      return true;
-    } catch (error) {
-      console.error("Failed to update camera position:", error);
-      this.set("errorMessage", "Failed to update camera position");
-      getUIStore().showToast("Failed to update camera position", "error");
-      return false;
-    } finally {
-      // Clear updating flags
-      this.set("isUpdating", false);
-      this.set("updatingFromUI", false);
-    }
+  setPosition(position: { x: number; y: number; z: number }) {
+    const initializer = getCameraInitializer();
+    initializer.updatePosition(position.x, position.y, position.z);
   }
 
   /**
-   * Update camera target
+   * Set a single axis of the camera position
    */
-  public setTarget(
-    x: number,
-    y: number,
-    z: number,
-    recordHistory: boolean = true
-  ): boolean {
-    const facade = facadeSignal.value;
-    if (!facade) {
-      this.set("errorMessage", "Cannot update camera: Application not ready");
-      getUIStore().showToast(
-        "Cannot update camera: Application not ready",
-        "error"
-      );
-      return false;
-    }
-
-    // Set updating flag
-    this.set("isUpdating", true);
-
-    // Mark as updating from UI to prevent feedback loops
-    this.set("updatingFromUI", true);
-
-    try {
-      // Get current target for history
-      const prevTarget = { ...this.get("target") };
-
-      // Update local state
-      this.set("target", { x, y, z });
-
-      // Apply to facade
-      facade.setCameraTarget(x, y, z);
-
-      // Record in history if needed
-      if (recordHistory && getHistoryStore) {
-        const historyStore = getHistoryStore();
-        historyStore.recordAction(
-          "Changed camera target",
-          { cameraTarget: prevTarget },
-          { cameraTarget: { x, y, z } },
-          "camera-change"
-        );
-      }
-
-      return true;
-    } catch (error) {
-      console.error("Failed to update camera target:", error);
-      this.set("errorMessage", "Failed to update camera target");
-      getUIStore().showToast("Failed to update camera target", "error");
-      return false;
-    } finally {
-      // Clear updating flags
-      this.set("isUpdating", false);
-      this.set("updatingFromUI", false);
-    }
+  setPositionAxis(axis: "x" | "y" | "z", value: number) {
+    const initializer = getCameraInitializer();
+    initializer.updatePositionAxis(axis, value);
   }
 
   /**
-   * Reset camera to default position and target
+   * Set the camera target (look-at point)
    */
-  public resetCamera(): boolean {
-    const facade = facadeSignal.value;
-    if (!facade) {
-      this.set("errorMessage", "Cannot reset camera: Application not ready");
-      getUIStore().showToast(
-        "Cannot reset camera: Application not ready",
-        "error"
-      );
-      return false;
-    }
-
-    try {
-      // Get current values for history
-      const prevPosition = { ...this.get("position") };
-      const prevTarget = { ...this.get("target") };
-
-      // Get default values
-      const defaultPosition = this.get("defaultPosition");
-      const defaultTarget = this.get("defaultTarget");
-
-      // Set updating flag
-      this.set("isUpdating", true);
-
-      // Use facade's reset camera method
-      facade.resetCamera();
-
-      // Update local state
-      this.set("position", { ...defaultPosition });
-      this.set("target", { ...defaultTarget });
-
-      // Record in history
-      if (getHistoryStore) {
-        const historyStore = getHistoryStore();
-        historyStore.recordAction(
-          "Reset camera",
-          {
-            cameraPosition: prevPosition,
-            cameraTarget: prevTarget,
-          },
-          {
-            cameraPosition: defaultPosition,
-            cameraTarget: defaultTarget,
-          },
-          "camera-reset"
-        );
-      }
-
-      getUIStore().showToast("Camera reset to default", "info");
-      return true;
-    } catch (error) {
-      console.error("Failed to reset camera:", error);
-      this.set("errorMessage", "Failed to reset camera");
-      getUIStore().showToast("Failed to reset camera", "error");
-      return false;
-    } finally {
-      // Clear updating flag
-      this.set("isUpdating", false);
-    }
+  setTarget(target: { x: number; y: number; z: number }) {
+    const initializer = getCameraInitializer();
+    initializer.updateTarget(target.x, target.y, target.z);
   }
 
   /**
-   * Update a specific position axis
+   * Set a single axis of the camera target
    */
-  public setPositionAxis(axis: "x" | "y" | "z", value: number): boolean {
-    const position = { ...this.get("position") };
-    position[axis] = value;
-    return this.setPosition(position.x, position.y, position.z);
+  setTargetAxis(axis: "x" | "y" | "z", value: number) {
+    const initializer = getCameraInitializer();
+    initializer.updateTargetAxis(axis, value);
   }
 
   /**
-   * Update a specific target axis
+   * Reset the camera to default position and target
    */
-  public setTargetAxis(axis: "x" | "y" | "z", value: number): boolean {
-    const target = { ...this.get("target") };
-    target[axis] = value;
-    return this.setTarget(target.x, target.y, target.z);
+  resetCamera() {
+    const initializer = getCameraInitializer();
+    initializer.resetCamera();
+  }
+
+  /**
+   * Flag that camera needs orbit controls update
+   */
+  markOrbitsDirty() {
+    this.setState({
+      needsOrbitUpdate: true,
+    });
+  }
+
+  /**
+   * Clear the needsOrbitUpdate flag
+   */
+  clearOrbitsDirty() {
+    this.setState({
+      needsOrbitUpdate: false,
+    });
+  }
+
+  /**
+   * Clear the needsCameraUpdate flag
+   */
+  clearCameraDirty() {
+    this.setState({
+      needsCameraUpdate: false,
+    });
   }
 
   /**
@@ -357,7 +286,7 @@ export class CameraStore extends StoreBase<CameraState> {
     recordHistory: boolean = false
   ): void {
     // Skip if updating from UI to prevent loops
-    if (this.get("updatingFromUI")) {
+    if (this.getState().updatingFromUI) {
       console.log(
         "CameraStore: Skipping updateFromFacade due to updatingFromUI flag"
       );
@@ -365,8 +294,8 @@ export class CameraStore extends StoreBase<CameraState> {
     }
 
     // Get current values for comparison
-    const currentPosition = this.get("position");
-    const currentTarget = this.get("target");
+    const currentPosition = this.getState().position;
+    const currentTarget = this.getState().target;
 
     // Only update if values have actually changed
     const positionChanged =
@@ -383,47 +312,22 @@ export class CameraStore extends StoreBase<CameraState> {
       return;
     }
 
-    // console.log("CameraStore: Updating from facade", {
-    //   from: {
-    //     position: currentPosition,
-    //     target: currentTarget,
-    //   },
-    //   to: {
-    //     position: { x: posX, y: posY, z: posZ },
-    //     target: { x: targetX, y: targetY, z: targetZ },
-    //   },
-    // });
-
-    // Update status
-    this.set(
-      "status",
-      `Updated from facade at ${new Date().toLocaleTimeString()}`
-    );
+    // Update status and position/target
+    this.setState({
+      status: `Updated from facade at ${new Date().toLocaleTimeString()}`,
+      position: { x: posX, y: posY, z: posZ },
+      target: { x: targetX, y: targetY, z: targetZ },
+    });
 
     // Record in history if needed
     if (
       recordHistory &&
-      getHistoryStore &&
+      getCameraInitializer() &&
       (positionChanged || targetChanged)
     ) {
-      const historyStore = getHistoryStore();
-      historyStore.recordAction(
-        "Camera updated from 3D view",
-        {
-          cameraPosition: { ...currentPosition },
-          cameraTarget: { ...currentTarget },
-        },
-        {
-          cameraPosition: { x: posX, y: posY, z: posZ },
-          cameraTarget: { x: targetX, y: targetY, z: targetZ },
-        },
-        "camera-change"
-      );
+      const initializer = getCameraInitializer();
+      initializer.updateFromFacade(posX, posY, posZ, targetX, targetY, targetZ);
     }
-
-    // Update local state with individual updates
-    this.set("position", { x: posX, y: posY, z: posZ });
-    this.set("target", { x: targetX, y: targetY, z: targetZ });
   }
 
   /**
@@ -439,14 +343,14 @@ export class CameraStore extends StoreBase<CameraState> {
 }
 
 // Singleton instance
-let cameraStore: CameraStore | null = null;
+let cameraStore: CameraStoreClass | null = null;
 
 /**
  * Get the camera store instance
  */
-export function getCameraStore(): CameraStore {
+export function getCameraStore(): CameraStoreClass {
   if (!cameraStore) {
-    cameraStore = new CameraStore();
+    cameraStore = new CameraStoreClass();
   }
   return cameraStore;
 }

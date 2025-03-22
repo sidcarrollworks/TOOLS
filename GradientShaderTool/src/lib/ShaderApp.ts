@@ -446,9 +446,10 @@ export class ShaderApp {
 
   /**
    * Save canvas as image
+   * @returns The data URL of the saved image, or null if save failed
    */
-  saveAsImage(): void {
-    this.exportManager.saveAsImage();
+  saveAsImage(): string | null {
+    return this.exportManager.saveAsImage();
   }
 
   /**

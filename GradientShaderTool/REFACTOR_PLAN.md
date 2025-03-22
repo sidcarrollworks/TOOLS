@@ -37,6 +37,9 @@
    - Fixed layout and container issues affecting the application
 
 5. ✅ Completed panel refactoring
+   - Refactored PresetPanel to use PresetInitializer with modern initialization pattern
+   - Refactored GeometryPanel to use GeometryInitializer to separate UI from initialization logic
+   - ⬜ Next: Review and refactor DistortionPanel
    - Refactored DistortionPanel to use the new DistortionStore
    - Ensured X and Y scale parameters are properly handled separately
    - Maintained original UI styling while using store-based state management

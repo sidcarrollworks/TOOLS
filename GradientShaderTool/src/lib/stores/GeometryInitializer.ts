@@ -1,310 +1,540 @@
-import { getGeometryStore } from "./GeometryStore";
-import { getParameterStore } from "./ParameterStore";
+import { Signal } from "@preact/signals";
+import { InitializerBase } from "./InitializerBase";
+import { getHistoryStore } from "./HistoryStore";
 import { facadeSignal } from "../../app";
+import { getUIStore } from "./UIStore";
 
 /**
- * Default geometry values
+ * Geometry parameter types
  */
-const DEFAULT_GEOMETRY_VALUES = {
+export interface GeometryParameters {
+  // Core geometry properties
+  geometryType: string;
+  wireframe: boolean;
+  resolution: number;
+  useAdaptiveResolution: boolean;
+
   // Plane geometry
-  planeWidth: 2,
-  planeHeight: 2,
+  planeWidth: number;
+  planeHeight: number;
+  planeSegments: number;
+
+  // Sphere geometry
+  sphereRadius: number;
+  sphereWidthSegments: number;
+  sphereHeightSegments: number;
+
+  // Cube geometry
+  cubeSize: number;
+  cubeSegments: number;
+}
+
+/**
+ * Default geometry parameters
+ */
+const DEFAULT_GEOMETRY_PARAMETERS: GeometryParameters = {
+  // Core geometry properties
+  geometryType: "plane",
+  wireframe: false,
+  resolution: 128,
+  useAdaptiveResolution: false,
+
+  // Plane geometry
+  planeWidth: 10,
+  planeHeight: 10,
   planeSegments: 128,
 
   // Sphere geometry
-  sphereRadius: 1,
-  sphereWidthSegments: 32,
-  sphereHeightSegments: 32,
+  sphereRadius: 5,
+  sphereWidthSegments: 128,
+  sphereHeightSegments: 128,
 
   // Cube geometry
-  cubeSize: 1,
-  cubeSegments: 1,
+  cubeSize: 5,
+  cubeSegments: 64,
 };
 
 /**
- * Initialize the geometry parameters
- * This ensures all required geometry parameters are set with default values if not already defined
+ * Parameter definitions for geometry initializer
  */
-export function initializeGeometryParameters(): void {
-  const geometryStore = getGeometryStore();
-  const parameterStore = getParameterStore();
-  const facade = facadeSignal.value;
+export const PARAMETER_DEFINITIONS = {
+  geometryType: {
+    defaultValue: DEFAULT_GEOMETRY_PARAMETERS.geometryType,
+    facadeParam: "geometryType",
+  },
+  wireframe: {
+    defaultValue: DEFAULT_GEOMETRY_PARAMETERS.wireframe,
+    facadeParam: "showWireframe",
+  },
+  resolution: {
+    defaultValue: DEFAULT_GEOMETRY_PARAMETERS.resolution,
+    facadeParam: "resolution",
+  },
+  useAdaptiveResolution: {
+    defaultValue: DEFAULT_GEOMETRY_PARAMETERS.useAdaptiveResolution,
+    facadeParam: "useAdaptiveResolution",
+  },
+  planeWidth: {
+    defaultValue: DEFAULT_GEOMETRY_PARAMETERS.planeWidth,
+    facadeParam: "planeWidth",
+  },
+  planeHeight: {
+    defaultValue: DEFAULT_GEOMETRY_PARAMETERS.planeHeight,
+    facadeParam: "planeHeight",
+  },
+  planeSegments: {
+    defaultValue: DEFAULT_GEOMETRY_PARAMETERS.planeSegments,
+    facadeParam: "planeSegments",
+  },
+  sphereRadius: {
+    defaultValue: DEFAULT_GEOMETRY_PARAMETERS.sphereRadius,
+    facadeParam: "sphereRadius",
+  },
+  sphereWidthSegments: {
+    defaultValue: DEFAULT_GEOMETRY_PARAMETERS.sphereWidthSegments,
+    facadeParam: "sphereWidthSegments",
+  },
+  sphereHeightSegments: {
+    defaultValue: DEFAULT_GEOMETRY_PARAMETERS.sphereHeightSegments,
+    facadeParam: "sphereHeightSegments",
+  },
+  cubeSize: {
+    defaultValue: DEFAULT_GEOMETRY_PARAMETERS.cubeSize,
+    facadeParam: "cubeSize",
+  },
+  cubeSegments: {
+    defaultValue: DEFAULT_GEOMETRY_PARAMETERS.cubeSegments,
+    facadeParam: "cubeSegments",
+  },
+};
 
-  if (!facade) {
-    console.error(
-      "Cannot initialize geometry parameters: Facade not available"
-    );
-    return;
+/**
+ * Mapping of geometry types to their segment parameters
+ */
+const GEOMETRY_TYPE_TO_SEGMENTS: Record<string, string> = {
+  plane: "planeSegments",
+  sphere: "sphereWidthSegments", // We'll update both width and height segments
+  cube: "cubeSegments",
+};
+
+/**
+ * Minimum resolution value
+ */
+export const MIN_RESOLUTION = 4;
+
+/**
+ * Maximum resolution value
+ */
+export const MAX_RESOLUTION = 512;
+
+/**
+ * Class for initializing and managing geometry parameters
+ */
+export class GeometryInitializer extends InitializerBase<GeometryParameters> {
+  /**
+   * Rebuild timeout
+   */
+  private rebuildTimeout: number | null = null;
+
+  constructor() {
+    super(PARAMETER_DEFINITIONS, {
+      autoSync: true,
+      debug: false,
+      updateFacade: true,
+    });
+
+    // Listen for facade updates
+    this.initFacadeListeners();
   }
 
-  try {
-    // Get current geometry type
-    const geometryType = geometryStore.get("geometryType");
+  /**
+   * Initialize facade listeners
+   */
+  private initFacadeListeners(): void {
+    const facade = facadeSignal.value;
+    if (!facade || !facade.isInitialized()) return;
 
-    // Initialize parameters with defaults if they don't exist
-    if (geometryType === "plane") {
-      ensureParameterExists(
-        facade,
-        parameterStore,
-        "planeWidth",
-        DEFAULT_GEOMETRY_VALUES.planeWidth
+    // Listen for geometry changes
+    facade.on("geometry-changed", this.handleGeometryChanged.bind(this));
+  }
+
+  /**
+   * Handle geometry changed event from facade
+   */
+  private handleGeometryChanged(data: any): void {
+    if (!data) return;
+
+    // Show toast with performance info for significant rebuilds
+    if (data.buildTimeMs > 100) {
+      const uiStore = getUIStore();
+      uiStore.showToast(
+        `Geometry rebuilt: ${
+          data.vertexCount?.toLocaleString() || "0"
+        } vertices, ${data.buildTimeMs}ms`,
+        "info"
       );
-      ensureParameterExists(
-        facade,
-        parameterStore,
-        "planeHeight",
-        DEFAULT_GEOMETRY_VALUES.planeHeight
+    }
+  }
+
+  /**
+   * Update a geometry parameter with history tracking and optional geometry recreation
+   */
+  updateGeometryParameter<K extends keyof GeometryParameters>(
+    paramName: K,
+    value: GeometryParameters[K],
+    recreateGeometry = true
+  ): boolean {
+    // Get current value for history tracking
+    const oldValue = this.getSignal(paramName).value;
+
+    // Update the parameter
+    const result = this.updateParameter(paramName, value);
+
+    // Record the change in history
+    if (result) {
+      const historyStore = getHistoryStore();
+      historyStore.recordAction(
+        `Updated ${String(paramName)}`,
+        { [paramName]: oldValue },
+        { [paramName]: value },
+        `geometry-update-${String(paramName)}`
       );
-      ensureParameterExists(
-        facade,
-        parameterStore,
-        "planeSegments",
-        DEFAULT_GEOMETRY_VALUES.planeSegments
+
+      // Recreate geometry if needed
+      if (recreateGeometry) {
+        this.scheduleGeometryRebuild();
+      }
+    }
+
+    return result;
+  }
+
+  /**
+   * Update geometry type
+   */
+  updateGeometryType(geometryType: string): boolean {
+    // Don't update if it's the same type
+    if (this.getSignal("geometryType").value === geometryType) {
+      return true;
+    }
+
+    // Get the current values for history
+    const oldType = this.getSignal("geometryType").value;
+
+    // Update the type
+    const result = this.updateParameter("geometryType", geometryType);
+
+    // Record the change in history
+    if (result) {
+      const historyStore = getHistoryStore();
+      historyStore.recordAction(
+        `Changed geometry type to ${geometryType}`,
+        { geometryType: oldType },
+        { geometryType },
+        "geometry-type-change"
       );
-    } else if (geometryType === "sphere") {
-      ensureParameterExists(
-        facade,
-        parameterStore,
-        "sphereRadius",
-        DEFAULT_GEOMETRY_VALUES.sphereRadius
+
+      // Update resolution parameter based on geometry type
+      this.updateResolutionForGeometryType(this.getSignal("resolution").value);
+
+      // Recreate geometry
+      this.scheduleGeometryRebuild();
+    }
+
+    return result;
+  }
+
+  /**
+   * Update wireframe state
+   */
+  updateWireframe(wireframe: boolean): boolean {
+    console.log(
+      `GeometryInitializer: updateWireframe called with value: ${wireframe}`
+    );
+
+    // Get current value for history
+    const oldValue = this.getSignal("wireframe").value;
+    console.log(`GeometryInitializer: Current wireframe value: ${oldValue}`);
+
+    // Update the parameter
+    const result = this.updateParameter("wireframe", wireframe);
+    console.log(`GeometryInitializer: updateParameter result: ${result}`);
+
+    // Record the change in history
+    if (result) {
+      const historyStore = getHistoryStore();
+      historyStore.recordAction(
+        `${wireframe ? "Enabled" : "Disabled"} wireframe`,
+        { wireframe: oldValue },
+        { wireframe },
+        "geometry-wireframe-change"
       );
-      ensureParameterExists(
-        facade,
-        parameterStore,
-        "sphereWidthSegments",
-        DEFAULT_GEOMETRY_VALUES.sphereWidthSegments
+
+      // Check the signal value after update
+      const newValue = this.getSignal("wireframe").value;
+      console.log(
+        `GeometryInitializer: After update, wireframe value: ${newValue}`
       );
-      ensureParameterExists(
-        facade,
-        parameterStore,
-        "sphereHeightSegments",
-        DEFAULT_GEOMETRY_VALUES.sphereHeightSegments
+
+      // Force a geometry rebuild to ensure wireframe is applied
+      this.scheduleGeometryRebuild();
+    }
+
+    return result;
+  }
+
+  /**
+   * Update the resolution
+   */
+  updateResolution(resolution: number, recreateGeometry = true): boolean {
+    // Get current value for history
+    const oldValue = this.getSignal("resolution").value;
+
+    // Update the parameter
+    const result = this.updateParameter("resolution", resolution);
+
+    // Update the specific segment parameter for the current geometry type
+    if (result) {
+      const geometryType = this.getSignal("geometryType").value;
+      const segmentParam = GEOMETRY_TYPE_TO_SEGMENTS[geometryType];
+
+      if (segmentParam) {
+        this.updateParameter(
+          segmentParam as keyof GeometryParameters,
+          resolution
+        );
+
+        // For sphere, update both width and height segments
+        if (geometryType === "sphere") {
+          this.updateParameter("sphereHeightSegments", resolution);
+        }
+      }
+
+      // Record the change in history
+      const historyStore = getHistoryStore();
+      historyStore.recordAction(
+        `Updated resolution to ${resolution}`,
+        { resolution: oldValue },
+        { resolution },
+        "geometry-resolution-change"
       );
-    } else if (geometryType === "cube") {
-      ensureParameterExists(
-        facade,
-        parameterStore,
-        "cubeSize",
-        DEFAULT_GEOMETRY_VALUES.cubeSize
+
+      // Recreate geometry if needed
+      if (recreateGeometry) {
+        this.scheduleGeometryRebuild();
+      }
+    }
+
+    return result;
+  }
+
+  /**
+   * Update adaptive resolution setting
+   */
+  updateAdaptiveResolution(useAdaptive: boolean): boolean {
+    // Get current value for history
+    const oldValue = this.getSignal("useAdaptiveResolution").value;
+
+    // Update the parameter
+    const result = this.updateParameter("useAdaptiveResolution", useAdaptive);
+
+    // Record the change in history
+    if (result) {
+      const historyStore = getHistoryStore();
+      historyStore.recordAction(
+        `${useAdaptive ? "Enabled" : "Disabled"} adaptive resolution`,
+        { useAdaptiveResolution: oldValue },
+        { useAdaptiveResolution: useAdaptive },
+        "geometry-adaptive-change"
       );
-      ensureParameterExists(
-        facade,
-        parameterStore,
-        "cubeSegments",
-        DEFAULT_GEOMETRY_VALUES.cubeSegments
+
+      // Update UI with a toast
+      const uiStore = getUIStore();
+      uiStore.showToast(
+        `Adaptive resolution ${useAdaptive ? "enabled" : "disabled"}`,
+        "info"
+      );
+
+      // Recreate geometry
+      this.scheduleGeometryRebuild();
+    }
+
+    return result;
+  }
+
+  /**
+   * Update resolution parameter based on geometry type
+   */
+  private updateResolutionForGeometryType(value: number): void {
+    // Clamp resolution value
+    const clampedResolution = Math.max(
+      MIN_RESOLUTION,
+      Math.min(MAX_RESOLUTION, value)
+    );
+
+    // Update the appropriate parameter based on geometry type
+    const geometryType = this.getSignal("geometryType").value;
+    const segmentParam = GEOMETRY_TYPE_TO_SEGMENTS[geometryType];
+
+    if (segmentParam) {
+      this.updateParameter(
+        segmentParam as keyof GeometryParameters,
+        clampedResolution
+      );
+
+      // For sphere, update both width and height segments
+      if (geometryType === "sphere") {
+        this.updateParameter("sphereHeightSegments", clampedResolution);
+      }
+    }
+
+    // Also update the general resolution parameter
+    this.updateParameter("resolution", clampedResolution);
+  }
+
+  /**
+   * Schedule a geometry rebuild
+   */
+  public scheduleGeometryRebuild(delay: number = 100): void {
+    // Clear any existing timeout
+    if (this.rebuildTimeout !== null) {
+      window.clearTimeout(this.rebuildTimeout);
+      this.rebuildTimeout = null;
+    }
+
+    // Set a new timeout
+    this.rebuildTimeout = window.setTimeout(() => {
+      this.recreateGeometry();
+      this.rebuildTimeout = null;
+    }, delay);
+  }
+
+  /**
+   * Recreate geometry in the facade
+   */
+  public recreateGeometry(force = false): void {
+    const facade = facadeSignal.value;
+    if (facade) {
+      facade.recreateGeometry(force);
+
+      // Show toast for forced rebuilds
+      if (force) {
+        const uiStore = getUIStore();
+        uiStore.showToast("Rebuilding geometry at full resolution", "info");
+      }
+    }
+  }
+
+  /**
+   * Reset to default values with history tracking
+   */
+  reset(): void {
+    // Save for history
+    const historyStore = getHistoryStore();
+    historyStore.recordAction(
+      "Reset geometry parameters",
+      {}, // We're not tracking individual parameter changes here
+      {}, // We're not tracking individual parameter changes here
+      "geometry-reset"
+    );
+
+    // Reset all parameters using parent class implementation
+    super.reset();
+
+    // Rebuild geometry with new values
+    this.scheduleGeometryRebuild();
+  }
+
+  /**
+   * Get a parameter signal with explicit return type
+   */
+  getParameterSignal<K extends keyof GeometryParameters>(
+    key: K
+  ): Signal<GeometryParameters[K]> {
+    return this.getWritableSignal(key);
+  }
+
+  /**
+   * Get the facade instance
+   */
+  protected getFacade() {
+    return facadeSignal.value;
+  }
+
+  /**
+   * Sync state from facade to local signals
+   */
+  public syncWithFacade(): void {
+    const facade = this.getFacade();
+    if (!facade || !facade.isInitialized()) {
+      console.warn(
+        "[GeometryInitializer] Cannot sync - facade not available or not initialized"
+      );
+      return;
+    }
+
+    console.log("[GeometryInitializer] Starting syncWithFacade");
+
+    // Get current facade values for debugging
+    const currentGeometryType = facade.getParam("geometryType");
+    const currentWireframe = facade.getParam("showWireframe");
+    console.log(
+      `[GeometryInitializer] Current facade values - geometry type: ${currentGeometryType}, wireframe: ${currentWireframe}`
+    );
+
+    // Call parent syncWithFacade to handle the standard parameter synchronization
+    super.syncWithFacade();
+
+    // Special handling for wireframe parameter which has a different name in facade
+    const wireframeFromFacade = facade.getParam("showWireframe");
+    if (wireframeFromFacade !== undefined) {
+      // Update the wireframe parameter directly
+      this.updateParameter("wireframe", wireframeFromFacade);
+      console.log(
+        `[GeometryInitializer] Synced wireframe from facade: ${wireframeFromFacade}`
       );
     }
 
-    // Always ensure wireframe parameter is set
-    if (facade.getParam("showWireframe") === undefined) {
-      facade.updateParam("showWireframe", false);
-      parameterStore.setValue("showWireframe", false);
-    }
+    // Ensure we update any dependent parameters based on geometry type
+    const geometryType = this.getSignal("geometryType").value;
+
+    // Force a geometry rebuild to ensure UI is consistent
+    this.scheduleGeometryRebuild();
 
     console.log(
-      `Geometry parameters initialized for geometry type: ${geometryType}`
-    );
-  } catch (error) {
-    console.error("Failed to initialize geometry parameters:", error);
-  }
-}
-
-/**
- * Synchronize geometry parameters from the facade to the local state
- * @param geometryParams Record to update with current parameter values
- * @param geometryType Current geometry type
- * @returns Updated geometry parameters
- */
-export function syncGeometryParameters(
-  geometryParams: Record<string, number>,
-  geometryType: string
-): Record<string, number> {
-  const facade = facadeSignal.value;
-  const parameterStore = getParameterStore();
-
-  if (!facade || !facade.isInitialized()) {
-    // Fallback to parameter store if facade isn't available
-    return syncGeometryParametersFromStore(
-      geometryParams,
-      geometryType,
-      parameterStore
+      `[GeometryInitializer] Completed syncWithFacade, geometry type: ${geometryType}`
     );
   }
+}
 
-  // Get all geometry parameters based on type
-  if (geometryType === "plane") {
-    updateParamIfExists(geometryParams, facade, "planeWidth");
-    updateParamIfExists(geometryParams, facade, "planeHeight");
-    updateParamIfExists(geometryParams, facade, "planeSegments");
-  } else if (geometryType === "sphere") {
-    updateParamIfExists(geometryParams, facade, "sphereRadius");
-    updateParamIfExists(geometryParams, facade, "sphereWidthSegments");
-    updateParamIfExists(geometryParams, facade, "sphereHeightSegments");
-  } else if (geometryType === "cube") {
-    updateParamIfExists(geometryParams, facade, "cubeSize");
-    updateParamIfExists(geometryParams, facade, "cubeSegments");
+// Singleton instance
+let geometryInitializerInstance: GeometryInitializer | null = null;
+
+/**
+ * Get the geometry initializer instance
+ */
+export function getGeometryInitializer(): GeometryInitializer {
+  if (!geometryInitializerInstance) {
+    geometryInitializerInstance = new GeometryInitializer();
   }
-
-  return geometryParams;
+  return geometryInitializerInstance;
 }
 
 /**
- * Fallback method to sync geometry parameters from the parameter store
+ * Helper function to get a specific geometry parameter signal
  */
-function syncGeometryParametersFromStore(
-  geometryParams: Record<string, number>,
-  geometryType: string,
-  parameterStore: ReturnType<typeof getParameterStore>
-): Record<string, number> {
-  // Get all geometry parameters based on type
-  if (geometryType === "plane") {
-    updateParamFromStore(geometryParams, parameterStore, "planeWidth");
-    updateParamFromStore(geometryParams, parameterStore, "planeHeight");
-    updateParamFromStore(geometryParams, parameterStore, "planeSegments");
-  } else if (geometryType === "sphere") {
-    updateParamFromStore(geometryParams, parameterStore, "sphereRadius");
-    updateParamFromStore(geometryParams, parameterStore, "sphereWidthSegments");
-    updateParamFromStore(
-      geometryParams,
-      parameterStore,
-      "sphereHeightSegments"
-    );
-  } else if (geometryType === "cube") {
-    updateParamFromStore(geometryParams, parameterStore, "cubeSize");
-    updateParamFromStore(geometryParams, parameterStore, "cubeSegments");
-  }
-
-  return geometryParams;
+export function getGeometryParameter<K extends keyof GeometryParameters>(
+  paramName: K
+): Signal<GeometryParameters[K]> {
+  return getGeometryInitializer().getParameterSignal(paramName);
 }
 
 /**
- * Helper function to ensure a parameter exists in both the facade and parameter store
+ * Initialize geometry parameters with defaults and sync with facade
+ * This is called during app initialization
  */
-function ensureParameterExists(
-  facade: any,
-  parameterStore: ReturnType<typeof getParameterStore>,
-  paramName: string,
-  defaultValue: number
-): void {
-  const value = facade.getParam(paramName);
-  if (value === undefined) {
-    facade.updateParam(paramName, defaultValue);
-    parameterStore.setValue(paramName, defaultValue);
-  }
-}
-
-/**
- * Helper function to update a parameter in the geometry params object if it exists in the facade
- */
-function updateParamIfExists(
-  geometryParams: Record<string, number>,
-  facade: any,
-  paramName: string
-): void {
-  const value = facade.getParam(paramName);
-  if (value !== undefined) {
-    geometryParams[paramName] = value;
-  }
-}
-
-/**
- * Helper function to update a parameter in the geometry params object from the parameter store
- */
-function updateParamFromStore(
-  geometryParams: Record<string, number>,
-  parameterStore: ReturnType<typeof getParameterStore>,
-  paramName: string
-): void {
-  const value = parameterStore.getValue(paramName);
-  if (value !== undefined) {
-    geometryParams[paramName] = value;
-  }
-}
-
-/**
- * Sync the wireframe state from the parameter store
- * @returns Current wireframe state
- */
-export function syncWireframeState(): boolean {
-  const facade = facadeSignal.value;
-  const parameterStore = getParameterStore();
-
-  // Try to get wireframe setting from facade first
-  if (facade && facade.isInitialized()) {
-    const wireframeValue = facade.getParam("showWireframe");
-    if (wireframeValue !== undefined) {
-      return wireframeValue;
-    }
-  }
-
-  // Fallback to parameter store
-  const wireframeValue = parameterStore.getValue("showWireframe");
-  return wireframeValue !== undefined ? wireframeValue : false;
-}
-
-/**
- * Update a geometry parameter in both the store and facade
- * @param paramId Parameter ID to update
- * @param value New parameter value
- * @param recreateGeometry Whether to recreate the geometry after update
- * @returns Success status of the update
- */
-export function updateGeometryParameter(
-  paramId: string,
-  value: number,
-  recreateGeometry = true
-): boolean {
-  const parameterStore = getParameterStore();
-  const facade = facadeSignal.value;
-
-  // Update parameter store
-  parameterStore.setValue(paramId, value);
-
-  // Update facade if available
-  if (facade && facade.isInitialized()) {
-    return facade.updateParam(paramId as any, value, { recreateGeometry });
-  }
-
-  return true;
-}
-
-/**
- * Update the wireframe display parameter
- * @param checked New wireframe state
- * @returns Success status of the update
- */
-export function updateWireframeState(checked: boolean): boolean {
-  const parameterStore = getParameterStore();
-  const facade = facadeSignal.value;
-
-  // Update parameter store
-  parameterStore.setValue("showWireframe", checked);
-
-  // Update facade if available
-  if (facade && facade.isInitialized()) {
-    return facade.updateParam("showWireframe", checked);
-  }
-
-  return true;
-}
-
-/**
- * Update the geometry type
- * @param geometryType New geometry type
- * @returns Success status of the update
- */
-export function updateGeometryType(geometryType: string): boolean {
-  const geometryStore = getGeometryStore();
-
-  // Use the store's built-in method which also updates the facade
-  geometryStore.setGeometryType(geometryType);
-
-  // Initialize parameters for this geometry type to ensure all required params exist
-  try {
-    initializeGeometryParameters();
-    return true;
-  } catch (error) {
-    console.error("Error updating geometry type:", error);
-    return false;
-  }
+export function initializeGeometryParameters(): void {
+  const initializer = getGeometryInitializer();
+  initializer.syncWithFacade();
+  console.log("Geometry parameters initialized and synced with facade");
 }

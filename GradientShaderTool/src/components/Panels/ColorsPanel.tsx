@@ -1,113 +1,358 @@
 import type { FunctionComponent } from "preact";
-import { useComputed } from "@preact/signals";
+import { useEffect, useState } from "preact/hooks";
 
 import Select from "../UI/Select";
 import { FigmaInput } from "../FigmaInput";
 import { DirectionControl } from "../DirectionControl";
 import { Checkbox, ColorInput } from "../UI";
 import { SettingsField, SettingsGroup } from "../UI/SettingsGroup";
+import { getUIStore } from "../../lib/stores/UIStore";
+import { getExportStore } from "../../lib/stores/ExportStore";
 import {
-  getPanelSettings,
-  getSettingValue,
-  updateSettingValue,
-  batchUpdateSettings,
-} from "../../lib/settings/store";
-import type { SettingGroup, SelectSetting } from "../../lib/settings/types";
+  getColorInitializer,
+  getColorParameter,
+} from "../../lib/stores/ColorInitializer";
+import { useSignalValue } from "../../lib/hooks/useSignals";
 import { facadeSignal } from "../../app";
-import { useDebounce } from "../../lib/hooks/useDebounce";
-import { getExportStore } from "../../lib/stores/index";
+import { getColorStore, type ColorState } from "../../lib/stores/ColorStore";
 
 interface ColorsPanelProps {
   // No props needed for now
 }
 
-export const ColorsPanel: FunctionComponent<ColorsPanelProps> = () => {
-  // Use facadeSignal instead of useFacade
-  const facade = useComputed(() => facadeSignal.value);
+/**
+ * Color gradient mode options
+ */
+const GRADIENT_MODE_OPTIONS = [
+  { label: "B-Spline", value: 0 },
+  { label: "Linear", value: 1 },
+  { label: "Step", value: 2 },
+  { label: "Smooth Step", value: 3 },
+];
 
-  // Get the export store to keep transparent setting in sync
+export const ColorsPanel: FunctionComponent<ColorsPanelProps> = () => {
+  // Get the stores and initializer
+  const colorStore = getColorStore();
+  const colorInitializer = getColorInitializer();
+  const uiStore = getUIStore();
   const exportStore = getExportStore();
 
-  // Get the colors panel settings
-  const colorsPanelConfigSignal = getPanelSettings("colors");
-  const colorsPanelConfig = useComputed(() => colorsPanelConfigSignal.value);
+  // Local state for immediate UI updates
+  const [colorState, setColorState] = useState<ColorState>({
+    gradientMode: 0,
+    gradientShiftX: 0,
+    gradientShiftY: 0,
+    gradientShiftSpeed: 0,
 
-  // Create debounced update functions
-  const updateSettingWithDebounce = useDebounce((id: string, value: any) => {
-    updateSettingValue(id, value);
-    // The shader param update is now handled by updateSettingValue
-  }, 5);
+    color1: "#ffffff",
+    color2: "#ffffff",
+    color3: "#ffffff",
+    color4: "#ffffff",
 
-  // Handle flow direction changes immediately without debounce
-  const handleFlowDirectionChange = (id: string, value: number) => {
-    console.log(`DEBUG ColorsPanel direct update (${id}):`, value);
-    // Update directly without debounce
-    updateSettingValue(id, value);
-  };
+    colorNoiseScale: 1.0,
+    colorNoiseSpeed: 0.1,
 
-  // Handle slider value change
-  const handleSliderChange = (id: string, value: number) => {
-    // For flow direction controls, use immediate updates
-    if (id.includes("gradientShift")) {
-      handleFlowDirectionChange(id, value);
-    } else {
-      // For other sliders, use debounced updates
-      updateSettingWithDebounce(id, value);
+    backgroundColor: "#000000",
+    transparentBackground: false,
+  });
+
+  // Synchronize local state with store on initialization and when panel is opened
+  useEffect(() => {
+    console.log("ColorsPanel: Initializing panel");
+
+    // Force ColorInitializer to sync with facade
+    colorInitializer.syncWithFacade();
+
+    // First, try to get colors directly from facade for immediate accurate values
+    const facade = facadeSignal.value;
+    if (facade && facade.isInitialized()) {
+      console.log("ColorsPanel: Loading values directly from facade");
+
+      // Get all needed parameters directly from facade
+      try {
+        const updatedState: ColorState = {
+          gradientMode: facade.getParam("gradientMode"),
+          gradientShiftX: facade.getParam("gradientShiftX"),
+          gradientShiftY: facade.getParam("gradientShiftY"),
+          gradientShiftSpeed: facade.getParam("gradientShiftSpeed"),
+
+          color1: facade.getParam("color1"),
+          color2: facade.getParam("color2"),
+          color3: facade.getParam("color3"),
+          color4: facade.getParam("color4"),
+
+          colorNoiseScale: facade.getParam("colorNoiseScale"),
+          colorNoiseSpeed: facade.getParam("colorNoiseSpeed"),
+
+          backgroundColor: facade.getParam("backgroundColor"),
+          transparentBackground: facade.getParam("exportTransparentBg"),
+        };
+
+        // Set color state directly from facade
+        setColorState(updatedState);
+        console.log("ColorsPanel: Loaded facade values:", updatedState);
+      } catch (error) {
+        console.error("ColorsPanel: Error loading from facade:", error);
+      }
     }
-  };
 
-  // Handle transparent background toggle
-  const handleTransparentBackgroundChange = (checked: boolean) => {
-    // Update the settings store
-    updateSettingValue("transparentBackground", checked);
+    // Also sync with store as a fallback
+    syncWithStore();
 
-    // Also update the export store to keep them in sync
-    exportStore.updateImageSettings({
-      transparent: checked,
-    });
+    // Set up polling interval to keep UI updated with any external changes
+    // (similar to CameraPanel approach)
+    const intervalId = setInterval(() => {
+      syncWithStore();
+    }, 500);
 
-    // Update the facade directly if available to ensure immediate visual feedback
-    if (facade.value) {
-      facade.value.updateParam("exportTransparentBg", checked);
+    // Set up facade event listener for preset changes
+    if (facade) {
+      const handlePresetApplied = () => {
+        console.log("ColorsPanel: Preset applied event detected");
+
+        // Log current values in facade for debugging
+        const currentFacadeValues = {
+          color1: facade.getParam("color1"),
+          color2: facade.getParam("color2"),
+          color3: facade.getParam("color3"),
+          color4: facade.getParam("color4"),
+          gradientMode: facade.getParam("gradientMode"),
+          gradientShiftX: facade.getParam("gradientShiftX"),
+          gradientShiftY: facade.getParam("gradientShiftY"),
+          gradientShiftSpeed: facade.getParam("gradientShiftSpeed"),
+        };
+
+        console.log(
+          "ColorsPanel: Facade values before sync:",
+          currentFacadeValues
+        );
+
+        // Force sync with facade
+        colorInitializer.syncWithFacade();
+
+        // Get current color parameter values directly from signals for debugging
+        const signalValues = {
+          color1: colorStore.color1.value,
+          color2: colorStore.color2.value,
+          color3: colorStore.color3.value,
+          color4: colorStore.color4.value,
+          gradientMode: colorStore.gradientMode.value,
+        };
+
+        console.log("ColorsPanel: Signal values after sync:", signalValues);
+
+        // Direct update from facade
+        const updatedState: ColorState = {
+          gradientMode: facade.getParam("gradientMode"),
+          gradientShiftX: facade.getParam("gradientShiftX"),
+          gradientShiftY: facade.getParam("gradientShiftY"),
+          gradientShiftSpeed: facade.getParam("gradientShiftSpeed"),
+
+          color1: facade.getParam("color1"),
+          color2: facade.getParam("color2"),
+          color3: facade.getParam("color3"),
+          color4: facade.getParam("color4"),
+
+          colorNoiseScale: facade.getParam("colorNoiseScale"),
+          colorNoiseSpeed: facade.getParam("colorNoiseSpeed"),
+
+          backgroundColor: facade.getParam("backgroundColor"),
+          transparentBackground: facade.getParam("exportTransparentBg"),
+        };
+
+        // Force update local state with facade values
+        setColorState(updatedState);
+
+        console.log(
+          "ColorsPanel: Forced direct update from facade:",
+          updatedState
+        );
+      };
+
+      facade.on("preset-applied", handlePresetApplied);
+      console.log("ColorsPanel: Registered preset-applied event listener");
+
+      return () => {
+        clearInterval(intervalId);
+        facade.off("preset-applied", handlePresetApplied);
+        console.log("ColorsPanel: Removed preset-applied event listener");
+      };
     }
+
+    return () => {
+      clearInterval(intervalId);
+    };
+  }, []);
+
+  // Function to sync local state from the store
+  const syncWithStore = () => {
+    const storeState = colorStore.getColorState();
+
+    // Debug for sync
+    const oldColor1 = colorState.color1;
+    const newColor1 = storeState.color1;
+
+    if (oldColor1 !== newColor1) {
+      console.log(
+        `ColorPanel: Syncing color1 changed from ${oldColor1} to ${newColor1}`
+      );
+    }
+
+    setColorState(storeState);
   };
-
-  // If no settings are available, show a placeholder
-  if (!colorsPanelConfig.value) {
-    return <div className="noSettings">No color settings available</div>;
-  }
-
-  // Find the gradient mode settings group
-  const gradientModeGroup = colorsPanelConfig.value.groups.find(
-    (group: SettingGroup) => group.id === "gradientMode"
-  );
-
-  // Find the colors settings group
-  const colorsGroup = colorsPanelConfig.value.groups.find(
-    (group: SettingGroup) => group.id === "colors"
-  );
-
-  // Find the gradient mode setting
-  const gradientModeSetting = gradientModeGroup?.settings.find(
-    (setting): setting is SelectSetting => setting.id === "gradientMode"
-  );
 
   // Handle gradient mode change
   const handleGradientModeChange = (value: string) => {
     const numericValue = parseInt(value, 10);
-    updateSettingValue("gradientMode", numericValue);
+
+    // Update local state immediately for UI responsiveness
+    setColorState((prev) => ({
+      ...prev,
+      gradientMode: numericValue,
+    }));
+
+    // Update store/initializer
+    colorStore.setColorParameter("gradientMode", numericValue);
   };
 
-  // Handle color change
-  const handleColorChange = (id: string, value: string) => {
-    updateSettingWithDebounce(id, value);
+  // Handle color changes
+  const handleColor1Change = (value: string) => {
+    // Update local state immediately
+    setColorState((prev) => ({
+      ...prev,
+      color1: value,
+    }));
+
+    // Update store/initializer
+    colorStore.setColorParameter("color1", value);
+  };
+
+  const handleColor2Change = (value: string) => {
+    // Update local state immediately
+    setColorState((prev) => ({
+      ...prev,
+      color2: value,
+    }));
+
+    // Update store/initializer
+    colorStore.setColorParameter("color2", value);
+  };
+
+  const handleColor3Change = (value: string) => {
+    // Update local state immediately
+    setColorState((prev) => ({
+      ...prev,
+      color3: value,
+    }));
+
+    // Update store/initializer
+    colorStore.setColorParameter("color3", value);
+  };
+
+  const handleColor4Change = (value: string) => {
+    // Update local state immediately
+    setColorState((prev) => ({
+      ...prev,
+      color4: value,
+    }));
+
+    // Update store/initializer
+    colorStore.setColorParameter("color4", value);
+  };
+
+  // Handle color noise changes
+  const handleColorNoiseScaleChange = (value: number) => {
+    // Update local state immediately
+    setColorState((prev) => ({
+      ...prev,
+      colorNoiseScale: value,
+    }));
+
+    // Update store/initializer
+    colorStore.setColorParameter("colorNoiseScale", value);
+  };
+
+  const handleColorNoiseSpeedChange = (value: number) => {
+    // Update local state immediately
+    setColorState((prev) => ({
+      ...prev,
+      colorNoiseSpeed: value,
+    }));
+
+    // Update store/initializer
+    colorStore.setColorParameter("colorNoiseSpeed", value);
+  };
+
+  // Handle gradient shift changes
+  const handleGradientShiftXChange = (value: number) => {
+    // Update local state immediately
+    setColorState((prev) => ({
+      ...prev,
+      gradientShiftX: value,
+    }));
+
+    // Update store/initializer
+    colorStore.setColorParameter("gradientShiftX", value);
+  };
+
+  const handleGradientShiftYChange = (value: number) => {
+    // Update local state immediately
+    setColorState((prev) => ({
+      ...prev,
+      gradientShiftY: value,
+    }));
+
+    // Update store/initializer
+    colorStore.setColorParameter("gradientShiftY", value);
+  };
+
+  const handleGradientShiftSpeedChange = (value: number) => {
+    // Update local state immediately
+    setColorState((prev) => ({
+      ...prev,
+      gradientShiftSpeed: value,
+    }));
+
+    // Update store/initializer
+    colorStore.setColorParameter("gradientShiftSpeed", value);
+  };
+
+  // Handle background color change
+  const handleBackgroundColorChange = (value: string) => {
+    // Update local state immediately
+    setColorState((prev) => ({
+      ...prev,
+      backgroundColor: value,
+    }));
+
+    // Update store/initializer
+    colorStore.setColorParameter("backgroundColor", value);
+  };
+
+  // Handle transparent background toggle with cross-component sync
+  const handleTransparentBackgroundChange = (checked: boolean) => {
+    // Update local state immediately
+    setColorState((prev) => ({
+      ...prev,
+      transparentBackground: checked,
+    }));
+
+    // Use initializer's specialized method for cross-component sync
+    colorInitializer.updateTransparentBackground(checked);
+  };
+
+  // Handle reset button click
+  const handleReset = () => {
+    colorInitializer.reset();
+    // Sync local state after reset
+    syncWithStore();
+    uiStore.showToast("Color settings reset to defaults", "success");
   };
 
   // Get the label for the current gradient mode
   const getGradientModeLabel = () => {
-    const currentValue = getSettingValue("gradientMode") as number;
-    const option = gradientModeSetting?.options.find(
-      (opt) => opt.value === currentValue
+    const option = GRADIENT_MODE_OPTIONS.find(
+      (opt) => opt.value === colorState.gradientMode
     );
     return option ? option.label : "Select mode";
   };
@@ -116,119 +361,112 @@ export const ColorsPanel: FunctionComponent<ColorsPanelProps> = () => {
     <>
       {/* Gradient Mode Select */}
       <SettingsGroup title="Gradient" collapsible={false} header={false}>
-        {gradientModeSetting && (
-          <SettingsField label={gradientModeSetting.label}>
-            <Select.Root
-              value={(getSettingValue("gradientMode") as number).toString()}
-              onValueChange={handleGradientModeChange}
-            >
-              <Select.Trigger>{getGradientModeLabel()}</Select.Trigger>
-              <Select.Content>
-                {gradientModeSetting.options.map((option) => (
-                  <Select.Item
-                    key={option.value.toString()}
-                    value={option.value.toString()}
-                  >
-                    {option.label}
-                  </Select.Item>
-                ))}
-              </Select.Content>
-            </Select.Root>
-          </SettingsField>
-        )}
+        <SettingsField label="Mode">
+          <Select.Root
+            value={colorState.gradientMode.toString()}
+            onValueChange={handleGradientModeChange}
+          >
+            <Select.Trigger>{getGradientModeLabel()}</Select.Trigger>
+            <Select.Content>
+              {GRADIENT_MODE_OPTIONS.map((option) => (
+                <Select.Item
+                  key={option.value.toString()}
+                  value={option.value.toString()}
+                >
+                  {option.label}
+                </Select.Item>
+              ))}
+            </Select.Content>
+          </Select.Root>
+        </SettingsField>
       </SettingsGroup>
 
       {/* Colors */}
-      {colorsGroup && (
-        <SettingsGroup title="Colors" collapsible={false} header={false}>
-          {colorsGroup.settings.map((setting) => {
-            if (setting.type === "color") {
-              const currentValue = getSettingValue(setting.id) as string;
+      <SettingsGroup title="Colors" collapsible={false} header={false}>
+        <SettingsField label="Color 1">
+          <ColorInput
+            value={colorState.color1}
+            onChange={handleColor1Change}
+            debounce={5}
+          />
+        </SettingsField>
 
-              return (
-                <SettingsField key={setting.id} label={setting.label}>
-                  <ColorInput
-                    value={currentValue}
-                    onChange={(value: string) =>
-                      handleColorChange(setting.id, value)
-                    }
-                    debounce={5}
-                  />
-                </SettingsField>
-              );
-            }
-            return null;
-          })}
-        </SettingsGroup>
-      )}
+        <SettingsField label="Color 2">
+          <ColorInput
+            value={colorState.color2}
+            onChange={handleColor2Change}
+            debounce={5}
+          />
+        </SettingsField>
+
+        <SettingsField label="Color 3">
+          <ColorInput
+            value={colorState.color3}
+            onChange={handleColor3Change}
+            debounce={5}
+          />
+        </SettingsField>
+
+        <SettingsField label="Color 4">
+          <ColorInput
+            value={colorState.color4}
+            onChange={handleColor4Change}
+            debounce={5}
+          />
+        </SettingsField>
+      </SettingsGroup>
 
       {/* Color Noise Settings */}
-
       <SettingsGroup title="Color Noise" collapsible={false} header={false}>
         <SettingsField label="Scale" labelDir="row">
           <FigmaInput
-            value={getSettingValue("colorNoiseScale") as number}
+            value={colorState.colorNoiseScale}
             min={0}
             max={10}
             step={0.1}
-            onChange={(value) => handleSliderChange("colorNoiseScale", value)}
+            onChange={handleColorNoiseScaleChange}
           />
         </SettingsField>
 
         <SettingsField label="Speed" labelDir="row">
           <FigmaInput
-            value={getSettingValue("colorNoiseSpeed") as number}
+            value={colorState.colorNoiseSpeed}
             min={0}
             max={1}
             step={0.01}
-            onChange={(value) => handleSliderChange("colorNoiseSpeed", value)}
+            onChange={handleColorNoiseSpeedChange}
           />
         </SettingsField>
 
         <DirectionControl
-          valueX={getSettingValue("gradientShiftX") as number}
-          valueY={getSettingValue("gradientShiftY") as number}
-          speed={getSettingValue("gradientShiftSpeed") as number}
+          valueX={colorState.gradientShiftX}
+          valueY={colorState.gradientShiftY}
+          speed={colorState.gradientShiftSpeed}
           min={-1}
           max={1}
           minSpeed={0}
-          maxSpeed={0.5}
+          maxSpeed={1}
           step={0.01}
-          onChangeX={(value) => {
-            console.log("DEBUG ColorsPanel onChangeX:", value);
-            handleFlowDirectionChange("gradientShiftX", value);
-          }}
-          onChangeY={(value) => {
-            console.log("DEBUG ColorsPanel onChangeY:", value);
-            handleFlowDirectionChange("gradientShiftY", value);
-          }}
-          onChangeSpeed={(value) => {
-            console.log("DEBUG ColorsPanel onChangeSpeed:", value);
-            handleFlowDirectionChange("gradientShiftSpeed", value);
-          }}
+          onChangeX={handleGradientShiftXChange}
+          onChangeY={handleGradientShiftYChange}
+          onChangeSpeed={handleGradientShiftSpeedChange}
         />
       </SettingsGroup>
 
       {/* Background Settings */}
       <SettingsGroup title="Background" collapsible={false} header={false}>
-        <SettingsField label="Transparent">
-          {/* Transparent Background Toggle */}
-          <Checkbox
-            checked={
-              (getSettingValue("transparentBackground") as boolean) ?? false
-            }
-            onChange={handleTransparentBackgroundChange}
+        <SettingsField label="Color">
+          <ColorInput
+            value={colorState.backgroundColor}
+            onChange={handleBackgroundColorChange}
+            debounce={5}
           />
         </SettingsField>
 
-        {/* Background Color */}
-        <SettingsField label="Color">
-          <ColorInput
-            value={getSettingValue("backgroundColor") as string}
-            onChange={(value: string) =>
-              handleColorChange("backgroundColor", value)
-            }
-            debounce={5}
+        <SettingsField label="Transparent Background">
+          <Checkbox
+            checked={colorState.transparentBackground}
+            onChange={handleTransparentBackgroundChange}
           />
         </SettingsField>
       </SettingsGroup>

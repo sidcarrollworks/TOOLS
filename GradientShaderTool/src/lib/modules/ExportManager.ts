@@ -21,11 +21,17 @@ export class ExportManager {
   /**
    * Save the current canvas as image
    */
-  saveAsImage(): void {
+  saveAsImage(): string | null {
     if (!this.app.renderer) {
       console.error("Cannot save image: Renderer not initialized");
-      return;
+      return null;
     }
+
+    // Store original renderer clear color and alpha
+    const originalClearColor = this.app.renderer.getClearColor(
+      new THREE.Color()
+    );
+    const originalClearAlpha = this.app.renderer.getClearAlpha();
 
     // Transparent background option
     if (this.app.params.exportTransparentBg) {
@@ -37,80 +43,33 @@ export class ExportManager {
       this.app.renderer.setClearColor(bgColor);
     }
 
-    // Quality options
-    if (this.app.params.exportHighQuality) {
-      // For high quality, we'll recreate the geometry with more segments
-      // Store current segments
-      const currentPlaneSegments = this.app.params.planeSegments;
-      const currentSphereWidthSegments = this.app.params.sphereWidthSegments;
-      const currentSphereHeightSegments = this.app.params.sphereHeightSegments;
+    // Export the canvas - high quality geometry should already be created by the facade if needed
+    console.log("ExportManager: Exporting canvas to image");
+    const dataURL = this.exportCanvas();
 
-      // Set higher segment count
-      this.app.params.planeSegments = Math.min(512, currentPlaneSegments * 2);
-      this.app.params.sphereWidthSegments = Math.min(
-        256,
-        currentSphereWidthSegments * 2
-      );
-      this.app.params.sphereHeightSegments = Math.min(
-        256,
-        currentSphereHeightSegments * 2
-      );
+    // Always restore original renderer settings
+    this.app.renderer.setClearColor(originalClearColor, originalClearAlpha);
 
-      // Recreate with high quality
-      this.app.recreateGeometryHighQuality();
-
-      // Render the scene
-      if (this.app.scene && this.app.camera) {
-        this.app.renderer.render(this.app.scene, this.app.camera);
-      }
-
-      // Export the canvas
-      this.exportCanvas();
-
-      // Restore original settings
-      this.app.params.planeSegments = currentPlaneSegments;
-      this.app.params.sphereWidthSegments = currentSphereWidthSegments;
-      this.app.params.sphereHeightSegments = currentSphereHeightSegments;
-
-      // Recreate with original quality
-      this.app.recreateGeometryHighQuality();
-    } else {
-      // Just export the canvas as is
-      this.exportCanvas();
-    }
-
-    // Restore background settings if needed
-    if (this.app.params.exportTransparentBg) {
-      const bgColor = new THREE.Color(this.app.params.backgroundColor);
-      this.app.renderer.setClearColor(bgColor);
-    }
+    return dataURL;
   }
 
   /**
    * Export the canvas as an image
+   * @returns The data URL of the exported canvas, or null if export failed
    */
-  private exportCanvas(): void {
-    if (!this.app.renderer) return;
+  private exportCanvas(): string | null {
+    if (!this.app.renderer) return null;
 
     // Get the canvas
     const canvas = this.app.renderer.domElement;
 
-    // Create a temporary link to download the image
     try {
       // Generate a data URL from the canvas
       const dataURL = canvas.toDataURL("image/png");
-
-      // Create a link element
-      const link = document.createElement("a");
-      link.download = "gradient-shader.png";
-      link.href = dataURL;
-
-      // Add to document, click, and remove
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
+      return dataURL;
     } catch (error) {
       console.error("Error exporting canvas:", error);
+      return null;
     }
   }
 

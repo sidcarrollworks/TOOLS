@@ -19,6 +19,7 @@ import type { FacadeConfig } from "./FacadeConfig";
 import { createConfig } from "./FacadeConfig";
 import type { ShaderApp, ShaderParams } from "../ShaderApp";
 import { validateSetting } from "../settings/mappings/utils";
+import * as THREE from "three";
 
 /**
  * Implementation of the ShaderAppFacade interface
@@ -812,9 +813,53 @@ export class ShaderAppFacade extends EventEmitter implements IShaderAppFacade {
         settings: mergedOptions,
       });
 
+      // Ensure app is initialized
+      if (!this.app || !this.app.renderer) {
+        throw new Error("App or renderer not initialized");
+      }
+
+      // Save original renderer state
+      const originalClearColor = this.app.renderer.getClearColor(
+        new THREE.Color()
+      );
+      const originalClearAlpha = this.app.renderer.getClearAlpha();
+
+      // Save original parameter values that we'll temporarily change
+      const originalParams = {
+        exportTransparentBg: this.app.params.exportTransparentBg,
+        exportHighQuality: this.app.params.exportHighQuality,
+        time: this.app.time, // Save the animation time value
+      };
+
+      // Store a snapshot of animation/distortion parameters that shouldn't change
+      const animParams = {
+        // Normal noise (distortion) parameters
+        normalNoiseScaleX: this.app.params.normalNoiseScaleX,
+        normalNoiseScaleY: this.app.params.normalNoiseScaleY,
+        normalNoiseSpeed: this.app.params.normalNoiseSpeed,
+        normalNoiseStrength: this.app.params.normalNoiseStrength,
+        normalNoiseShiftX: this.app.params.normalNoiseShiftX,
+        normalNoiseShiftY: this.app.params.normalNoiseShiftY,
+        normalNoiseShiftSpeed: this.app.params.normalNoiseShiftSpeed,
+
+        // Color and animation parameters
+        colorNoiseScale: this.app.params.colorNoiseScale,
+        colorNoiseSpeed: this.app.params.colorNoiseSpeed,
+        gradientShiftSpeed: this.app.params.gradientShiftSpeed,
+        animationSpeed: this.app.params.animationSpeed,
+      };
+
+      console.log("Facade: Exporting image with settings:", mergedOptions);
+      console.log("Facade: Original animation parameters:", animParams);
+
       // Set export parameters
-      this.app!.params.exportTransparentBg = mergedOptions.transparent;
-      this.app!.params.exportHighQuality = mergedOptions.highQuality;
+      this.app.params.exportTransparentBg = mergedOptions.transparent;
+      this.app.params.exportHighQuality = mergedOptions.highQuality;
+
+      console.log("Facade: Set export parameters:", {
+        transparent: this.app.params.exportTransparentBg,
+        highQuality: this.app.params.exportHighQuality,
+      });
 
       // Pause animation if it's running
       const wasAnimating = this.isAnimating();
@@ -822,36 +867,114 @@ export class ShaderAppFacade extends EventEmitter implements IShaderAppFacade {
         this.stopAnimation();
       }
 
-      // Render a high-quality frame
-      if (mergedOptions.highQuality) {
-        this.app!.recreateGeometryHighQuality();
+      // === RENDER HIGH QUALITY FRAME ===
+
+      // Apply transparent background if needed
+      if (mergedOptions.transparent) {
+        this.app.renderer.setClearColor(0x000000, 0); // Black with 0 opacity
+      } else {
+        const bgColor = new THREE.Color(this.app.params.backgroundColor);
+        this.app.renderer.setClearColor(bgColor);
       }
+
+      // Recreate geometry with high quality if requested
+      if (mergedOptions.highQuality) {
+        console.log("Facade: Recreating geometry with high quality");
+        this.app.recreateGeometryHighQuality();
+      }
+
+      // Render the frame
       this.renderFrame();
 
-      // Save the image
-      this.app!.saveAsImage();
-
-      // Since the actual saveAsImage doesn't return the URL, we'll simulate the behavior
-      // In a real implementation, the exportManager should be modified to return the URL
-      const mockImageUrl = `data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==`;
-
-      // Restore animation if it was running
-      if (wasAnimating) {
-        this.startAnimation();
+      // Get dataURL directly from the canvas - bypass ShaderApp.saveAsImage to avoid duplicate processing
+      let dataURL: string | null = null;
+      try {
+        const canvas = this.app.renderer.domElement;
+        dataURL = canvas.toDataURL("image/png");
+      } catch (error) {
+        console.error("Error exporting canvas:", error);
+        throw new Error(
+          `Failed to generate image data URL: ${(error as Error).message}`
+        );
       }
 
-      // Recreate with normal quality if needed
+      // === RESTORE ORIGINAL STATE ===
+
+      // Restore original renderer settings
+      this.app.renderer.setClearColor(originalClearColor, originalClearAlpha);
+
+      // Recreate with original quality if needed
       if (mergedOptions.highQuality) {
-        this.app!.recreateGeometry();
+        console.log("Facade: Recreating geometry with normal quality");
+        this.app.recreateGeometry();
+      }
+
+      // Restore original parameter values
+      this.app.params.exportTransparentBg = originalParams.exportTransparentBg;
+      this.app.params.exportHighQuality = originalParams.exportHighQuality;
+      this.app.time = originalParams.time; // Restore the animation time value
+
+      // Restore all animation-related parameters that may have been altered
+      this.app.params.normalNoiseScaleX = animParams.normalNoiseScaleX;
+      this.app.params.normalNoiseScaleY = animParams.normalNoiseScaleY;
+      this.app.params.normalNoiseSpeed = animParams.normalNoiseSpeed;
+      this.app.params.normalNoiseStrength = animParams.normalNoiseStrength;
+      this.app.params.normalNoiseShiftX = animParams.normalNoiseShiftX;
+      this.app.params.normalNoiseShiftY = animParams.normalNoiseShiftY;
+      this.app.params.normalNoiseShiftSpeed = animParams.normalNoiseShiftSpeed;
+      this.app.params.colorNoiseScale = animParams.colorNoiseScale;
+      this.app.params.colorNoiseSpeed = animParams.colorNoiseSpeed;
+      this.app.params.gradientShiftSpeed = animParams.gradientShiftSpeed;
+      this.app.params.animationSpeed = animParams.animationSpeed;
+
+      console.log("Facade: Restored animation parameters:", {
+        normalNoiseSpeed: this.app.params.normalNoiseSpeed,
+        normalNoiseShiftSpeed: this.app.params.normalNoiseShiftSpeed,
+        colorNoiseSpeed: this.app.params.colorNoiseSpeed,
+      });
+
+      // Force uniforms update with restored params to ensure animation continues
+      // from the exact same state it was before export
+      this.app.updateParams(false);
+
+      // Emit parameter change events for the restored parameters to ensure UI components update
+      // These are the parameters that are most likely to be affected by animation and export process
+      const criticalParams = [
+        "normalNoiseSpeed",
+        "normalNoiseShiftSpeed",
+        "colorNoiseSpeed",
+        "gradientShiftSpeed",
+        "animationSpeed",
+      ];
+
+      // Emit events for each restored parameter
+      criticalParams.forEach((paramName) => {
+        this.emit("parameter-changed", {
+          paramName,
+          value: (this.app.params as any)[paramName],
+          source: "preset", // Use "preset" as the source since we're restoring to a previous state
+        });
+      });
+
+      // Emit a general export-complete notification parameter
+      this.emit("parameter-changed", {
+        paramName: "exportComplete",
+        value: true,
+        source: "user",
+      });
+
+      // Restore animation if it was running
+      if (wasAnimating && this.app) {
+        this.startAnimation();
       }
 
       // Emit export complete event
       this.emit("export-complete", {
         type: "image",
-        result: mockImageUrl,
+        result: dataURL,
       });
 
-      return mockImageUrl;
+      return dataURL;
     } catch (error) {
       // Handle errors during export
       this.emit("error", {

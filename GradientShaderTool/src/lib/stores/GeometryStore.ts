@@ -1,7 +1,38 @@
-import { StoreBase } from "./StoreBase";
+import { computed } from "@preact/signals";
+import { SignalStoreBase } from "./SignalStoreBase";
 import { facadeSignal } from "../../app";
 import { getUIStore } from "./UIStore";
 import type { IShaderAppFacade } from "../facade/types";
+import {
+  getGeometryInitializer,
+  getGeometryParameter,
+} from "./GeometryInitializer";
+import { effect } from "@preact/signals-core";
+
+/**
+ * Facade bindings for geometry parameters
+ */
+export const FACADE_BINDINGS = {
+  // Core geometry properties
+  geometryType: "geometryType",
+  resolution: "resolution",
+  wireframe: "showWireframe",
+  useAdaptiveResolution: "useAdaptiveResolution",
+
+  // Plane geometry
+  planeWidth: "planeWidth",
+  planeHeight: "planeHeight",
+  planeSegments: "planeSegments",
+
+  // Sphere geometry
+  sphereRadius: "sphereRadius",
+  sphereWidthSegments: "sphereWidthSegments",
+  sphereHeightSegments: "sphereHeightSegments",
+
+  // Cube geometry
+  cubeSize: "cubeSize",
+  cubeSegments: "cubeSegments",
+};
 
 /**
  * Geometry parameter interface
@@ -20,14 +51,9 @@ export interface GeometryParameters {
 }
 
 /**
- * Geometry state interface
+ * Geometry state interface - only contains status properties since parameters are now in signals
  */
 export interface GeometryState {
-  // Core geometry properties
-  geometryType: string;
-  resolution: number; // We'll map this to the appropriate segments property based on geometry type
-  useAdaptiveResolution: boolean;
-
   // Status tracking
   isRebuilding: boolean;
   needsRebuild: boolean;
@@ -44,9 +70,28 @@ export interface GeometryState {
 }
 
 /**
- * Store for geometry state management
+ * Default state for geometry
  */
-export class GeometryStore extends StoreBase<GeometryState> {
+const DEFAULT_GEOMETRY_STATE: GeometryState = {
+  // Status tracking
+  isRebuilding: false,
+  needsRebuild: false,
+  rebuildPercentage: 0,
+  lastRebuildTime: 0,
+  rebuildDuration: 0,
+
+  // Performance metrics
+  lastPerformance: {
+    vertexCount: 0,
+    triangleCount: 0,
+    buildTimeMs: 0,
+  },
+};
+
+/**
+ * Store for geometry state management using signals
+ */
+export class GeometryStore extends SignalStoreBase<GeometryState> {
   /**
    * Minimum resolution value
    */
@@ -63,344 +108,238 @@ export class GeometryStore extends StoreBase<GeometryState> {
   private static DEFAULT_RESOLUTION = 128;
 
   /**
-   * Rebuild request timeout
+   * Timeout for scheduled rebuilds
    */
   private rebuildTimeout: number | null = null;
 
-  /**
-   * Create a new geometry store
-   */
-  constructor() {
-    super(
-      {
-        // Initial geometry state
-        geometryType: "plane",
-        resolution: GeometryStore.DEFAULT_RESOLUTION,
-        useAdaptiveResolution: false,
+  // Computed signals for core parameters
+  private readonly _geometryType = getGeometryParameter("geometryType");
+  private readonly _resolution = getGeometryParameter("resolution");
+  private readonly _wireframe = getGeometryParameter("wireframe");
+  private readonly _useAdaptiveResolution = getGeometryParameter(
+    "useAdaptiveResolution"
+  );
 
-        // Initial status
-        isRebuilding: false,
-        needsRebuild: false,
-        rebuildPercentage: 0,
-        lastRebuildTime: 0,
-        rebuildDuration: 0,
+  // Public readonly signals
+  public readonly geometryType = this._geometryType;
+  public readonly resolution = this._resolution;
+  public readonly wireframe = this._wireframe;
+  public readonly useAdaptiveResolution = this._useAdaptiveResolution;
 
-        // Initial performance metrics
-        lastPerformance: {
-          vertexCount: 0,
-          triangleCount: 0,
-          buildTimeMs: 0,
-        },
-      },
-      { name: "GeometryStore", debug: false }
-    );
+  // Computed signal for type-specific segment parameter
+  public readonly segmentParameterName = computed(() => {
+    const type = this._geometryType.value;
 
-    // Initialize from facade when available
-    this.initFromFacade();
-  }
-
-  /**
-   * Initialize store state from facade
-   */
-  private initFromFacade(): void {
-    const facade = facadeSignal.value;
-    if (!facade) return;
-
-    try {
-      // Get current geometry parameters
-      const params = facade.getAllParams();
-
-      // Determine resolution based on geometry type
-      let resolution = this.get("resolution");
-      switch (params.geometryType) {
-        case "plane":
-          resolution = params.planeSegments || resolution;
-          break;
-        case "sphere":
-          resolution = params.sphereWidthSegments || resolution;
-          break;
-        case "cube":
-          resolution = params.cubeSegments || resolution;
-          break;
-      }
-
-      // Update store state with relevant params
-      this.setState({
-        geometryType:
-          typeof params.geometryType === "string"
-            ? params.geometryType
-            : this.get("geometryType"),
-        resolution: resolution,
-        useAdaptiveResolution:
-          typeof params.useAdaptiveResolution === "boolean"
-            ? params.useAdaptiveResolution
-            : this.get("useAdaptiveResolution"),
-      });
-    } catch (error) {
-      console.error("Failed to initialize GeometryStore from facade:", error);
-      getUIStore().showToast("Failed to initialize geometry settings", "error");
-    }
-  }
-
-  /**
-   * Get the appropriate segment parameter name based on geometry type
-   */
-  private getSegmentParameterName(): string {
-    switch (this.get("geometryType")) {
+    switch (type) {
       case "plane":
         return "planeSegments";
       case "sphere":
-        return "sphereWidthSegments"; // Using width for simplicity
+        return "sphereWidthSegments";
       case "cube":
-        return "cubeSegments"; // Using a unified segments parameter
+        return "cubeSegments";
       default:
         return "planeSegments";
     }
+  });
+
+  constructor() {
+    super(DEFAULT_GEOMETRY_STATE, {
+      name: "geometry",
+      debug: false,
+      autoSyncWithFacade: false,
+    });
+
+    // Set up facade bindings
+    this.setupFacadeBindings();
+
+    // Listen for geometry changes from the facade
+    this.setupFacadeListeners();
+
+    console.log("GeometryStore initialized with signals");
   }
 
   /**
-   * Set geometry type
+   * Set up facade bindings
    */
-  public setGeometryType(type: string): void {
-    if (type === this.get("geometryType")) return;
+  private setupFacadeBindings(): void {
+    // Create effects to sync each parameter with the facade
+    effect(() => {
+      const facade = this.getFacade();
+      if (!facade || !facade.isInitialized() || this.isSyncing) return;
 
-    this.set("geometryType", type);
-    this.set("needsRebuild", true);
+      const geometryType = this._geometryType.value;
+      facade.updateParam("geometryType" as any, geometryType);
+    });
 
-    // Update the facade directly
-    const facade = facadeSignal.value;
-    if (facade) {
-      try {
-        facade.setGeometryType(type);
-      } catch (error) {
-        console.error("Failed to set geometry type:", error);
-      }
-    } else {
-      this.scheduleRebuild();
-    }
+    effect(() => {
+      const facade = this.getFacade();
+      if (!facade || !facade.isInitialized() || this.isSyncing) return;
+
+      const resolution = this._resolution.value;
+      facade.updateParam("resolution" as any, resolution);
+    });
+
+    effect(() => {
+      const facade = this.getFacade();
+      if (!facade || !facade.isInitialized() || this.isSyncing) return;
+
+      const wireframe = this._wireframe.value;
+      facade.updateParam("showWireframe" as any, wireframe);
+    });
+
+    effect(() => {
+      const facade = this.getFacade();
+      if (!facade || !facade.isInitialized() || this.isSyncing) return;
+
+      const useAdaptiveResolution = this._useAdaptiveResolution.value;
+      facade.updateParam("useAdaptiveResolution" as any, useAdaptiveResolution);
+    });
   }
 
   /**
-   * Set resolution value
+   * Set up listeners for facade events
    */
-  public setResolution(resolution: number): void {
-    // Clamp resolution to valid range
-    const clampedResolution = Math.max(
-      GeometryStore.MIN_RESOLUTION,
-      Math.min(GeometryStore.MAX_RESOLUTION, resolution)
+  private setupFacadeListeners(): void {
+    const facade = this.getFacade();
+    if (!facade || !facade.isInitialized()) return;
+
+    // Listen for geometry change events
+    facade.on("geometry-changed", this.handleGeometryChanged.bind(this));
+    facade.on(
+      "geometry-build-progress" as any,
+      this.handleBuildProgress.bind(this)
     );
-
-    if (clampedResolution === this.get("resolution")) return;
-
-    this.set("resolution", clampedResolution);
-    this.set("needsRebuild", true);
-
-    // Update the facade with the appropriate segment parameter
-    const facade = facadeSignal.value;
-    if (facade) {
-      const segmentParam = this.getSegmentParameterName();
-      facade.updateParam(segmentParam as any, clampedResolution, {
-        deferUpdate: true,
-      });
-      this.scheduleRebuild();
-    }
   }
 
   /**
-   * Set adaptive resolution flag
+   * Handle geometry changed event from facade
    */
-  public setUseAdaptiveResolution(useAdaptive: boolean): void {
-    if (useAdaptive === this.get("useAdaptiveResolution")) return;
+  private handleGeometryChanged(data: any): void {
+    if (!data) return;
 
-    this.set("useAdaptiveResolution", useAdaptive);
-
-    // Apply to facade immediately
-    const facade = facadeSignal.value;
-    if (facade) {
-      try {
-        facade.updateParam("useAdaptiveResolution", useAdaptive, {
-          deferUpdate: false,
-        });
-
-        // Show feedback to user
-        getUIStore().showToast(
-          useAdaptive
-            ? "Adaptive resolution enabled"
-            : "Adaptive resolution disabled",
-          "info"
-        );
-
-        // If disabling adaptive, we should rebuild at full resolution
-        if (!useAdaptive) {
-          this.set("needsRebuild", true);
-          this.scheduleRebuild();
-        }
-      } catch (error) {
-        console.error("Failed to set adaptive resolution:", error);
-        getUIStore().showToast(
-          "Failed to update adaptive resolution setting",
-          "error"
-        );
-      }
-    }
-  }
-
-  /**
-   * Schedule a geometry rebuild
-   */
-  private scheduleRebuild(delay = 50): void {
-    // Clear any existing timeout
-    if (this.rebuildTimeout !== null) {
-      window.clearTimeout(this.rebuildTimeout);
-    }
-
-    // Set a new timeout
-    this.rebuildTimeout = window.setTimeout(() => {
-      this.rebuildGeometry();
-      this.rebuildTimeout = null;
-    }, delay);
-  }
-
-  /**
-   * Rebuild geometry using current parameters
-   */
-  public rebuildGeometry(): void {
-    // Check if rebuild is needed and not already in progress
-    if (!this.get("needsRebuild") || this.get("isRebuilding")) {
-      return;
-    }
-
-    const facade = facadeSignal.value;
-    if (!facade) {
-      this.set("needsRebuild", false);
-      return;
-    }
-
-    // Mark as rebuilding
+    // Update performance metrics
     this.setState({
-      isRebuilding: true,
-      rebuildPercentage: 0,
+      isRebuilding: false,
+      needsRebuild: false,
+      rebuildPercentage: 100,
+      lastRebuildTime: Date.now(),
+      rebuildDuration: data.buildTimeMs || 0,
+      lastPerformance: {
+        vertexCount: data.vertexCount || 0,
+        triangleCount: data.triangleCount || 0,
+        buildTimeMs: data.buildTimeMs || 0,
+      },
     });
 
-    const startTime = performance.now();
-
-    // Prepare parameters for recreation
-    // Set all relevant parameters first
-    facade.updateParam("geometryType", this.get("geometryType"), {
-      deferUpdate: true,
-    });
-
-    // Update the appropriate segment parameter based on geometry type
-    const segmentParam = this.getSegmentParameterName();
-    facade.updateParam(segmentParam as any, this.get("resolution"), {
-      deferUpdate: true,
-    });
-
-    // Set adaptive resolution
-    facade.updateParam(
-      "useAdaptiveResolution",
-      this.get("useAdaptiveResolution"),
-      { deferUpdate: true }
-    );
-
-    // Start rebuild - using recreateGeometry from the facade
-    try {
-      // Use high quality if adaptive resolution is disabled
-      const highQuality = !this.get("useAdaptiveResolution");
-
-      // Listen for geometry-changed event to know when it's done
-      const onGeometryChanged = (data: any) => {
-        if (data.recreated) {
-          const endTime = performance.now();
-          const duration = endTime - startTime;
-
-          // Update performance metrics
-          this.setState({
-            isRebuilding: false,
-            needsRebuild: false,
-            rebuildPercentage: 100,
-            lastRebuildTime: Date.now(),
-            rebuildDuration: duration,
-            lastPerformance: {
-              vertexCount: 0, // We don't have this info from the event
-              triangleCount: 0, // We don't have this info from the event
-              buildTimeMs: duration,
-            },
-          });
-
-          // Show success toast for significant rebuilds
-          if (duration > 500) {
-            getUIStore().showToast(
-              `Geometry rebuilt in ${duration.toFixed(0)}ms`,
-              "success"
-            );
-          }
-
-          // Remove event listener
-          facade.off("geometry-changed", onGeometryChanged);
-        }
-      };
-
-      // Register for geometry changed event
-      facade.on("geometry-changed", onGeometryChanged);
-
-      // Recreate geometry
-      facade.recreateGeometry(highQuality);
-
-      // Update progress - this is a bit tricky since we don't have direct progress info
-      // Just set to 50% to indicate something is happening
-      this.set("rebuildPercentage", 50);
-    } catch (error) {
-      console.error("Error initiating geometry rebuild:", error);
-
-      // Reset rebuild state
-      this.setState({
-        isRebuilding: false,
-        needsRebuild: true,
-        rebuildPercentage: 0,
-      });
-
-      // Show error toast
-      getUIStore().showToast("Failed to rebuild geometry", "error");
+    // Show toast with performance info for significant rebuilds
+    if (data.buildTimeMs > 100) {
+      const uiStore = getUIStore();
+      uiStore.showToast(
+        `Geometry rebuilt: ${data.vertexCount.toLocaleString()} vertices, ${
+          data.buildTimeMs
+        }ms`,
+        "info"
+      );
     }
   }
 
   /**
-   * Force geometry rebuild
+   * Handle build progress event from facade
+   */
+  private handleBuildProgress(data: any): void {
+    if (!data || typeof data.percentage !== "number") return;
+
+    this.setState({
+      isRebuilding: data.percentage < 100,
+      rebuildPercentage: data.percentage,
+    });
+  }
+
+  /**
+   * Rebuild geometry
+   */
+  public rebuildGeometry(force = false): void {
+    const initializer = getGeometryInitializer();
+    initializer.recreateGeometry(force);
+  }
+
+  /**
+   * Force a rebuild of the geometry
    */
   public forceRebuild(): void {
-    this.set("needsRebuild", true);
-    this.rebuildGeometry();
+    this.rebuildGeometry(true);
   }
 
   /**
    * Get the facade instance
    */
-  public getFacade(): IShaderAppFacade | null {
+  protected getFacade(): IShaderAppFacade | null {
     return facadeSignal.value;
   }
 
   /**
-   * Dispose the store
+   * Clean up resources when store is disposed
    */
   public dispose(): void {
-    // Clear rebuild timeout
+    // Reset rebuild timeout
     if (this.rebuildTimeout !== null) {
       window.clearTimeout(this.rebuildTimeout);
       this.rebuildTimeout = null;
     }
+
+    // Remove event listeners from facade
+    const facade = this.getFacade();
+    if (facade && facade.isInitialized()) {
+      facade.off("geometry-changed", this.handleGeometryChanged.bind(this));
+      facade.off(
+        "geometry-build-progress" as any,
+        this.handleBuildProgress.bind(this)
+      );
+    }
+
+    console.log("GeometryStore: Disposed");
+  }
+
+  /**
+   * Sync with facade
+   */
+  public syncWithFacade(): void {
+    console.log("GeometryStore: Starting syncWithFacade");
+
+    const facade = this.getFacade();
+    if (!facade || !facade.isInitialized()) {
+      console.warn(
+        "GeometryStore: Cannot sync with facade - facade not available"
+      );
+      return;
+    }
+
+    this.isSyncing = true;
+
+    try {
+      // Use the initializer to sync with the facade
+      // This is cleaner than duplicating the sync logic here
+      const geometryInitializer = getGeometryInitializer();
+      geometryInitializer.syncWithFacade();
+
+      console.log("GeometryStore: Used initializer to sync with facade");
+    } finally {
+      this.isSyncing = false;
+    }
+
+    console.log("GeometryStore: Completed syncWithFacade");
   }
 }
 
 // Singleton instance
-let geometryStore: GeometryStore | null = null;
+let geometryStoreInstance: GeometryStore | null = null;
 
 /**
  * Get the geometry store instance
  */
 export function getGeometryStore(): GeometryStore {
-  if (!geometryStore) {
-    geometryStore = new GeometryStore();
+  if (!geometryStoreInstance) {
+    geometryStoreInstance = new GeometryStore();
   }
-  return geometryStore;
+  return geometryStoreInstance;
 }

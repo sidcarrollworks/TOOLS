@@ -26,6 +26,10 @@ import { initializeStores, initializeStoresWithFacade } from "./lib/stores";
 import { OrbitControlsSync } from "./components/ShaderCanvas/OrbitControlsSync";
 import { initializePresetStore } from "./lib/stores/presetInitializer";
 import { initializeGeometryParameters } from "./lib/stores/GeometryInitializer";
+import { getDistortionInitializer } from "./lib/stores/DistortionInitializer";
+import { getColorInitializer } from "./lib/stores/ColorInitializer";
+import { getLightingInitializer } from "./lib/stores/LightingInitializer";
+import { getExportInitializer } from "./lib/stores/ExportInitializer";
 
 // Create signals for app state
 export const facadeSignal = signal<IShaderAppFacade | null>(null);
@@ -256,6 +260,22 @@ export const App: ComponentType = () => {
       initializePresetStore();
       // Initialize geometry parameters
       initializeGeometryParameters();
+
+      // Initialize our refactored distortion parameters
+      getDistortionInitializer().syncWithFacade();
+      // Initialize our refactored color parameters
+      console.log("App: Initializing color parameters from facade");
+      getColorInitializer().syncWithFacade();
+      console.log("App: Color parameters initialized");
+      // Initialize our refactored lighting parameters
+      console.log("App: Initializing lighting parameters from facade");
+      getLightingInitializer().syncWithFacade();
+      console.log("App: Lighting parameters initialized");
+      // Initialize our refactored export parameters
+      console.log("App: Initializing export parameters from facade");
+      getExportInitializer().syncWithFacade();
+      console.log("App: Export parameters initialized");
+
       console.log("Stores initialized with facade");
       console.log("Stores initialized");
 

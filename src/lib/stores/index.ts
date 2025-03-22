@@ -1,7 +1,5 @@
-/**
- * Store management for the application
- */
-
+import { facadeSignal } from "../../app";
+import { StoreRegistry } from "./types";
 import { getUIStore } from "./UIStore";
 import { getGeometryStore } from "./GeometryStore";
 import { getParameterStore } from "./ParameterStore";
@@ -14,8 +12,6 @@ import { getDistortionStore } from "./DistortionStore";
 import { getColorStore } from "./ColorStore";
 import { getGeometryInitializer } from "./GeometryInitializer";
 import { getLightingInitializer } from "./LightingInitializer";
-import { getExportInitializer } from "./ExportInitializer";
-import { facadeSignal } from "../../app";
 
 // Store registry for debugging and management
 const storeRegistry: Record<string, any> = {};
@@ -123,29 +119,13 @@ export function initializeStoresWithFacade(): void {
         "rimLightIntensity",
       ].includes(paramName)
     ) {
+      // Use the lighting initializer to sync with facade
+      const lightingInitializer = getLightingInitializer();
+      lightingInitializer.syncWithFacade();
+
+      // Sync the lighting store with the initializer
       const lightingStore = getLightingStore();
-
-      // Get current values from facade
-      const lightDirX = facade.getParam("lightDirX");
-      const lightDirY = facade.getParam("lightDirY");
-      const lightDirZ = facade.getParam("lightDirZ");
-      const diffuseIntensity = facade.getParam("diffuseIntensity");
-      const ambientIntensity = facade.getParam("ambientIntensity");
-      const rimLightIntensity = facade.getParam("rimLightIntensity");
-
-      // Update lighting store state
-      lightingStore.setState({
-        direction: {
-          x: lightDirX !== undefined ? lightDirX : 0.5,
-          y: lightDirY !== undefined ? lightDirY : 0.5,
-          z: lightDirZ !== undefined ? lightDirZ : 0.5,
-        },
-        intensities: {
-          diffuse: diffuseIntensity !== undefined ? diffuseIntensity : 0.8,
-          ambient: ambientIntensity !== undefined ? ambientIntensity : 0.2,
-          rimLight: rimLightIntensity !== undefined ? rimLightIntensity : 0.5,
-        },
-      });
+      lightingStore.syncWithFacade();
     }
 
     // Handle distortion parameter changes
@@ -179,7 +159,7 @@ export function initializeStoresWithFacade(): void {
 
   facade.on("preset-applied", (data) => {
     const { presetName } = data;
-    console.log(`Preset applied event received: ${presetName}`);
+    console.log(`Stores: Preset applied event received: ${presetName}`);
 
     // Sync all stores with the facade after preset is applied
     const parameterStore = getParameterStore();
@@ -215,13 +195,35 @@ export function initializeStoresWithFacade(): void {
       );
     }
 
-    // Sync lighting initializer
-    const lightingInitializer = getLightingInitializer();
-    lightingInitializer.syncWithFacade();
+    // Sync lighting store
+    const lightingStore = getLightingStore();
+    if (lightingStore) {
+      console.log(
+        "Stores: Getting lighting parameters from facade after preset applied"
+      );
 
-    // Sync export initializer
-    const exportInitializer = getExportInitializer();
-    exportInitializer.syncWithFacade();
+      // Log lighting values from facade before sync
+      const lightingValues = {
+        lightDirX: facade.getParam("lightDirX"),
+        lightDirY: facade.getParam("lightDirY"),
+        lightDirZ: facade.getParam("lightDirZ"),
+        diffuseIntensity: facade.getParam("diffuseIntensity"),
+        ambientIntensity: facade.getParam("ambientIntensity"),
+        rimLightIntensity: facade.getParam("rimLightIntensity"),
+      };
+      console.log("Stores: Lighting values from facade:", lightingValues);
+
+      // Use the lighting initializer to sync with facade
+      console.log("Stores: Syncing LightingInitializer with facade");
+      const lightingInitializer = getLightingInitializer();
+      lightingInitializer.syncWithFacade();
+
+      // Sync the store with the initializer
+      console.log("Stores: Syncing LightingStore with initializer");
+      lightingStore.syncWithFacade();
+
+      console.log("Stores: Lighting sync completed after preset applied");
+    }
 
     // Display toast
     const uiStore = getUIStore();

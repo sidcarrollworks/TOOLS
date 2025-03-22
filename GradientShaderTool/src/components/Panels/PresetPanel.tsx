@@ -8,14 +8,21 @@ import { getPresetStore } from "../../lib/stores/PresetStore";
 import type { Preset } from "../../lib/stores/PresetStore";
 import { facadeSignal } from "../../app";
 import { initializeSettingsFromShaderApp } from "../../lib/settings/initApp";
+import { getColorInitializer } from "../../lib/stores/ColorInitializer";
+import { getDistortionInitializer } from "../../lib/stores/DistortionInitializer";
 
-// Map of PresetStore preset IDs to facade preset names
+// Mapping from preset ID to facade preset name
 const presetIdToFacadeName = new Map<string, string>([
   ["preset-default", "Default"],
   ["preset-ocean-waves", "Ocean Waves"],
   ["preset-lava-flow", "Lava Flow"],
   ["preset-abstract-art", "Abstract Art"],
 ]);
+
+// Function to get preset name for a given ID
+const getPresetNameForId = (id: string): string | undefined => {
+  return presetIdToFacadeName.get(id);
+};
 
 interface PresetPanelProps {
   // No props needed for now
@@ -66,56 +73,84 @@ export const PresetPanel: FunctionComponent<PresetPanelProps> = () => {
     };
   }, []);
 
-  // Handle preset click
-  const handlePresetClick = (presetId: string) => {
-    console.log(`Applying preset: ${presetId}`);
+  // Handle preset select
+  const handlePresetSelect = (id: string) => {
+    console.log(`PresetPanel: Selected preset with ID: ${id}`);
 
-    // Set the preset application state to true before applying the preset
+    const presetName = getPresetNameForId(id);
+    if (!presetName) {
+      console.error(`PresetPanel: No preset name found for ID: ${id}`);
+      return;
+    }
+
+    console.log(`PresetPanel: Applying preset: ${presetName}`);
+
+    // Indicate that a preset is being applied (used by some components to avoid updates)
     setPresetApplying(true);
 
-    try {
-      // Get the facade preset name
-      const facadePresetName = presetIdToFacadeName.get(presetId);
+    // Update the facade with the selected preset
+    const facade = facadeSignal.value;
+    if (facade) {
+      try {
+        // Apply the preset
+        facade.applyPreset(presetName);
 
-      if (!facadePresetName) {
-        console.error(`Mapping not found for preset ID: ${presetId}`);
-        setPresetApplying(false);
-        return;
-      }
-
-      if (!facade.value) {
-        console.error("Facade not available");
-        setPresetApplying(false);
-        return;
-      }
-
-      // Apply the preset directly using the facade for consistent behavior
-      const success = facade.value.applyPreset(facadePresetName);
-
-      if (success) {
-        console.log(`Applied preset: ${facadePresetName}`);
-
-        // Sync the facade parameters back to the settings store
-        initializeSettingsFromShaderApp(facade.value);
-
-        // Update the UI state
-        setLastAppliedPreset(presetId);
-
-        // Mark the preset as the current preset in the store
+        // Set current preset in store
+        setLastAppliedPreset(id);
         presetStore.setState({
-          currentPresetId: presetId,
+          currentPresetId: id,
           isModified: false,
         });
-      } else {
-        console.error(`Failed to apply preset: ${facadePresetName}`);
-      }
 
-      // Set the preset application state back to false after a delay
-      setTimeout(() => {
+        console.log(`PresetPanel: Preset applied: ${presetName}`);
+
+        // Force synchronize ALL initializers with facade
+        // This ensures all panels get updated properly, even if they're not currently visible
+        console.log(
+          `PresetPanel: Forcing initializer synchronization after preset`
+        );
+
+        // Get the current parameters from facade for debugging
+        const currentParams = {
+          color1: facade.getParam("color1"),
+          color2: facade.getParam("color2"),
+          color3: facade.getParam("color3"),
+          color4: facade.getParam("color4"),
+          gradientMode: facade.getParam("gradientMode"),
+        };
+        console.log(`PresetPanel: Current facade color values:`, currentParams);
+
+        // Sync ColorInitializer explicitly (even if ColorsPanel isn't visible)
+        const colorInitializer = getColorInitializer();
+        colorInitializer.syncWithFacade();
+
+        // Sync DistortionInitializer explicitly
+        const distortionInitializer = getDistortionInitializer();
+        distortionInitializer.syncWithFacade();
+
+        // Re-emit the preset-applied event in case any components missed it
+        facade.emit("preset-applied", {
+          presetName,
+          affectedParams: Object.keys(facade.getAllParams()),
+        });
+
+        // Log signal values after sync for debugging
+        const colorSignals = {
+          color1: colorInitializer.getSignal("color1").value,
+          color2: colorInitializer.getSignal("color2").value,
+          color3: colorInitializer.getSignal("color3").value,
+          color4: colorInitializer.getSignal("color4").value,
+        };
+        console.log(
+          `PresetPanel: Color signals after forced sync:`,
+          colorSignals
+        );
+      } finally {
+        // Always reset preset applying flag when done
         setPresetApplying(false);
-      }, 600); // Slightly longer than the transition duration
-    } catch (error) {
-      console.error(`Error applying preset: ${presetId}`, error);
+      }
+    } else {
+      console.error("PresetPanel: Facade not available for preset application");
       setPresetApplying(false);
     }
   };
@@ -135,7 +170,7 @@ export const PresetPanel: FunctionComponent<PresetPanelProps> = () => {
           <CardButton
             key={preset.id}
             label={preset.name}
-            onClick={() => handlePresetClick(preset.id)}
+            onClick={() => handlePresetSelect(preset.id)}
             isActive={isLastApplied}
           />
         );

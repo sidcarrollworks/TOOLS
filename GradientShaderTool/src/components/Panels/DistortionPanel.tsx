@@ -1,12 +1,16 @@
 import type { FunctionComponent } from "preact";
-import { useState, useEffect } from "preact/hooks";
+import { useSignal, useComputed } from "@preact/signals";
+import { useEffect } from "preact/hooks";
 
 import { FigmaInput } from "../FigmaInput";
 import { DirectionControl } from "../DirectionControl";
-import { getDistortionStore } from "../../lib/stores/DistortionStore";
 import { getUIStore } from "../../lib/stores/UIStore";
 import { SettingsGroup, SettingsField } from "../UI/SettingsGroup";
-
+import {
+  getDistortionInitializer,
+  getDistortionParameter,
+} from "../../lib/stores/DistortionInitializer";
+import { useSignalValue } from "../../lib/hooks/useSignals";
 import { facadeSignal } from "../../app";
 
 interface DistortionPanelProps {
@@ -14,119 +18,105 @@ interface DistortionPanelProps {
 }
 
 export const DistortionPanel: FunctionComponent<DistortionPanelProps> = () => {
-  // Get the distortion store
-  const distortionStore = getDistortionStore();
+  // Get the distortion initializer
+  const distortionInitializer = getDistortionInitializer();
+
+  // Get UI store for toast messages
   const uiStore = getUIStore();
 
-  // Local state for distortion values
-  const [noiseScaleX, setNoiseScaleX] = useState(3.0);
-  const [noiseScaleY, setNoiseScaleY] = useState(3.0);
-  const [noiseStrength, setNoiseStrength] = useState(0.5);
-  const [shiftX, setShiftX] = useState(0);
-  const [shiftY, setShiftY] = useState(0);
-  const [shiftSpeed, setShiftSpeed] = useState(0.2);
+  // Use signal values directly with custom hooks
+  const noiseScaleX = useSignalValue(
+    getDistortionParameter("normalNoiseScaleX")
+  );
+  const noiseScaleY = useSignalValue(
+    getDistortionParameter("normalNoiseScaleY")
+  );
+  const noiseStrength = useSignalValue(
+    getDistortionParameter("normalNoiseStrength")
+  );
+  const noiseSpeed = useSignalValue(getDistortionParameter("normalNoiseSpeed"));
+  const shiftX = useSignalValue(getDistortionParameter("normalNoiseShiftX"));
+  const shiftY = useSignalValue(getDistortionParameter("normalNoiseShiftY"));
+  const shiftSpeed = useSignalValue(
+    getDistortionParameter("normalNoiseShiftSpeed")
+  );
 
-  // Force update counter for direction control
-  const [updateCounter, setUpdateCounter] = useState(0);
+  // Create update handlers using the initializer's methods
+  const handleNoiseScaleXChange = (value: number) => {
+    distortionInitializer.updateParameter("normalNoiseScaleX", value);
+  };
 
-  // Sync state with store using proper subscription
+  const handleNoiseScaleYChange = (value: number) => {
+    distortionInitializer.updateParameter("normalNoiseScaleY", value);
+  };
+
+  const handleNoiseStrengthChange = (value: number) => {
+    distortionInitializer.updateParameter("normalNoiseStrength", value);
+  };
+
+  const handleNoiseSpeedChange = (value: number) => {
+    distortionInitializer.updateParameter("normalNoiseSpeed", value);
+  };
+
+  const handleShiftXChange = (value: number) => {
+    distortionInitializer.updateParameter("normalNoiseShiftX", value);
+  };
+
+  const handleShiftYChange = (value: number) => {
+    distortionInitializer.updateParameter("normalNoiseShiftY", value);
+  };
+
+  const handleShiftSpeedChange = (value: number) => {
+    distortionInitializer.updateParameter("normalNoiseShiftSpeed", value);
+  };
+
+  // Handle facade preset events and parameter changes
   useEffect(() => {
-    // Sync function to update local state from store
-    const syncWithStore = () => {
-      const storeState = distortionStore.getState();
-      setNoiseScaleX(storeState.normalNoise.scaleX);
-      setNoiseScaleY(storeState.normalNoise.scaleY);
-      setNoiseStrength(storeState.normalNoise.strength);
-      setShiftX(storeState.shift.x);
-      setShiftY(storeState.shift.y);
-      setShiftSpeed(storeState.shift.speed);
-
-      // We no longer need to force update with counter
-      // Direction control will update based on prop changes
-    };
-
-    // Get values from facade first
     const facade = facadeSignal.value;
-    if (facade) {
-      console.log("DistortionPanel: Syncing store with facade on mount");
-      distortionStore.syncWithFacade();
-    }
 
-    // Initial sync
-    syncWithStore();
-
-    // Get the store signal and create an effect to watch it
-    const storeSignal = distortionStore.getSignal();
-
-    // Setup subscription
-    const unsubscribe = storeSignal.subscribe(syncWithStore);
-
-    // Setup event listeners for facade
     if (facade) {
       const handlePresetApplied = () => {
-        // Ensure store is in sync with facade before we sync with store
-        distortionStore.syncWithFacade();
-        // Then sync our local state with the store
-        syncWithStore();
-        // We don't need to force direction control updates via key changes
+        // Sync initializer with facade
+        distortionInitializer.syncWithFacade();
       };
 
+      const handleParamChanged = (data: any) => {
+        // Only respond to changes in distortion-related parameters
+        if (data && data.paramName) {
+          const distortionParams = [
+            "normalNoiseScaleX",
+            "normalNoiseScaleY",
+            "normalNoiseStrength",
+            "normalNoiseShiftX",
+            "normalNoiseShiftY",
+            "normalNoiseShiftSpeed",
+            "normalNoiseSpeed",
+          ];
+
+          if (distortionParams.includes(data.paramName)) {
+            console.log(
+              `DistortionPanel: Received parameter change for ${data.paramName}`
+            );
+            // Sync the specific parameter with the facade
+            distortionInitializer.syncParameterFromFacade(data.paramName);
+          }
+        }
+      };
+
+      // Listen for both preset application and parameter changes
       facade.on("preset-applied", handlePresetApplied);
+      facade.on("parameter-changed", handleParamChanged);
 
       return () => {
-        unsubscribe();
         facade.off("preset-applied", handlePresetApplied);
+        facade.off("parameter-changed", handleParamChanged);
       };
     }
-
-    return unsubscribe;
   }, []);
-
-  // Handle noise scale X changes
-  const handleNoiseScaleXChange = (value: number) => {
-    // Update local state first
-    setNoiseScaleX(value);
-    // Then update the store
-    distortionStore.updateNormalNoiseScaleX(value);
-  };
-
-  // Handle noise scale Y changes
-  const handleNoiseScaleYChange = (value: number) => {
-    setNoiseScaleY(value);
-    distortionStore.updateNormalNoiseScaleY(value);
-  };
-
-  // Handle noise strength changes
-  const handleNoiseStrengthChange = (value: number) => {
-    setNoiseStrength(value);
-    distortionStore.updateNormalNoiseStrength(value);
-  };
-
-  // Handle flow direction X changes
-  const handleShiftXChange = (value: number) => {
-    setShiftX(value);
-    distortionStore.updateNoiseShiftX(value);
-  };
-
-  // Handle flow direction Y changes
-  const handleShiftYChange = (value: number) => {
-    setShiftY(value);
-    distortionStore.updateNoiseShiftY(value);
-  };
-
-  // Handle flow speed changes
-  const handleShiftSpeedChange = (value: number) => {
-    setShiftSpeed(value);
-    distortionStore.updateNoiseShiftSpeed(value);
-  };
 
   // Handle reset button click
   const handleReset = () => {
-    distortionStore.reset();
-
-    // No need to manually sync with store after reset
-    // The subscription will handle that automatically
-
+    distortionInitializer.reset();
     uiStore.showToast("Distortion settings reset to defaults", "success");
   };
 
@@ -136,8 +126,8 @@ export const DistortionPanel: FunctionComponent<DistortionPanelProps> = () => {
         <SettingsField label="Scale" inputDir="row" labelDir="column">
           <FigmaInput
             value={noiseScaleX}
-            min={1}
-            max={10}
+            min={0.1}
+            max={20}
             step={0.1}
             onChange={handleNoiseScaleXChange}
             dragIcon="X"
@@ -145,34 +135,45 @@ export const DistortionPanel: FunctionComponent<DistortionPanelProps> = () => {
 
           <FigmaInput
             value={noiseScaleY}
-            min={1}
-            max={10}
+            min={0.1}
+            max={20}
             step={0.1}
             onChange={handleNoiseScaleYChange}
             dragIcon="Y"
           />
         </SettingsField>
+      </SettingsGroup>
 
+      <SettingsGroup collapsible={false} header={false} direction="row">
         <SettingsField label="Strength" labelDir="column">
           <FigmaInput
             value={noiseStrength}
             min={0}
-            max={1}
+            max={2}
             step={0.01}
             onChange={handleNoiseStrengthChange}
           />
         </SettingsField>
+
+        <SettingsField label="Speed" labelDir="column">
+          <FigmaInput
+            value={noiseSpeed}
+            min={0}
+            max={1}
+            step={0.01}
+            onChange={handleNoiseSpeedChange}
+          />
+        </SettingsField>
       </SettingsGroup>
 
-      {/* Don't use a key that changes with every update */}
       <DirectionControl
         valueX={shiftX}
         valueY={shiftY}
         speed={shiftSpeed}
-        min={-1}
-        max={1}
+        min={-5}
+        max={5}
         minSpeed={0}
-        maxSpeed={1}
+        maxSpeed={2}
         step={0.01}
         onChangeX={handleShiftXChange}
         onChangeY={handleShiftYChange}

@@ -1,8 +1,9 @@
 /**
  * DistortionStore for managing distortion parameters
  */
+import { computed, effect } from "@preact/signals";
 import { facadeSignal } from "../../app";
-import { StoreBase } from "./StoreBase";
+import { SignalStoreBase, type SignalFacadeBinding } from "./SignalStoreBase";
 import { getHistoryStore } from "./HistoryStore";
 
 /**
@@ -13,6 +14,7 @@ export interface DistortionState {
     scaleX: number;
     scaleY: number;
     strength: number;
+    speed: number;
   };
   shift: {
     x: number;
@@ -29,6 +31,7 @@ const DEFAULT_DISTORTION_STATE: DistortionState = {
     scaleX: 3.0,
     scaleY: 3.0,
     strength: 0.5,
+    speed: 0.2,
   },
   shift: {
     x: 0,
@@ -38,13 +41,167 @@ const DEFAULT_DISTORTION_STATE: DistortionState = {
 };
 
 /**
+ * Mapping of store properties to facade parameters
+ */
+const FACADE_BINDINGS: Record<string, string> = {
+  "normalNoise.scaleX": "normalNoiseScaleX",
+  "normalNoise.scaleY": "normalNoiseScaleY",
+  "normalNoise.strength": "normalNoiseStrength",
+  "normalNoise.speed": "normalNoiseSpeed",
+  "shift.x": "normalNoiseShiftX",
+  "shift.y": "normalNoiseShiftY",
+  "shift.speed": "normalNoiseShiftSpeed",
+};
+
+/**
  * DistortionStore class for managing distortion parameters
  */
-class DistortionStore extends StoreBase<DistortionState> {
+class DistortionStore extends SignalStoreBase<DistortionState> {
+  /**
+   * Signal for normal noise scale X
+   */
+  private readonly _noiseScaleXSignal = this.createComputedSignal(
+    ["normalNoise"],
+    (values) => values.normalNoise.scaleX
+  );
+
+  /**
+   * Signal for normal noise scale Y
+   */
+  private readonly _noiseScaleYSignal = this.createComputedSignal(
+    ["normalNoise"],
+    (values) => values.normalNoise.scaleY
+  );
+
+  /**
+   * Signal for normal noise strength
+   */
+  private readonly _noiseStrengthSignal = this.createComputedSignal(
+    ["normalNoise"],
+    (values) => values.normalNoise.strength
+  );
+
+  /**
+   * Signal for normal noise speed
+   */
+  private readonly _noiseSpeedSignal = this.createComputedSignal(
+    ["normalNoise"],
+    (values) => values.normalNoise.speed
+  );
+
+  /**
+   * Signal for shift X
+   */
+  private readonly _shiftXSignal = this.createComputedSignal(
+    ["shift"],
+    (values) => values.shift.x
+  );
+
+  /**
+   * Signal for shift Y
+   */
+  private readonly _shiftYSignal = this.createComputedSignal(
+    ["shift"],
+    (values) => values.shift.y
+  );
+
+  /**
+   * Signal for shift speed
+   */
+  private readonly _shiftSpeedSignal = this.createComputedSignal(
+    ["shift"],
+    (values) => values.shift.speed
+  );
+
   constructor() {
     // Pass the initialState as first parameter and options object as second parameter
-    super(DEFAULT_DISTORTION_STATE, { name: "distortion" });
-    console.log("DistortionStore initialized");
+    super(DEFAULT_DISTORTION_STATE, {
+      name: "distortion",
+      debug: false,
+      autoSyncWithFacade: false,
+    });
+
+    // Set up facade bindings for deep properties
+    this.setupFacadeBindings();
+
+    console.log("DistortionStore initialized with signals");
+  }
+
+  /**
+   * Set up facade bindings for nested properties
+   */
+  private setupFacadeBindings(): void {
+    // We can't directly bind nested properties, so we set up custom bindings
+
+    // Create custom binding for normal noise scale X
+    effect(() => {
+      const facade = this.getFacade();
+      if (!facade || !facade.isInitialized() || this.isSyncing) return;
+
+      const value = this._noiseScaleXSignal.value;
+      facade.updateParam("normalNoiseScaleX" as any, value);
+    });
+
+    // Create custom binding for normal noise scale Y
+    effect(() => {
+      const facade = this.getFacade();
+      if (!facade || !facade.isInitialized() || this.isSyncing) return;
+
+      const value = this._noiseScaleYSignal.value;
+      facade.updateParam("normalNoiseScaleY" as any, value);
+    });
+
+    // Create custom binding for normal noise strength
+    effect(() => {
+      const facade = this.getFacade();
+      if (!facade || !facade.isInitialized() || this.isSyncing) return;
+
+      const value = this._noiseStrengthSignal.value;
+      facade.updateParam("normalNoiseStrength" as any, value);
+    });
+
+    // Create custom binding for normal noise speed
+    effect(() => {
+      const facade = this.getFacade();
+      if (!facade || !facade.isInitialized() || this.isSyncing) return;
+
+      const value = this._noiseSpeedSignal.value;
+      facade.updateParam("normalNoiseSpeed" as any, value);
+    });
+
+    // Create custom binding for shift X
+    effect(() => {
+      const facade = this.getFacade();
+      if (!facade || !facade.isInitialized() || this.isSyncing) return;
+
+      const value = this._shiftXSignal.value;
+      facade.updateParam("normalNoiseShiftX" as any, value);
+    });
+
+    // Create custom binding for shift Y
+    effect(() => {
+      const facade = this.getFacade();
+      if (!facade || !facade.isInitialized() || this.isSyncing) return;
+
+      const value = this._shiftYSignal.value;
+      facade.updateParam("normalNoiseShiftY" as any, value);
+    });
+
+    // Create custom binding for shift speed
+    effect(() => {
+      const facade = this.getFacade();
+      if (!facade || !facade.isInitialized() || this.isSyncing) return;
+
+      const value = this._shiftSpeedSignal.value;
+      facade.updateParam("normalNoiseShiftSpeed" as any, value);
+    });
+  }
+
+  /**
+   * Get the facade instance
+   */
+  protected getFacade() {
+    return facadeSignal.value;
   }
 
   /**
@@ -57,13 +214,6 @@ class DistortionStore extends StoreBase<DistortionState> {
         scaleX,
       },
     });
-
-    // Update facade parameters
-    const facade = facadeSignal.value;
-    if (facade) {
-      // Use as any to bypass type checking for shader parameter names
-      facade.updateParam("normalNoiseScaleX" as any, scaleX);
-    }
   }
 
   /**
@@ -76,13 +226,6 @@ class DistortionStore extends StoreBase<DistortionState> {
         scaleY,
       },
     });
-
-    // Update facade parameters
-    const facade = facadeSignal.value;
-    if (facade) {
-      // Use as any to bypass type checking for shader parameter names
-      facade.updateParam("normalNoiseScaleY" as any, scaleY);
-    }
   }
 
   /**
@@ -95,13 +238,18 @@ class DistortionStore extends StoreBase<DistortionState> {
         strength,
       },
     });
+  }
 
-    // Update facade parameters
-    const facade = facadeSignal.value;
-    if (facade) {
-      // Use as any to bypass type checking for shader parameter names
-      facade.updateParam("normalNoiseStrength" as any, strength);
-    }
+  /**
+   * Update normal noise speed
+   */
+  updateNormalNoiseSpeed(speed: number): void {
+    this.setState({
+      normalNoise: {
+        ...this.getState().normalNoise,
+        speed,
+      },
+    });
   }
 
   /**
@@ -114,13 +262,6 @@ class DistortionStore extends StoreBase<DistortionState> {
         x,
       },
     });
-
-    // Update facade parameters
-    const facade = facadeSignal.value;
-    if (facade) {
-      // Use as any to bypass type checking for shader parameter names
-      facade.updateParam("normalNoiseShiftX" as any, x);
-    }
   }
 
   /**
@@ -133,13 +274,6 @@ class DistortionStore extends StoreBase<DistortionState> {
         y,
       },
     });
-
-    // Update facade parameters
-    const facade = facadeSignal.value;
-    if (facade) {
-      // Use as any to bypass type checking for shader parameter names
-      facade.updateParam("normalNoiseShiftY" as any, y);
-    }
   }
 
   /**
@@ -152,13 +286,6 @@ class DistortionStore extends StoreBase<DistortionState> {
         speed,
       },
     });
-
-    // Update facade parameters
-    const facade = facadeSignal.value;
-    if (facade) {
-      // Use as any to bypass type checking for shader parameter names
-      facade.updateParam("normalNoiseShiftSpeed" as any, speed);
-    }
   }
 
   /**
@@ -174,17 +301,6 @@ class DistortionStore extends StoreBase<DistortionState> {
         speed: newSpeed,
       },
     });
-
-    // Update facade parameters
-    const facade = facadeSignal.value;
-    if (facade) {
-      // Use as any to bypass type checking for shader parameter names
-      facade.updateParam("normalNoiseShiftX" as any, x);
-      facade.updateParam("normalNoiseShiftY" as any, y);
-      if (speed !== undefined) {
-        facade.updateParam("normalNoiseShiftSpeed" as any, speed);
-      }
-    }
   }
 
   /**
@@ -202,6 +318,7 @@ class DistortionStore extends StoreBase<DistortionState> {
         normalNoiseScaleX: currentState.normalNoise.scaleX,
         normalNoiseScaleY: currentState.normalNoise.scaleY,
         normalNoiseStrength: currentState.normalNoise.strength,
+        normalNoiseSpeed: currentState.normalNoise.speed,
         normalNoiseShiftX: currentState.shift.x,
         normalNoiseShiftY: currentState.shift.y,
         normalNoiseShiftSpeed: currentState.shift.speed,
@@ -210,6 +327,7 @@ class DistortionStore extends StoreBase<DistortionState> {
         normalNoiseScaleX: DEFAULT_DISTORTION_STATE.normalNoise.scaleX,
         normalNoiseScaleY: DEFAULT_DISTORTION_STATE.normalNoise.scaleY,
         normalNoiseStrength: DEFAULT_DISTORTION_STATE.normalNoise.strength,
+        normalNoiseSpeed: DEFAULT_DISTORTION_STATE.normalNoise.speed,
         normalNoiseShiftX: DEFAULT_DISTORTION_STATE.shift.x,
         normalNoiseShiftY: DEFAULT_DISTORTION_STATE.shift.y,
         normalNoiseShiftSpeed: DEFAULT_DISTORTION_STATE.shift.speed,
@@ -217,155 +335,114 @@ class DistortionStore extends StoreBase<DistortionState> {
       "distortion-reset"
     );
 
-    // Reset state
-    this.setState(DEFAULT_DISTORTION_STATE);
-
-    // Update facade parameters
-    const facade = facadeSignal.value;
-    if (facade) {
-      // Use as any to bypass type checking for shader parameter names
-      facade.updateParam(
-        "normalNoiseScaleX" as any,
-        DEFAULT_DISTORTION_STATE.normalNoise.scaleX
-      );
-      facade.updateParam(
-        "normalNoiseScaleY" as any,
-        DEFAULT_DISTORTION_STATE.normalNoise.scaleY
-      );
-      facade.updateParam(
-        "normalNoiseStrength" as any,
-        DEFAULT_DISTORTION_STATE.normalNoise.strength
-      );
-      facade.updateParam(
-        "normalNoiseShiftX" as any,
-        DEFAULT_DISTORTION_STATE.shift.x
-      );
-      facade.updateParam(
-        "normalNoiseShiftY" as any,
-        DEFAULT_DISTORTION_STATE.shift.y
-      );
-      facade.updateParam(
-        "normalNoiseShiftSpeed" as any,
-        DEFAULT_DISTORTION_STATE.shift.speed
-      );
-    }
+    // Reset state (parent class will handle signal updates)
+    super.reset(DEFAULT_DISTORTION_STATE);
   }
 
   /**
-   * Sync with facade parameters
+   * Sync state from facade to local signals
    */
   syncWithFacade(): void {
-    const facade = facadeSignal.value;
-    if (!facade) {
-      console.warn("Cannot sync DistortionStore: Facade not available");
-      return;
-    }
-
-    // Log the raw values for debugging
-    console.log("Syncing DistortionStore with facade parameters");
+    const facade = this.getFacade();
+    if (!facade || !facade.isInitialized()) return;
 
     try {
-      // Use as any to bypass type checking for shader parameter names
-      // Also handle null, undefined, and NaN values by using nullish coalescing
-      const rawScaleX = facade.getParam("normalNoiseScaleX" as any);
-      const rawScaleY = facade.getParam("normalNoiseScaleY" as any);
-      const rawStrength = facade.getParam("normalNoiseStrength" as any);
-      const rawShiftX = facade.getParam("normalNoiseShiftX" as any);
-      const rawShiftY = facade.getParam("normalNoiseShiftY" as any);
-      const rawShiftSpeed = facade.getParam("normalNoiseShiftSpeed" as any);
+      this.isSyncing = true;
 
-      // Log raw values
-      console.log("Raw facade values:", {
-        rawScaleX,
-        rawScaleY,
-        rawStrength,
-        rawShiftX,
-        rawShiftY,
-        rawShiftSpeed,
-      });
+      // Get values from facade
+      const scaleX = facade.getParam("normalNoiseScaleX" as any) as number;
+      const scaleY = facade.getParam("normalNoiseScaleY" as any) as number;
+      const strength = facade.getParam("normalNoiseStrength" as any) as number;
+      const speed = facade.getParam("normalNoiseSpeed" as any) as number;
+      const shiftX = facade.getParam("normalNoiseShiftX" as any) as number;
+      const shiftY = facade.getParam("normalNoiseShiftY" as any) as number;
+      const shiftSpeed = facade.getParam(
+        "normalNoiseShiftSpeed" as any
+      ) as number;
 
-      // Clean and validate values
-      const scaleX =
-        typeof rawScaleX === "number" && !isNaN(rawScaleX)
-          ? rawScaleX
-          : DEFAULT_DISTORTION_STATE.normalNoise.scaleX;
-
-      const scaleY =
-        typeof rawScaleY === "number" && !isNaN(rawScaleY)
-          ? rawScaleY
-          : DEFAULT_DISTORTION_STATE.normalNoise.scaleY;
-
-      const strength =
-        typeof rawStrength === "number" && !isNaN(rawStrength)
-          ? rawStrength
-          : DEFAULT_DISTORTION_STATE.normalNoise.strength;
-
-      const shiftX =
-        typeof rawShiftX === "number" && !isNaN(rawShiftX)
-          ? rawShiftX
-          : DEFAULT_DISTORTION_STATE.shift.x;
-
-      const shiftY =
-        typeof rawShiftY === "number" && !isNaN(rawShiftY)
-          ? rawShiftY
-          : DEFAULT_DISTORTION_STATE.shift.y;
-
-      const shiftSpeed =
-        typeof rawShiftSpeed === "number" && !isNaN(rawShiftSpeed)
-          ? rawShiftSpeed
-          : DEFAULT_DISTORTION_STATE.shift.speed;
-
-      // Log processed values
-      console.log("Processed values for state update:", {
-        scaleX,
-        scaleY,
-        strength,
-        shiftX,
-        shiftY,
-        shiftSpeed,
-      });
-
-      // Update state without triggering facade updates
-      this.stateSignal.value = {
+      // Update state with values from facade
+      this.setState({
         normalNoise: {
-          scaleX,
-          scaleY,
-          strength,
+          scaleX:
+            scaleX !== undefined
+              ? scaleX
+              : DEFAULT_DISTORTION_STATE.normalNoise.scaleX,
+          scaleY:
+            scaleY !== undefined
+              ? scaleY
+              : DEFAULT_DISTORTION_STATE.normalNoise.scaleY,
+          strength:
+            strength !== undefined
+              ? strength
+              : DEFAULT_DISTORTION_STATE.normalNoise.strength,
+          speed:
+            speed !== undefined
+              ? speed
+              : DEFAULT_DISTORTION_STATE.normalNoise.speed,
         },
         shift: {
-          x: shiftX,
-          y: shiftY,
-          speed: shiftSpeed,
+          x: shiftX !== undefined ? shiftX : DEFAULT_DISTORTION_STATE.shift.x,
+          y: shiftY !== undefined ? shiftY : DEFAULT_DISTORTION_STATE.shift.y,
+          speed:
+            shiftSpeed !== undefined
+              ? shiftSpeed
+              : DEFAULT_DISTORTION_STATE.shift.speed,
         },
-      };
-
-      // If values were undefined in facade, update them with our defaults
-      if (
-        rawScaleX === undefined ||
-        rawScaleY === undefined ||
-        rawStrength === undefined ||
-        rawShiftX === undefined ||
-        rawShiftY === undefined ||
-        rawShiftSpeed === undefined
-      ) {
-        console.log(
-          "Some distortion parameters were undefined in facade, updating them with defaults"
-        );
-        // Update facade with our values to ensure consistency
-        facade.updateParam("normalNoiseScaleX" as any, scaleX);
-        facade.updateParam("normalNoiseScaleY" as any, scaleY);
-        facade.updateParam("normalNoiseStrength" as any, strength);
-        facade.updateParam("normalNoiseShiftX" as any, shiftX);
-        facade.updateParam("normalNoiseShiftY" as any, shiftY);
-        facade.updateParam("normalNoiseShiftSpeed" as any, shiftSpeed);
-      }
-
-      console.log("DistortionStore synced with facade");
-    } catch (error) {
-      console.error("Error syncing DistortionStore with facade:", error);
-      // Fallback to default values
-      this.stateSignal.value = DEFAULT_DISTORTION_STATE;
+      });
+    } finally {
+      this.isSyncing = false;
     }
+  }
+
+  // Public signals for consumers
+
+  /**
+   * Get signal for normal noise scale X
+   */
+  get noiseScaleX() {
+    return this._noiseScaleXSignal;
+  }
+
+  /**
+   * Get signal for normal noise scale Y
+   */
+  get noiseScaleY() {
+    return this._noiseScaleYSignal;
+  }
+
+  /**
+   * Get signal for normal noise strength
+   */
+  get noiseStrength() {
+    return this._noiseStrengthSignal;
+  }
+
+  /**
+   * Get signal for normal noise speed
+   */
+  get noiseSpeed() {
+    return this._noiseSpeedSignal;
+  }
+
+  /**
+   * Get signal for shift X
+   */
+  get shiftX() {
+    return this._shiftXSignal;
+  }
+
+  /**
+   * Get signal for shift Y
+   */
+  get shiftY() {
+    return this._shiftYSignal;
+  }
+
+  /**
+   * Get signal for shift speed
+   */
+  get shiftSpeed() {
+    return this._shiftSpeedSignal;
   }
 
   /**
@@ -376,11 +453,10 @@ class DistortionStore extends StoreBase<DistortionState> {
   }
 
   /**
-   * Dispose of resources
+   * Dispose of the store
    */
   dispose(): void {
-    // Clean up any event listeners or resources
-    console.log("DistortionStore disposed");
+    // Cleanup will be handled by parent dispose if needed
   }
 }
 
