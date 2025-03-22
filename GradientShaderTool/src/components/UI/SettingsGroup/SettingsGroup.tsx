@@ -67,6 +67,11 @@ export interface SettingsGroupProps {
    * Whether to display the group in a grid layout
    */
   grid?: boolean;
+
+  /**
+   * Direction of the group
+   */
+  direction?: "row" | "column";
 }
 
 /**
@@ -85,6 +90,7 @@ export const SettingsGroup: FunctionComponent<SettingsGroupProps> = ({
   badge,
   onToggle,
   grid = false,
+  direction = "column",
 }) => {
   const [collapsed, setCollapsed] = useState(defaultCollapsed);
 
@@ -103,7 +109,7 @@ export const SettingsGroup: FunctionComponent<SettingsGroupProps> = ({
     <div
       className={`${styles.settingsGroup} ${className} ${
         grid ? styles.grid : ""
-      }`}
+      } ${direction === "row" ? styles.row : styles.column}`}
     >
       {header && (
         <div
