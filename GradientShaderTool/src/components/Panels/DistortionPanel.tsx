@@ -94,9 +94,6 @@ export const DistortionPanel: FunctionComponent<DistortionPanelProps> = () => {
           ];
 
           if (distortionParams.includes(data.paramName)) {
-            console.log(
-              `DistortionPanel: Received parameter change for ${data.paramName}`
-            );
             // Sync the specific parameter with the facade
             distortionInitializer.syncParameterFromFacade(data.paramName);
           }

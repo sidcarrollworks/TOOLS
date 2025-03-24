@@ -239,8 +239,6 @@ export const App: ComponentType = () => {
 
   // Handle facade initialization callback
   const handleFacadeInitialized = useCallback((facade: IShaderAppFacade) => {
-    console.log("Facade initialized successfully, updating facadeSignal");
-
     batch(() => {
       facadeSignal.value = facade;
       appInitializedSignal.value = true;
@@ -264,61 +262,14 @@ export const App: ComponentType = () => {
       // Initialize our refactored distortion parameters
       getDistortionInitializer().syncWithFacade();
       // Initialize our refactored color parameters
-      console.log("App: Initializing color parameters from facade");
       getColorInitializer().syncWithFacade();
-      console.log("App: Color parameters initialized");
       // Initialize our refactored lighting parameters
-      console.log("App: Initializing lighting parameters from facade");
       getLightingInitializer().syncWithFacade();
-      console.log("App: Lighting parameters initialized");
       // Initialize our refactored export parameters
-      console.log("App: Initializing export parameters from facade");
       getExportInitializer().syncWithFacade();
-      console.log("App: Export parameters initialized");
 
-      console.log("Stores initialized with facade");
-      console.log("Stores initialized");
-
-      // Disable adaptive resolution to maintain high quality
+      // Disable adaptive resolution for higher quality
       facade.updateParam("useAdaptiveResolution", false);
-      // Force recreation of geometry to ensure it's at full resolution
-      facade.recreateGeometry(true);
-      console.log("Adaptive resolution disabled for higher quality");
-
-      // Ensure Stats.js is hidden by default
-      // We need to check for the Stats element and hide it
-      setTimeout(() => {
-        let statsElement = document.querySelector(
-          '[class^="stats"]'
-        ) as HTMLElement;
-
-        if (!statsElement) {
-          // Try to find it by common attributes
-          const elements = document.querySelectorAll("div");
-          for (let i = 0; i < elements.length; i++) {
-            const el = elements[i] as HTMLElement;
-            try {
-              if (
-                el.style.position === "absolute" &&
-                el.style.top === "0px" &&
-                el.style.left === "0px" &&
-                el.children.length > 0
-              ) {
-                statsElement = el;
-                break;
-              }
-            } catch (err) {
-              // Ignore errors from accessing style properties
-              continue;
-            }
-          }
-        }
-
-        if (statsElement) {
-          // Hide the stats element by default
-          statsElement.style.display = "none";
-        }
-      }, 100); // Small delay to ensure the Stats element has been created
     });
 
     // Reset the initializing flag
@@ -338,14 +289,11 @@ export const App: ComponentType = () => {
     isInitializingRef.current = false;
   }, []);
 
-  // Set up cleanup for app unmount
+  // Effect to clean up canvas on unmount
   useEffect(() => {
     return () => {
-      // Clean up facade on full app unmount
       if (facadeSignal.value) {
-        console.log("App unmounting - disposing facade");
         facadeSignal.value.dispose();
-        facadeSignal.value = null;
       }
     };
   }, []);
@@ -366,7 +314,6 @@ export const App: ComponentType = () => {
           </div>
         )}
         onError={(error) => {
-          console.error("Facade error:", error);
           initializationErrorSignal.value = error.message;
         }}
       >

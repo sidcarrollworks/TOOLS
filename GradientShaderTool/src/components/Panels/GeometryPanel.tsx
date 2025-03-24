@@ -137,10 +137,8 @@ export const GeometryPanel: FunctionComponent<GeometryPanelProps> = () => {
 
     if (facade) {
       const handlePresetApplied = () => {
-        console.log("GeometryPanel: Preset applied event detected");
         // Sync initializer with facade
         geometryInitializer.syncWithFacade();
-        console.log("GeometryPanel: Completed sync with facade after preset");
       };
 
       facade.on("preset-applied", handlePresetApplied);
@@ -163,29 +161,7 @@ export const GeometryPanel: FunctionComponent<GeometryPanelProps> = () => {
 
   // Handle wireframe toggle
   const handleWireframeChange = (checked: boolean) => {
-    console.log(`GeometryPanel: Wireframe toggled to ${checked}`);
     geometryInitializer.updateWireframe(checked);
-
-    // For debug, access the facade parameter directly
-    const facade = facadeSignal.value;
-    if (facade) {
-      setTimeout(() => {
-        const facadeValue = facade.getParam("showWireframe");
-        console.log(
-          `GeometryPanel: Facade showWireframe value after update: ${facadeValue}`
-        );
-      }, 100);
-    }
-
-    console.log(
-      `GeometryPanel: After updateWireframe call, wireframe value: ${showWireframe}`
-    );
-  };
-
-  // Handle reset button click
-  const handleReset = () => {
-    geometryInitializer.reset();
-    uiStore.showToast("Geometry settings reset to defaults", "success");
   };
 
   // Get geometry type options

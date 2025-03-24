@@ -248,17 +248,11 @@ export class GeometryInitializer extends InitializerBase<GeometryParameters> {
    * Update wireframe state
    */
   updateWireframe(wireframe: boolean): boolean {
-    console.log(
-      `GeometryInitializer: updateWireframe called with value: ${wireframe}`
-    );
-
     // Get current value for history
     const oldValue = this.getSignal("wireframe").value;
-    console.log(`GeometryInitializer: Current wireframe value: ${oldValue}`);
 
     // Update the parameter
     const result = this.updateParameter("wireframe", wireframe);
-    console.log(`GeometryInitializer: updateParameter result: ${result}`);
 
     // Record the change in history
     if (result) {
@@ -268,12 +262,6 @@ export class GeometryInitializer extends InitializerBase<GeometryParameters> {
         { wireframe: oldValue },
         { wireframe },
         "geometry-wireframe-change"
-      );
-
-      // Check the signal value after update
-      const newValue = this.getSignal("wireframe").value;
-      console.log(
-        `GeometryInitializer: After update, wireframe value: ${newValue}`
       );
 
       // Force a geometry rebuild to ensure wireframe is applied
@@ -428,7 +416,7 @@ export class GeometryInitializer extends InitializerBase<GeometryParameters> {
   /**
    * Reset to default values with history tracking
    */
-  reset(): void {
+  reset(): boolean {
     // Save for history
     const historyStore = getHistoryStore();
     historyStore.recordAction(
@@ -439,10 +427,14 @@ export class GeometryInitializer extends InitializerBase<GeometryParameters> {
     );
 
     // Reset all parameters using parent class implementation
-    super.reset();
+    const result = super.reset();
 
     // Rebuild geometry with new values
-    this.scheduleGeometryRebuild();
+    if (result) {
+      this.scheduleGeometryRebuild();
+    }
+
+    return result;
   }
 
   /**
@@ -464,35 +456,30 @@ export class GeometryInitializer extends InitializerBase<GeometryParameters> {
   /**
    * Sync state from facade to local signals
    */
-  public syncWithFacade(): void {
+  public syncWithFacade(): boolean {
     const facade = this.getFacade();
     if (!facade || !facade.isInitialized()) {
       console.warn(
         "[GeometryInitializer] Cannot sync - facade not available or not initialized"
       );
-      return;
+      return false;
     }
-
-    console.log("[GeometryInitializer] Starting syncWithFacade");
 
     // Get current facade values for debugging
     const currentGeometryType = facade.getParam("geometryType");
     const currentWireframe = facade.getParam("showWireframe");
-    console.log(
-      `[GeometryInitializer] Current facade values - geometry type: ${currentGeometryType}, wireframe: ${currentWireframe}`
-    );
 
     // Call parent syncWithFacade to handle the standard parameter synchronization
-    super.syncWithFacade();
+    const result = super.syncWithFacade();
+    if (!result) {
+      return false;
+    }
 
     // Special handling for wireframe parameter which has a different name in facade
     const wireframeFromFacade = facade.getParam("showWireframe");
     if (wireframeFromFacade !== undefined) {
       // Update the wireframe parameter directly
       this.updateParameter("wireframe", wireframeFromFacade);
-      console.log(
-        `[GeometryInitializer] Synced wireframe from facade: ${wireframeFromFacade}`
-      );
     }
 
     // Ensure we update any dependent parameters based on geometry type
@@ -501,9 +488,7 @@ export class GeometryInitializer extends InitializerBase<GeometryParameters> {
     // Force a geometry rebuild to ensure UI is consistent
     this.scheduleGeometryRebuild();
 
-    console.log(
-      `[GeometryInitializer] Completed syncWithFacade, geometry type: ${geometryType}`
-    );
+    return true;
   }
 }
 
@@ -533,8 +518,7 @@ export function getGeometryParameter<K extends keyof GeometryParameters>(
  * Initialize geometry parameters with defaults and sync with facade
  * This is called during app initialization
  */
-export function initializeGeometryParameters(): void {
+export function initializeGeometryParameters(): boolean {
   const initializer = getGeometryInitializer();
-  initializer.syncWithFacade();
-  console.log("Geometry parameters initialized and synced with facade");
+  return initializer.syncWithFacade();
 }

@@ -164,9 +164,6 @@ export function useFigmaDrag({
     const movementX = e.movementX || 0;
     const movementY = e.movementY || 0;
 
-    // console.log('movementX', movementX)
-    // console.log('movementY', movementY)
-
     // Update accumulated movement for value calculation
     accumulatedMovementX.current += movementX;
     accumulatedMovementY.current += movementY;
@@ -223,8 +220,6 @@ export function useFigmaDrag({
       // Adjust the initial position to maintain smooth movement
       initialCursorY.current = newY - accumulatedMovementY.current;
     }
-
-    // console.log('newX', newX)
 
     // Update cursor position - do this BEFORE updating state to avoid delays
     positionVirtualCursor(newX, newY);

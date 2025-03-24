@@ -60,7 +60,6 @@ export const SidePanel: FunctionComponent<SidePanelProps> = ({ visible }) => {
                   },
                 };
 
-                console.log("Creating ExportUI instance");
                 exportUIRef.current = new ExportUI(dummyApp as any);
               }
             })
@@ -76,7 +75,6 @@ export const SidePanel: FunctionComponent<SidePanelProps> = ({ visible }) => {
     // Clean up on unmount
     return () => {
       if (exportUIRef.current) {
-        console.log("Disposing ExportUI instance");
         exportUIRef.current.dispose();
         exportUIRef.current = null;
       }
@@ -98,9 +96,7 @@ export const SidePanel: FunctionComponent<SidePanelProps> = ({ visible }) => {
 
   // Handle export code click
   const handleExportCodeClick = () => {
-    console.log("Export code button clicked");
     if (exportUIRef.current) {
-      console.log("Showing export code UI");
       exportUIRef.current.showExportCode();
     } else {
       console.error("ExportUI instance not available");

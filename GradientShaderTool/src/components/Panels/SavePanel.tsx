@@ -28,8 +28,6 @@ interface SavePanelProps {
 }
 
 const SavePanel: FunctionComponent<SavePanelProps> = () => {
-  console.log("SavePanel: Component rendering");
-
   // Get the initializer and store
   const initializer = getExportInitializer();
   const exportStore = getExportStore();
@@ -56,10 +54,7 @@ const SavePanel: FunctionComponent<SavePanelProps> = () => {
 
   // Set up effect for initialization and cleanup
   useEffect(() => {
-    console.log("SavePanel: Setting up effect");
-
     // Ensure we have latest values from facade
-    console.log("SavePanel: Syncing initializer with facade");
     initializer.syncWithFacade();
 
     // Get canvas dimensions
@@ -84,7 +79,6 @@ const SavePanel: FunctionComponent<SavePanelProps> = () => {
     // Subscribe to preset-applied event to update our values
     if (facade) {
       const handlePresetApplied = () => {
-        console.log("SavePanel: Preset applied, syncing with facade");
         initializer.syncWithFacade();
       };
 
@@ -95,13 +89,6 @@ const SavePanel: FunctionComponent<SavePanelProps> = () => {
         facade.off("preset-applied", handlePresetApplied);
       };
     }
-
-    // Log current values
-    console.log("SavePanel: Current signal values:", {
-      transparentBg: transparentBg,
-      highQuality: highQuality,
-      imageFormat: imageFormat,
-    });
   }, []);
 
   // Handle checkbox change using the initializer
@@ -109,8 +96,6 @@ const SavePanel: FunctionComponent<SavePanelProps> = () => {
     setting: "transparent" | "highQuality",
     checked: boolean
   ) => {
-    console.log(`SavePanel: ${setting} changed to ${checked}`);
-
     if (setting === "transparent") {
       initializer.updateTransparentBackground(checked);
 
@@ -131,19 +116,14 @@ const SavePanel: FunctionComponent<SavePanelProps> = () => {
   // Handle format change
   const handleFormatChange = (value: string) => {
     const format = value as ImageFormat;
-    console.log(`SavePanel: Format changed to ${format}`);
+
     initializer.updateImageSettings({ imageFormat: format });
   };
 
   // Handle save image button click
   const handleSaveImage = async () => {
-    console.log("SavePanel: Save image requested");
-
     try {
       // Update the export store settings to ensure they're properly applied
-      console.log(
-        `SavePanel: Using current settings - Transparent bg=${transparentBg}, High quality=${highQuality}`
-      );
 
       exportStore.updateImageSettings({
         transparent: transparentBg,
@@ -152,11 +132,11 @@ const SavePanel: FunctionComponent<SavePanelProps> = () => {
       });
 
       // Export the image through the store
-      console.log("SavePanel: Exporting image...");
+
       await exportStore.exportImage();
 
       // Download the exported image
-      console.log("SavePanel: Downloading export...");
+
       exportStore.downloadLastExport();
     } catch (error) {
       console.error("SavePanel: Failed to save image:", error);

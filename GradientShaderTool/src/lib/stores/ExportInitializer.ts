@@ -100,11 +100,9 @@ export class ExportInitializer extends InitializerBase<ExportParameters> {
   constructor() {
     super(PARAMETER_DEFINITIONS, {
       debug: false,
-      autoSync: false, // Don't auto-sync in constructor to avoid issues
+      autoSync: false,
       updateFacade: true,
     });
-
-    console.log("ExportInitializer: Constructor called");
 
     // Initialize signals
     this.transparent = this.getWritableSignal("transparent");
@@ -114,47 +112,36 @@ export class ExportInitializer extends InitializerBase<ExportParameters> {
     this.includeLib = this.getWritableSignal("includeLib");
     this.minify = this.getWritableSignal("minify");
 
-    console.log("ExportInitializer: Signals initialized with initial values:", {
-      transparent: this.transparent.value,
-      highQuality: this.highQuality.value,
-      imageFormat: this.imageFormat.value,
-      codeFormat: this.codeFormat.value,
-      includeLib: this.includeLib.value,
-      minify: this.minify.value,
-    });
-
-    // Now that signals are initialized, sync with facade
+    // Now that signals are initialized, we can sync with facade
     try {
       this.syncWithFacade();
     } catch (error) {
       console.warn("ExportInitializer: Error during initial sync:", error);
     }
-
-    console.log("ExportInitializer: Constructor completed");
   }
 
   /**
    * Override syncWithFacade to ensure proper synchronization
    */
-  syncWithFacade(): void {
-    console.log("ExportInitializer: Starting syncWithFacade");
-
+  syncWithFacade(): boolean {
     const facade = this.getFacade();
     if (!facade || !facade.isInitialized()) {
       console.warn("ExportInitializer: No facade available for sync");
-      return;
+      return false;
     }
 
-    // Log facade values before sync - only for the parameters that we know exist
+    // Get values from facade first so we can compare
     const beforeValues = {
       transparent: facade.getParam("exportTransparentBg"),
       highQuality: facade.getParam("exportHighQuality"),
       // Don't try to get other parameters that might not exist in the facade
     };
-    console.log("ExportInitializer: Facade values before sync:", beforeValues);
 
     // Call the base implementation which handles sync based on parameter definitions
-    super.syncWithFacade();
+    const result = super.syncWithFacade();
+    if (!result) {
+      return false;
+    }
 
     // Safe check signals are initialized before accessing values
     if (
@@ -174,7 +161,6 @@ export class ExportInitializer extends InitializerBase<ExportParameters> {
         includeLib: this.includeLib.value,
         minify: this.minify.value,
       };
-      console.log("ExportInitializer: Signal values after sync:", afterValues);
 
       // Ensure facade has the correct values
       try {
@@ -182,6 +168,7 @@ export class ExportInitializer extends InitializerBase<ExportParameters> {
         facade.updateParam("exportHighQuality", this.highQuality.value);
       } catch (error) {
         console.warn("ExportInitializer: Error updating facade params:", error);
+        return false;
       }
 
       // Update the export store settings
@@ -190,9 +177,10 @@ export class ExportInitializer extends InitializerBase<ExportParameters> {
       console.warn(
         "ExportInitializer: Some signals not initialized during sync"
       );
+      return false;
     }
 
-    console.log("ExportInitializer: syncWithFacade completed");
+    return true;
   }
 
   /**
@@ -434,7 +422,5 @@ export function getExportParameter<K extends keyof ExportParameters>(
  */
 export function initializeExportParameters(): boolean {
   const initializer = getExportInitializer();
-  initializer.syncWithFacade();
-  console.log("Export parameters initialized");
-  return true;
+  return initializer.syncWithFacade();
 }

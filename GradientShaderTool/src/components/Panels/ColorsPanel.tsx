@@ -57,16 +57,12 @@ export const ColorsPanel: FunctionComponent<ColorsPanelProps> = () => {
 
   // Synchronize local state with initializer on initialization and when panel is opened
   useEffect(() => {
-    console.log("ColorsPanel: Initializing panel");
-
     // Force ColorInitializer to sync with facade
     colorInitializer.syncWithFacade();
 
     // First, try to get colors directly from facade for immediate accurate values
     const facade = facadeSignal.value;
     if (facade && facade.isInitialized()) {
-      console.log("ColorsPanel: Loading values directly from facade");
-
       // Get all needed parameters directly from facade
       try {
         const updatedState: ColorParameters = {
@@ -89,7 +85,6 @@ export const ColorsPanel: FunctionComponent<ColorsPanelProps> = () => {
 
         // Set color state directly from facade
         setColorState(updatedState);
-        console.log("ColorsPanel: Loaded facade values:", updatedState);
       } catch (error) {
         console.error("ColorsPanel: Error loading from facade:", error);
       }
@@ -107,8 +102,6 @@ export const ColorsPanel: FunctionComponent<ColorsPanelProps> = () => {
     // Set up facade event listener for preset changes
     if (facade) {
       const handlePresetApplied = () => {
-        console.log("ColorsPanel: Preset applied event detected");
-
         // Log current values in facade for debugging
         const currentFacadeValues = {
           color1: facade.getParam("color1"),
@@ -121,11 +114,6 @@ export const ColorsPanel: FunctionComponent<ColorsPanelProps> = () => {
           gradientShiftSpeed: facade.getParam("gradientShiftSpeed"),
         };
 
-        console.log(
-          "ColorsPanel: Facade values before sync:",
-          currentFacadeValues
-        );
-
         // Force sync with facade
         colorInitializer.syncWithFacade();
 
@@ -137,8 +125,6 @@ export const ColorsPanel: FunctionComponent<ColorsPanelProps> = () => {
           color4: colorInitializer.getSignal("color4").value,
           gradientMode: colorInitializer.getSignal("gradientMode").value,
         };
-
-        console.log("ColorsPanel: Signal values after sync:", signalValues);
 
         // Direct update from facade
         const updatedState: ColorParameters = {
@@ -161,20 +147,13 @@ export const ColorsPanel: FunctionComponent<ColorsPanelProps> = () => {
 
         // Force update local state with facade values
         setColorState(updatedState);
-
-        console.log(
-          "ColorsPanel: Forced direct update from facade:",
-          updatedState
-        );
       };
 
       facade.on("preset-applied", handlePresetApplied);
-      console.log("ColorsPanel: Registered preset-applied event listener");
 
       return () => {
         clearInterval(intervalId);
         facade.off("preset-applied", handlePresetApplied);
-        console.log("ColorsPanel: Removed preset-applied event listener");
       };
     }
 
@@ -205,12 +184,6 @@ export const ColorsPanel: FunctionComponent<ColorsPanelProps> = () => {
     // Debug for sync
     const oldColor1 = colorState.color1;
     const newColor1 = newState.color1;
-
-    if (oldColor1 !== newColor1) {
-      console.log(
-        `ColorPanel: Syncing color1 changed from ${oldColor1} to ${newColor1}`
-      );
-    }
 
     setColorState(newState);
   };

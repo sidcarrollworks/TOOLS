@@ -15,8 +15,6 @@ export const OrbitControlsSync: FunctionComponent = () => {
   const intervalRef = useRef<number | null>(null);
 
   useEffect(() => {
-    console.log("OrbitControlsSync: Setting up effect");
-
     // Clean up any existing interval
     if (intervalRef.current !== null) {
       window.clearInterval(intervalRef.current);
@@ -25,11 +23,8 @@ export const OrbitControlsSync: FunctionComponent = () => {
 
     // Only set up the polling if we have an initialized facade
     if (!facadeSignal.value || !facadeSignal.value.isInitialized()) {
-      console.log("OrbitControlsSync: Facade not ready yet");
       return;
     }
-
-    console.log("OrbitControlsSync: Facade is ready, setting up polling");
 
     // Function to update initializer from orbit controls
     const handleOrbitControlsChange = () => {
@@ -80,7 +75,6 @@ export const OrbitControlsSync: FunctionComponent = () => {
     handleOrbitControlsChange();
 
     return () => {
-      console.log("OrbitControlsSync: Cleaning up polling interval");
       if (intervalRef.current !== null) {
         window.clearInterval(intervalRef.current);
         intervalRef.current = null;

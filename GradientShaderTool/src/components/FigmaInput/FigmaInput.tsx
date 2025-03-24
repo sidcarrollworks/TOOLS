@@ -45,12 +45,6 @@ export const FigmaInput: FunctionComponent<FigmaInputProps> = ({
     `figma-input-${Math.random().toString(36).substring(2, 9)}`
   ).current;
 
-  // console.log(`[${inputId}] Rendering FigmaInput with label:`, label);
-  // console.log(
-  //   `[${inputId}] Label is JSX:`,
-  //   typeof label !== "string" && label !== undefined
-  // );
-
   // Initialize refs
   const inputRef = useRef<HTMLInputElement>(null);
   const dragIconRef = useRef<HTMLDivElement>(null);

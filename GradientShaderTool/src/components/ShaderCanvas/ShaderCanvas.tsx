@@ -61,7 +61,6 @@ export const ShaderCanvas = forwardRef<HTMLDivElement, ShaderCanvasProps>(
           canvasElements.forEach((canvas: HTMLCanvasElement) => {
             canvas.remove();
           });
-          console.log("ShaderCanvas unmounting - removed canvas elements");
         }
       };
     }, []);

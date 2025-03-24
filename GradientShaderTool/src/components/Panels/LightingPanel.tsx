@@ -13,8 +13,6 @@ interface LightingPanelProps {
 }
 
 const LightingPanel: FunctionComponent<LightingPanelProps> = () => {
-  console.log("LightingPanel: Component rendering");
-
   // Only use the lighting initializer
   const initializer = getLightingInitializer();
 
@@ -30,20 +28,8 @@ const LightingPanel: FunctionComponent<LightingPanelProps> = () => {
 
   // Subscribe to changes when the component mounts
   useEffect(() => {
-    console.log("LightingPanel: Setting up effect");
-
-    // Log current values
-    console.log("LightingPanel: Current signal values:", {
-      lightDirX: lightDirX.value,
-      lightDirY: lightDirY.value,
-      lightDirZ: lightDirZ.value,
-      diffuseIntensity: diffuseIntensity.value,
-      ambientIntensity: ambientIntensity.value,
-      rimLightIntensity: rimLightIntensity.value,
-    });
-
     // Ensure we have the latest values from the facade
-    console.log("LightingPanel: Syncing initializer with facade");
+
     initializer.syncWithFacade();
 
     // Subscribe to preset applied events
@@ -57,18 +43,16 @@ const LightingPanel: FunctionComponent<LightingPanelProps> = () => {
 
       return () => {
         facade.off("preset-applied", handlePresetApplied);
-        console.log("LightingPanel: Cleanup effect");
       };
     }
 
     return () => {
-      console.log("LightingPanel: Cleanup effect");
+      // Cleanup effect
     };
   }, []);
 
   // Handle light direction changes from UI
   const handleDirectionChange = (axis: "x" | "y" | "z", value: number) => {
-    console.log(`LightingPanel: Direction change - ${axis}: ${value}`);
     initializer.updateDirectionAxis(axis, value);
   };
 
@@ -77,13 +61,11 @@ const LightingPanel: FunctionComponent<LightingPanelProps> = () => {
     type: "diffuse" | "ambient" | "rimLight",
     value: number
   ) => {
-    console.log(`LightingPanel: Intensity change - ${type}: ${value}`);
     initializer.updateIntensity(type, value);
   };
 
   // Handle reset lighting button
   const handleResetLighting = () => {
-    console.log("LightingPanel: Reset lighting requested");
     initializer.reset();
   };
 

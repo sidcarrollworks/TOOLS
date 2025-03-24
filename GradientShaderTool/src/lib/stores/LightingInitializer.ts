@@ -104,8 +104,6 @@ export class LightingInitializer extends InitializerBase<LightingParameters> {
       updateFacade: true,
     });
 
-    console.log("LightingInitializer: Constructor called");
-
     // Initialize signals
     this.lightDirX = this.getWritableSignal("lightDirX");
     this.lightDirY = this.getWritableSignal("lightDirY");
@@ -115,41 +113,25 @@ export class LightingInitializer extends InitializerBase<LightingParameters> {
     this.ambientIntensity = this.getWritableSignal("ambientIntensity");
     this.rimLightIntensity = this.getWritableSignal("rimLightIntensity");
 
-    console.log(
-      "LightingInitializer: Signals initialized with initial values:",
-      {
-        lightDirX: this.lightDirX.value,
-        lightDirY: this.lightDirY.value,
-        lightDirZ: this.lightDirZ.value,
-        diffuseIntensity: this.diffuseIntensity.value,
-        ambientIntensity: this.ambientIntensity.value,
-        rimLightIntensity: this.rimLightIntensity.value,
-      }
-    );
-
     // Now that signals are initialized, we can sync with facade
     try {
       this.syncWithFacade();
     } catch (error) {
       console.warn("LightingInitializer: Error during initial sync:", error);
     }
-
-    console.log("LightingInitializer: Constructor completed");
   }
 
   /**
    * Override syncWithFacade to ensure proper synchronization
    */
-  syncWithFacade(): void {
-    console.log("LightingInitializer: Starting syncWithFacade");
-
+  syncWithFacade(): boolean {
     const facade = this.getFacade();
     if (!facade || !facade.isInitialized()) {
       console.warn("LightingInitializer: No facade available for sync");
-      return;
+      return false;
     }
 
-    // Log facade values before sync
+    // Get values from facade first so we can compare
     const beforeValues = {
       lightDirX: facade.getParam("lightDirX"),
       lightDirY: facade.getParam("lightDirY"),
@@ -158,15 +140,11 @@ export class LightingInitializer extends InitializerBase<LightingParameters> {
       ambientIntensity: facade.getParam("ambientIntensity"),
       rimLightIntensity: facade.getParam("rimLightIntensity"),
     };
-    console.log(
-      "LightingInitializer: Facade values before sync:",
-      beforeValues
-    );
 
     // Call the base implementation
     super.syncWithFacade();
 
-    // Safe check signals are initialized before accessing values
+    // Verify signal values for debugging
     if (
       this.lightDirX &&
       this.lightDirY &&
@@ -175,7 +153,6 @@ export class LightingInitializer extends InitializerBase<LightingParameters> {
       this.ambientIntensity &&
       this.rimLightIntensity
     ) {
-      // Get current signal values after sync
       const afterValues = {
         lightDirX: this.lightDirX.value,
         lightDirY: this.lightDirY.value,
@@ -184,17 +161,14 @@ export class LightingInitializer extends InitializerBase<LightingParameters> {
         ambientIntensity: this.ambientIntensity.value,
         rimLightIntensity: this.rimLightIntensity.value,
       };
-      console.log(
-        "LightingInitializer: Signal values after sync:",
-        afterValues
-      );
     } else {
       console.warn(
         "LightingInitializer: Some signals not initialized during sync"
       );
+      return false;
     }
 
-    console.log("LightingInitializer: syncWithFacade completed");
+    return true;
   }
 
   /**
@@ -262,24 +236,6 @@ export class LightingInitializer extends InitializerBase<LightingParameters> {
    * Override reset to ensure we properly record history and return a boolean
    */
   public override reset(): boolean {
-    // Record history
-    if (getHistoryStore) {
-      const historyStore = getHistoryStore();
-      historyStore.recordAction(
-        "Reset lighting",
-        {
-          lightDirX: this.lightDirX.value,
-          lightDirY: this.lightDirY.value,
-          lightDirZ: this.lightDirZ.value,
-          diffuseIntensity: this.diffuseIntensity.value,
-          ambientIntensity: this.ambientIntensity.value,
-          rimLightIntensity: this.rimLightIntensity.value,
-        },
-        DEFAULT_LIGHTING_PARAMETERS,
-        "lighting-reset"
-      );
-    }
-
     try {
       // Call the parent reset method for actual reset logic
       super.reset();
@@ -324,7 +280,5 @@ export function getLightingParameter(
  */
 export function initializeLightingParameters(): boolean {
   const initializer = getLightingInitializer();
-  initializer.syncWithFacade();
-  console.log("Lighting parameters initialized");
-  return true;
+  return initializer.syncWithFacade();
 }

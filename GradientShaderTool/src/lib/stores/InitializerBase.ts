@@ -120,9 +120,7 @@ export abstract class InitializerBase<
   public initialize(): void {
     const facade = this.getFacade();
     if (!facade || !facade.isInitialized()) {
-      if (this.debug) {
-        console.log("[Initializer] Facade not available, using defaults");
-      }
+      console.warn("[Initializer] Facade not available, using defaults");
       return;
     }
 
@@ -131,16 +129,12 @@ export abstract class InitializerBase<
       const facadeParam = def.facadeParam || key;
       this.ensureParameterExists(facade, facadeParam, def.defaultValue);
     }
-
-    if (this.debug) {
-      console.log("[Initializer] Parameters initialized with defaults");
-    }
   }
 
   /**
    * Reset all parameters to default values
    */
-  public reset(): void {
+  public reset(): boolean {
     const facade = this.getFacade();
     const updates: Record<string, any> = {};
 
@@ -167,32 +161,29 @@ export abstract class InitializerBase<
 
     // Update facade in batch if available
     if (facade && facade.isInitialized() && this.updateFacade) {
-      facade.batchUpdateParams(updates);
+      const result = facade.batchUpdateParams(updates);
+      if (!result) {
+        return false;
+      }
     }
 
-    if (this.debug) {
-      console.log("[Initializer] Parameters reset to defaults");
-    }
+    return true;
   }
 
   /**
-   * Sync state from facade to local signals
+   * Sync this initializer with the facade
    */
-  public syncWithFacade(): void {
+  public syncWithFacade(): boolean {
     const facade = this.getFacade();
     if (!facade || !facade.isInitialized()) {
       console.warn(
         "[InitializerBase] Cannot sync - facade not available or not initialized"
       );
-      return;
+      return false;
     }
 
     // First initialize parameters with defaults if needed
     this.initialize();
-
-    if (this.debug) {
-      console.log("[InitializerBase] Starting syncWithFacade");
-    }
 
     // Then update signals from facade
     this.isSyncing = true;
@@ -201,27 +192,10 @@ export abstract class InitializerBase<
         const facadeParam = def.facadeParam || key;
         const facadeValue = facade.getParam(facadeParam as any);
 
-        if (this.debug) {
-          console.log(
-            `[InitializerBase] Syncing param ${key} from facade ${facadeParam}:`,
-            facadeValue
-          );
-        }
-
         if (facadeValue !== undefined) {
           const transformedValue = def.fromFacade
             ? def.fromFacade(facadeValue)
             : facadeValue;
-
-          // Log for important properties
-          if (key.includes("color") || key === "gradientMode") {
-            console.log(
-              `[InitializerBase] Sync ${key}: Facade value:`,
-              facadeValue,
-              "→ Transformed:",
-              transformedValue
-            );
-          }
 
           // Update signal if it exists
           if (this.parameterSignals.has(key)) {
@@ -230,18 +204,19 @@ export abstract class InitializerBase<
             // Create signal if needed
             this.getWritableSignal(key as any).value = transformedValue;
           }
-        } else if (this.debug) {
+        } else {
           console.warn(
             `[InitializerBase] Facade parameter not found: ${facadeParam}`
           );
         }
       }
+
+      return true;
+    } catch (error) {
+      console.error("[InitializerBase] Error syncing with facade:", error);
+      return false;
     } finally {
       this.isSyncing = false;
-    }
-
-    if (this.debug) {
-      console.log("[InitializerBase] Synced parameters from facade");
     }
   }
 
@@ -249,11 +224,6 @@ export abstract class InitializerBase<
    * Update a parameter value
    */
   public updateParameter<K extends keyof T>(key: K, value: T[K]): boolean {
-    console.log(
-      `[InitializerBase] updateParameter called for ${String(key)} with value:`,
-      value
-    );
-
     const paramDef = this.parameterDefs[key];
 
     if (!paramDef) {
@@ -270,10 +240,6 @@ export abstract class InitializerBase<
 
     // Update signal if it exists
     if (this.parameterSignals.has(String(key))) {
-      console.log(
-        `[InitializerBase] Updating signal for ${String(key)} to:`,
-        value
-      );
       this.parameterSignals.get(String(key))!.value = value;
     } else {
       console.warn(`[InitializerBase] No signal found for ${String(key)}`);
@@ -288,10 +254,6 @@ export abstract class InitializerBase<
           ? paramDef.toFacade(value)
           : value;
 
-        console.log(
-          `[InitializerBase] Updating facade parameter ${facadeParam}:`,
-          value
-        );
         return facade.updateParam(facadeParam as any, transformedValue);
       } else {
         console.warn(
@@ -351,13 +313,6 @@ export abstract class InitializerBase<
     if (Object.keys(facadeUpdates).length > 0 && this.updateFacade) {
       const facade = this.getFacade();
       if (facade && facade.isInitialized()) {
-        if (this.debug) {
-          console.log(
-            "[Initializer] Batch updating facade parameters:",
-            facadeUpdates
-          );
-        }
-
         const facadeResult = facade.batchUpdateParams(facadeUpdates);
         if (!facadeResult) success = false;
       }
@@ -466,13 +421,6 @@ export abstract class InitializerBase<
       const currentValue = facade.getParam(paramName as any);
       if (currentValue === undefined) {
         facade.updateParam(paramName as any, defaultValue);
-
-        if (this.debug) {
-          console.log(
-            `[Initializer] Created missing parameter ${paramName} with default:`,
-            defaultValue
-          );
-        }
       }
     } catch (e) {
       console.error(
@@ -496,21 +444,13 @@ export abstract class InitializerBase<
    * @returns Whether the sync was successful
    */
   public syncParameterFromFacade<K extends keyof T>(key: K): boolean {
-    if (this.debug) {
-      console.log(
-        `[InitializerBase] Syncing parameter ${String(key)} from facade`
-      );
-    }
-
     const facade = this.getFacade();
     if (!facade || !facade.isInitialized()) {
-      if (this.debug) {
-        console.warn(
-          `[InitializerBase] Cannot sync parameter ${String(
-            key
-          )}, facade not available`
-        );
-      }
+      console.warn(
+        `[InitializerBase] Cannot sync parameter ${String(
+          key
+        )}, facade not available`
+      );
       return false;
     }
 
@@ -539,17 +479,10 @@ export abstract class InitializerBase<
       const signal = this.parameterSignals.get(String(key));
       if (signal) {
         signal.value = value;
-        if (this.debug) {
-          console.log(
-            `[InitializerBase] Updated signal for ${String(key)} to ${value}`
-          );
-        }
         return true;
       }
 
-      if (this.debug) {
-        console.warn(`[InitializerBase] No signal found for ${String(key)}`);
-      }
+      console.warn(`[InitializerBase] No signal found for ${String(key)}`);
       return false;
     } catch (error) {
       console.error(

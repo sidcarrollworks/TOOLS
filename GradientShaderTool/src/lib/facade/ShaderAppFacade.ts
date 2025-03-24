@@ -849,17 +849,9 @@ export class ShaderAppFacade extends EventEmitter implements IShaderAppFacade {
         animationSpeed: this.app.params.animationSpeed,
       };
 
-      console.log("Facade: Exporting image with settings:", mergedOptions);
-      console.log("Facade: Original animation parameters:", animParams);
-
       // Set export parameters
       this.app.params.exportTransparentBg = mergedOptions.transparent;
       this.app.params.exportHighQuality = mergedOptions.highQuality;
-
-      console.log("Facade: Set export parameters:", {
-        transparent: this.app.params.exportTransparentBg,
-        highQuality: this.app.params.exportHighQuality,
-      });
 
       // Pause animation if it's running
       const wasAnimating = this.isAnimating();
@@ -879,7 +871,6 @@ export class ShaderAppFacade extends EventEmitter implements IShaderAppFacade {
 
       // Recreate geometry with high quality if requested
       if (mergedOptions.highQuality) {
-        console.log("Facade: Recreating geometry with high quality");
         this.app.recreateGeometryHighQuality();
       }
 
@@ -905,7 +896,6 @@ export class ShaderAppFacade extends EventEmitter implements IShaderAppFacade {
 
       // Recreate with original quality if needed
       if (mergedOptions.highQuality) {
-        console.log("Facade: Recreating geometry with normal quality");
         this.app.recreateGeometry();
       }
 
@@ -926,12 +916,6 @@ export class ShaderAppFacade extends EventEmitter implements IShaderAppFacade {
       this.app.params.colorNoiseSpeed = animParams.colorNoiseSpeed;
       this.app.params.gradientShiftSpeed = animParams.gradientShiftSpeed;
       this.app.params.animationSpeed = animParams.animationSpeed;
-
-      console.log("Facade: Restored animation parameters:", {
-        normalNoiseSpeed: this.app.params.normalNoiseSpeed,
-        normalNoiseShiftSpeed: this.app.params.normalNoiseShiftSpeed,
-        colorNoiseSpeed: this.app.params.colorNoiseSpeed,
-      });
 
       // Force uniforms update with restored params to ensure animation continues
       // from the exact same state it was before export

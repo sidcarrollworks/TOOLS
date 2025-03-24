@@ -52,30 +52,19 @@ export const FacadeProvider: FunctionComponent<FacadeProviderProps> = ({
 
   // Initialize the facade when the component mounts or container changes
   useEffect(() => {
-    console.log("FacadeProvider useEffect triggered", {
-      hasContainer: !!containerRef.current,
-      isInitialized: facadeRef.current?.isInitialized(),
-    });
-
     // Skip if no container or already initialized
     if (!containerRef.current || facadeRef.current?.isInitialized()) {
-      console.log(
-        "FacadeProvider skipping initialization - no container or already initialized"
-      );
       return;
     }
 
     const initFacade = async () => {
-      console.log("FacadeProvider starting initialization");
       try {
         // Create a new facade instance if needed
-        if (!facadeRef.current) {
-          console.log("Creating new ShaderAppFacade instance");
+        if (!facadeRef.current)
           facadeRef.current = new ShaderAppFacade(undefined, config);
-        }
 
         // Initialize the facade with the container
-        console.log("Initializing facade with container");
+
         await facadeRef.current.initialize(containerRef.current!);
 
         // Update state and call callback
@@ -83,7 +72,6 @@ export const FacadeProvider: FunctionComponent<FacadeProviderProps> = ({
         setError(null);
 
         if (onInitialized) {
-          console.log("Calling onInitialized callback");
           onInitialized(facadeRef.current);
         }
       } catch (err) {
@@ -109,8 +97,6 @@ export const FacadeProvider: FunctionComponent<FacadeProviderProps> = ({
     return () => {
       // We don't dispose the facade here anymore - it will be managed separately
       // to avoid re-initialization issues
-      console.log("FacadeProvider cleanup - NOT disposing facade");
-
       // We don't set facadeRef.current to null here
       // because we might want to reuse it if the component remounts
     };

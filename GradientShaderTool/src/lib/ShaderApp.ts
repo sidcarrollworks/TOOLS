@@ -462,8 +462,6 @@ export class ShaderApp {
     if (this.stats && this.stats.dom.parentElement) {
       this.stats.dom.parentElement.removeChild(this.stats.dom);
     }
-
-    console.log("Application resources cleaned up");
   }
 
   /**

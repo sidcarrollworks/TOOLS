@@ -121,16 +121,15 @@ export class ColorInitializer extends InitializerBase<ColorParameters> {
   /**
    * Override syncWithFacade to ensure proper synchronization
    */
-  syncWithFacade(): void {
-    console.log("ColorInitializer: Starting syncWithFacade");
+  syncWithFacade(): boolean {
     const facade = facadeSignal.value;
 
     if (!facade) {
       console.warn("ColorInitializer: No facade available for sync");
-      return;
+      return false;
     }
 
-    // Log facade values before sync
+    // Get current values from facade before sync
     const beforeValues = {
       color1: facade.getParam("color1"),
       color2: facade.getParam("color2"),
@@ -145,7 +144,6 @@ export class ColorInitializer extends InitializerBase<ColorParameters> {
       backgroundColor: facade.getParam("backgroundColor"),
       transparentBackground: facade.getParam("exportTransparentBg"),
     };
-    console.log("ColorInitializer: Facade values before sync:", beforeValues);
 
     // Call the base implementation
     super.syncWithFacade();
@@ -164,7 +162,6 @@ export class ColorInitializer extends InitializerBase<ColorParameters> {
       colorNoiseSpeed: this.getSignal("colorNoiseSpeed").value,
       backgroundColor: this.getSignal("backgroundColor").value,
     };
-    console.log("ColorInitializer: Signal values after sync:", afterValues);
 
     // Verify sync was successful and force update any mismatched values
     Object.entries(beforeValues).forEach(([key, facadeValue]) => {
@@ -215,10 +212,6 @@ export class ColorInitializer extends InitializerBase<ColorParameters> {
       exportStore.updateImageSettings({
         transparent: transparentValue,
       });
-      console.log(
-        "ColorInitializer: Updated export store transparent setting:",
-        transparentValue
-      );
     }
 
     // Log final state after all fixes
@@ -229,7 +222,8 @@ export class ColorInitializer extends InitializerBase<ColorParameters> {
       color4: this.getSignal("color4").value,
       gradientMode: this.getSignal("gradientMode").value,
     };
-    console.log("ColorInitializer: Final signal values:", finalValues);
+
+    return true;
   }
 
   /**
@@ -243,16 +237,13 @@ export class ColorInitializer extends InitializerBase<ColorParameters> {
   }
 
   /**
-   * Special handler for transparent background that syncs with export store
+   * Update transparent background setting
+   * Also updates the export store to keep transparent settings in sync
    */
   updateTransparentBackground(
     value: boolean,
     source: "color" | "export" = "color"
   ): boolean {
-    console.log(
-      `ColorInitializer: Updating transparent bg to ${value} (source: ${source})`
-    );
-
     // Update the parameter through the base method
     const result = this.updateParameter("transparentBackground", value);
 
@@ -262,9 +253,6 @@ export class ColorInitializer extends InitializerBase<ColorParameters> {
     if (facade) {
       try {
         facade.updateParam("exportTransparentBg", value);
-        console.log(
-          `ColorInitializer: Updated facade param 'exportTransparentBg' to ${value}`
-        );
       } catch (error) {
         console.warn(
           "ColorInitializer: Error updating facade parameter:",
@@ -281,9 +269,6 @@ export class ColorInitializer extends InitializerBase<ColorParameters> {
         exportStore.updateImageSettings({
           transparent: value,
         });
-        console.log(
-          `ColorInitializer: Updated ExportStore transparent setting to ${value}`
-        );
 
         // Import the ExportInitializer dynamically to avoid circular dependencies
         import("./ExportInitializer")
@@ -291,9 +276,6 @@ export class ColorInitializer extends InitializerBase<ColorParameters> {
             const exportInitializer = getExportInitializer();
             // Call with source=color to prevent loops
             exportInitializer.updateParameter("transparent", value);
-            console.log(
-              `ColorInitializer: Updated ExportInitializer 'transparent' to ${value}`
-            );
           })
           .catch((err) => {
             console.warn(
@@ -315,8 +297,8 @@ export class ColorInitializer extends InitializerBase<ColorParameters> {
   /**
    * Reset all color parameters to their default values
    */
-  reset(): void {
-    super.reset();
+  reset(): boolean {
+    return super.reset();
   }
 
   /**

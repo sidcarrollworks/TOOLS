@@ -43,8 +43,6 @@ export const ExportButton: FunctionComponent<ExportButtonProps> = ({
     }
   };
 
-  console.log("ExportButton rendering with isOpen:", isOpen);
-
   return (
     <>
       <Button

@@ -54,7 +54,6 @@ function Root({
 
   // Initialize the store if it doesn't exist
   if (!selectStores.has(id)) {
-    // console.log(`[Select ${id}] Initializing store with open=false`);
     selectStores.set(id, {
       state: {
         open: false,
@@ -65,14 +64,10 @@ function Root({
       },
       actions: {
         setOpen: (open: boolean) => {
-          // console.log(`[Select ${id}] setOpen called with value:`, open);
           const store = selectStores.get(id);
           if (store) {
             // Only update if the state is actually changing
             if (store.state.open !== open) {
-              // console.log(
-              //   `[Select ${id}] Updating open state from ${store.state.open} to ${open}`
-              // );
               store.state.open = open;
               // Reset focused index when closing
               if (!open) {
@@ -80,22 +75,12 @@ function Root({
               }
               // Force re-render by updating a data attribute on the root element
               if (rootRef.current) {
-                // console.log(
-                //   `[Select ${id}] Updating root data-open attribute to ${open}`
-                // );
                 rootRef.current.setAttribute("data-open", open.toString());
               }
-            } else {
-              // console.log(
-              //   `[Select ${id}] State already ${open}, no update needed`
-              // );
             }
           }
         },
         setValue: (newValue: string, label: string) => {
-          // console.log(
-          //   `[Select ${id}] setValue called with value: ${newValue}, label: ${label}`
-          // );
           const store = selectStores.get(id);
           if (store) {
             store.state.selectedValue = newValue;
@@ -106,9 +91,7 @@ function Root({
             if (rootRef.current) {
               rootRef.current.setAttribute("data-value", newValue);
               // Ensure the dropdown is marked as closed
-              // console.log(
-              //   `[Select ${id}] Closing dropdown after value selection`
-              // );
+
               rootRef.current.setAttribute("data-open", "false");
 
               // Also update any content elements to ensure they close
@@ -118,9 +101,6 @@ function Root({
                 id
               );
               if (contentElement) {
-                // console.log(
-                //   `[Select ${id}] Updating content data-open attribute to false`
-                // );
                 contentElement.setAttribute("data-open", "false");
               }
             }
@@ -227,37 +207,26 @@ function Trigger({
 
   const handleClick = (event: JSX.TargetedMouseEvent<HTMLButtonElement>) => {
     const clickId = ++clickCountRef.current;
-    // console.log(`[Trigger ${selectId}] Click event #${clickId} started`);
 
     if (!selectId) {
-      // console.log(`[Trigger] No selectId, aborting click handler`);
       return;
     }
 
     const store = selectStores.get(selectId);
     if (!store) {
-      console
-        .log
-        // `[Trigger ${selectId}] No store found, aborting click handler`
-        ();
       return;
     }
 
     // Get the current state directly from the store
     const isCurrentlyOpen = store.state.open;
-    // console.log(
-    //   `[Trigger ${selectId}] Current open state before click: ${isCurrentlyOpen}`
-    // );
 
     // Update the trigger position
     if (triggerRef.current) {
-      // console.log(`[Trigger ${selectId}] Updating trigger rect`);
       store.actions.setTriggerRect(triggerRef.current.getBoundingClientRect());
     }
 
     // Set the opposite state (close if open, open if closed)
     const newState = !isCurrentlyOpen;
-    // console.log(`[Trigger ${selectId}] Setting new state to: ${newState}`);
     store.actions.setOpen(newState);
 
     // Force update the content element with the new state
@@ -268,24 +237,16 @@ function Trigger({
     );
 
     if (contentElement) {
-      // console.log(
-      //   `[Trigger ${selectId}] Updating content data-open attribute to ${newState}`
-      // );
       contentElement.setAttribute("data-open", newState.toString());
-    } else {
-      // console.log(`[Trigger ${selectId}] No content element found to update`);
     }
 
     // Stop propagation to prevent any parent handlers from interfering
-    // console.log(`[Trigger ${selectId}] Stopping event propagation`);
     event.stopPropagation();
 
     // Clear the processing flag after a short delay to allow other handlers to check it
     setTimeout(() => {
       isProcessingClickRef.current = false;
     }, 0);
-
-    // console.log(`[Trigger ${selectId}] Click event #${clickId} completed`);
   };
 
   // Add keyboard event handler for the trigger
@@ -453,7 +414,6 @@ function Content({
 
   // Reset initial focus flag when dropdown closes
   useEffect(() => {
-    // console.log(`[Content ${selectId}] isVisible changed to: ${isVisible}`);
     if (!isVisible) {
       initialFocusAppliedRef.current = false;
     }
@@ -462,7 +422,6 @@ function Content({
   // Find the next and previous focusable elements in the tab order
   useEffect(() => {
     if (!selectId) return;
-    // console.log(`[Content ${selectId}] Finding focusable elements`);
 
     // Find the trigger element
     const triggerElement = document.querySelector(
@@ -470,7 +429,6 @@ function Content({
     ) as HTMLElement;
 
     if (!triggerElement) {
-      // console.log(`[Content ${selectId}] No trigger element found`);
       return;
     }
 
@@ -491,15 +449,8 @@ function Content({
       );
     });
 
-    // console.log(
-    //   `[Content ${selectId}] Found ${visibleFocusableElements.length} focusable elements`
-    // );
-
     // Find the index of the trigger
     const triggerIndex = visibleFocusableElements.indexOf(triggerElement);
-    // console.log(
-    //   `[Content ${selectId}] Trigger index in focusable elements: ${triggerIndex}`
-    // );
 
     // If found, store the next and previous elements
     if (triggerIndex !== -1) {
@@ -507,52 +458,33 @@ function Content({
       if (triggerIndex < visibleFocusableElements.length - 1) {
         nextFocusableElementRef.current =
           visibleFocusableElements[triggerIndex + 1];
-        // console.log(
-        //   `[Content ${selectId}] Next focusable element: ${nextFocusableElementRef.current.tagName}`
-        // );
       } else {
         nextFocusableElementRef.current = null;
-        // console.log(`[Content ${selectId}] No next focusable element found`);
       }
 
       // Store previous element (for Shift+Tab)
       if (triggerIndex > 0) {
         prevFocusableElementRef.current =
           visibleFocusableElements[triggerIndex - 1];
-        // console.log(
-        //   `[Content ${selectId}] Previous focusable element: ${prevFocusableElementRef.current.tagName}`
-        // );
       } else {
         prevFocusableElementRef.current = null;
-        // console.log(
-        //   `[Content ${selectId}] No previous focusable element found`
-        // );
       }
     } else {
       nextFocusableElementRef.current = null;
       prevFocusableElementRef.current = null;
-      // console.log(
-      //   `[Content ${selectId}] Trigger not found in focusable elements`
-      // );
     }
   }, [selectId, isVisible]); // Also recompute when visibility changes
 
   // Force a re-render when the open state changes
   useEffect(() => {
     if (!selectId) return;
-    // console.log(`[Content ${selectId}] Setting up open state observer`);
 
     const checkOpenState = () => {
       const store = selectStores.get(selectId);
       if (store) {
         const newIsVisible = store.state.open;
-        // console.log(
-        //   `[Content ${selectId}] Checking open state: ${newIsVisible}, current isVisible: ${isVisible}`
-        // );
+
         if (newIsVisible !== isVisible) {
-          // console.log(
-          //   `[Content ${selectId}] Updating isVisible from ${isVisible} to ${newIsVisible}`
-          // );
           setIsVisible(newIsVisible);
         }
       }
@@ -563,19 +495,11 @@ function Content({
 
     // Set up a mutation observer to detect changes to the data-open attribute
     const observer = new MutationObserver((mutations) => {
-      // console.log(
-      //   `[Content ${selectId}] Mutation observed:`,
-      //   mutations.map((m) => m.attributeName)
-      // );
       mutations.forEach((mutation) => {
         if (
           mutation.type === "attributes" &&
           mutation.attributeName === "data-open"
         ) {
-          // console.log(
-          //   `[Content ${selectId}] data-open attribute changed on`,
-          //   mutation.target
-          // );
           checkOpenState();
         }
       });
@@ -586,12 +510,7 @@ function Content({
       `[data-select-id="${selectId}"]`
     );
     if (rootElement) {
-      // console.log(
-      //   `[Content ${selectId}] Observing root element for attribute changes`
-      // );
       observer.observe(rootElement, { attributes: true });
-    } else {
-      // console.log(`[Content ${selectId}] No root element found to observe`);
     }
 
     // Also observe the content element if it exists
@@ -601,16 +520,10 @@ function Content({
       selectId
     );
     if (contentElement) {
-      // console.log(
-      //   `[Content ${selectId}] Observing content element for attribute changes`
-      // );
       observer.observe(contentElement, { attributes: true });
-    } else {
-      // console.log(`[Content ${selectId}] No content element found to observe`);
     }
 
     return () => {
-      // console.log(`[Content ${selectId}] Disconnecting mutation observer`);
       observer.disconnect();
     };
   }, [selectId, isVisible]);
@@ -946,9 +859,6 @@ function Content({
         if (!isClickOnTrigger && !isProcessingTriggerClick) {
           const store = selectStores.get(selectId);
           if (store) {
-            // console.log(
-            //   `[Content ${selectId}] Closing dropdown from click outside`
-            // );
             store.actions.setOpen(false);
             setIsVisible(false);
 
@@ -1083,7 +993,6 @@ function Item({
 
     // Update the selected value and close the dropdown
     store.actions.setValue(value, itemText);
-    // console.log("Item selected:", value, itemText);
 
     // Return focus to the trigger
     setTimeout(() => {

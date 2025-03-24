@@ -75,15 +75,11 @@ export const PresetPanel: FunctionComponent<PresetPanelProps> = () => {
 
   // Handle preset select
   const handlePresetSelect = (id: string) => {
-    console.log(`PresetPanel: Selected preset with ID: ${id}`);
-
     const presetName = getPresetNameForId(id);
     if (!presetName) {
       console.error(`PresetPanel: No preset name found for ID: ${id}`);
       return;
     }
-
-    console.log(`PresetPanel: Applying preset: ${presetName}`);
 
     // Indicate that a preset is being applied (used by some components to avoid updates)
     setPresetApplying(true);
@@ -102,24 +98,6 @@ export const PresetPanel: FunctionComponent<PresetPanelProps> = () => {
           isModified: false,
         });
 
-        console.log(`PresetPanel: Preset applied: ${presetName}`);
-
-        // Force synchronize ALL initializers with facade
-        // This ensures all panels get updated properly, even if they're not currently visible
-        console.log(
-          `PresetPanel: Forcing initializer synchronization after preset`
-        );
-
-        // Get the current parameters from facade for debugging
-        const currentParams = {
-          color1: facade.getParam("color1"),
-          color2: facade.getParam("color2"),
-          color3: facade.getParam("color3"),
-          color4: facade.getParam("color4"),
-          gradientMode: facade.getParam("gradientMode"),
-        };
-        console.log(`PresetPanel: Current facade color values:`, currentParams);
-
         // Sync ColorInitializer explicitly (even if ColorsPanel isn't visible)
         const colorInitializer = getColorInitializer();
         colorInitializer.syncWithFacade();
@@ -133,18 +111,6 @@ export const PresetPanel: FunctionComponent<PresetPanelProps> = () => {
           presetName,
           affectedParams: Object.keys(facade.getAllParams()),
         });
-
-        // Log signal values after sync for debugging
-        const colorSignals = {
-          color1: colorInitializer.getSignal("color1").value,
-          color2: colorInitializer.getSignal("color2").value,
-          color3: colorInitializer.getSignal("color3").value,
-          color4: colorInitializer.getSignal("color4").value,
-        };
-        console.log(
-          `PresetPanel: Color signals after forced sync:`,
-          colorSignals
-        );
       } finally {
         // Always reset preset applying flag when done
         setPresetApplying(false);

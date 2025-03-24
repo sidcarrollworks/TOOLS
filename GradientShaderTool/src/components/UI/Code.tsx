@@ -22,11 +22,6 @@ const setupPrism = () => {
     element: document.createElement("div"),
     language: "markup",
   });
-
-  // console.log(
-  //   "Prism setup complete. Available languages:",
-  //   Object.keys(Prism.languages)
-  // );
 };
 
 // Run setup once
@@ -48,12 +43,8 @@ export const Code: FunctionComponent<CodeProps> = ({
   useEffect(() => {
     if (codeRef.current) {
       try {
-        // console.log(`Highlighting code with language: ${language}`);
-        // console.log(`Using Prism class: ${getLanguageClass()}`);
-
         // Special handling for HTML
         if (language === "html") {
-          // console.log("Using direct HTML highlighting");
           const highlightedCode = Prism.highlight(
             code,
             Prism.languages.html,
