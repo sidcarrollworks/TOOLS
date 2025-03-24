@@ -121,10 +121,6 @@ export const DirectionControl: FunctionalComponent<DirectionControlProps> = ({
   // Get signals from ref for easier access
   const signals = signalsRef.current;
 
-  // State for internal tracking (keeping for backward compatibility)
-  const [isDragging, setIsDragging] = useState(false);
-  const [isHovered, setIsHovered] = useState(false);
-
   // Sync props with signals
   useEffect(() => {
     if (signals.valueX.value !== valueX) {
@@ -152,12 +148,15 @@ export const DirectionControl: FunctionalComponent<DirectionControlProps> = ({
 
   // Sync signals with state
   useEffect(() => {
-    signals.isDragging.value = isDragging;
-  }, [isDragging]);
+    signals.isDragging.value = isDraggingRef.current;
+  }, [isDraggingRef.current]);
 
   useEffect(() => {
-    signals.isHovered.value = isHovered;
-  }, [isHovered]);
+    signals.isHovered.value = false;
+    return () => {
+      signals.isHovered.value = false;
+    };
+  }, []);
 
   // Derived values
   const magnitude = signals.magnitude.value;
@@ -171,8 +170,8 @@ export const DirectionControl: FunctionalComponent<DirectionControlProps> = ({
 
   // Update the ref when state changes
   useEffect(() => {
-    isDraggingRef.current = isDragging;
-  }, [isDragging, magnitude]);
+    isDraggingRef.current = signals.isDragging.value;
+  }, [signals.isDragging.value]);
 
   // Mouse event handlers
   const handleMouseDown = (e: MouseEvent) => {
@@ -182,7 +181,7 @@ export const DirectionControl: FunctionalComponent<DirectionControlProps> = ({
     e.preventDefault();
 
     // Start dragging
-    setIsDragging(true);
+    signals.isDragging.value = true;
     isDraggingRef.current = true;
 
     // Update values immediately on click
@@ -207,7 +206,7 @@ export const DirectionControl: FunctionalComponent<DirectionControlProps> = ({
     if (!isDraggingRef.current) return;
 
     // End dragging
-    setIsDragging(false);
+    signals.isDragging.value = false;
     isDraggingRef.current = false;
 
     // Make sure to update values one last time to ensure we have the final position
@@ -336,13 +335,13 @@ export const DirectionControl: FunctionalComponent<DirectionControlProps> = ({
     });
 
     // Force re-render of the component to ensure animation continues
-    setIsHovered(true);
+    signals.isHovered.value = true;
   };
 
   // Get color based on magnitude for intensity visualization
   const getIntensityColor = (magnitude: number, hovered: boolean): string => {
     // Use grayscale when not hovered
-    if (!hovered && !isDragging) {
+    if (!hovered && !isDraggingRef.current) {
       if (magnitude < 0.3) return "var(--gray-8)";
       if (magnitude < 0.6) return "var(--gray-9)";
       return "var(--gray-10)";
@@ -378,10 +377,13 @@ export const DirectionControl: FunctionalComponent<DirectionControlProps> = ({
   const controlPointStyle = {
     left: `${50 + (-signals.valueX.value / max) * 50}%`,
     top: `${50 - (-signals.valueY.value / max) * 50}%`,
-    color: getIntensityColor(signals.magnitude.value, isHovered || isDragging),
+    color: getIntensityColor(
+      signals.magnitude.value,
+      signals.isHovered.value || isDraggingRef.current
+    ),
     // Add a dynamic box-shadow that matches the color for a glow effect
     boxShadow:
-      isHovered || isDragging
+      signals.isHovered.value || isDraggingRef.current
         ? `0 0 2px ${getIntensityColor(
             signals.magnitude.value,
             true
@@ -447,8 +449,8 @@ export const DirectionControl: FunctionalComponent<DirectionControlProps> = ({
       className={`${styles.directionControl} ${
         disabled ? styles.disabled : ""
       }`}
-      onMouseEnter={() => setIsHovered(true)}
-      onMouseLeave={() => setIsHovered(false)}
+      onMouseEnter={() => (signals.isHovered.value = true)}
+      onMouseLeave={() => (signals.isHovered.value = false)}
     >
       {label && (
         <Tooltip content={tooltipContent} position="top" delay={300}>
@@ -461,7 +463,7 @@ export const DirectionControl: FunctionalComponent<DirectionControlProps> = ({
         <div
           ref={controlAreaRef}
           className={`${styles.controlArea} ${
-            isDragging ? styles.dragging : ""
+            isDraggingRef.current ? styles.dragging : ""
           }`}
           onMouseDown={handleMouseDown}
           onDblClick={handleDoubleClick}
@@ -472,7 +474,7 @@ export const DirectionControl: FunctionalComponent<DirectionControlProps> = ({
               magnitude={signals.magnitude.value}
               width={120} // Match the control area size
               height={120} // Match the control area size
-              isVisible={isHovered || isDragging} // Visible when hovered or dragging
+              isVisible={signals.isHovered.value || isDraggingRef.current} // Visible when hovered or dragging
               particleCount={25} // Moderate particle count for performance
               directionX={-signals.valueX.value} // Negate again to get the original direction
               directionY={-signals.valueY.value} // Negate Y again for consistency with our new approach

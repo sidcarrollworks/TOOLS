@@ -360,11 +360,6 @@ export class SceneManager {
     this.app.scene.add(this.app.plane);
   }
 
-  // Alias for backward compatibility
-  recreatePlane(): void {
-    this.recreateGeometry();
-  }
-
   /**
    * Get adaptive segment count based on performance considerations
    * This reduces resolution during rapid changes to maintain performance
@@ -746,11 +741,6 @@ export class SceneManager {
     this.app.params.sphereWidthSegments = currentSphereWidthSegments;
     this.app.params.sphereHeightSegments = currentSphereHeightSegments;
     this.app.params.cubeSegments = currentCubeSegments;
-  }
-
-  // Alias for backward compatibility
-  recreatePlaneHighQuality(): void {
-    this.recreateGeometryHighQuality();
   }
 
   /**

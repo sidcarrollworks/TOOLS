@@ -115,8 +115,6 @@ export const DevPanel: FunctionComponent<DevPanelProps> = ({
   onToggle,
 }) => {
   const [params, setParams] = useState<ShaderParams | null>(null);
-  // Only use legacy tab now since facade is disabled
-  const [activeTab, setActiveTab] = useState<"legacy">("legacy");
   const [fps, setFps] = useState<number>(0);
   const [triangleCount, setTriangleCount] = useState<number>(0);
   const [drawCalls, setDrawCalls] = useState<number>(0);
@@ -235,9 +233,7 @@ export const DevPanel: FunctionComponent<DevPanelProps> = ({
         </button>
       </div>
 
-      {/* Legacy panel content - now without tab wrapping */}
       <div className={styles.tabContent}>
-        {/* Keep all the existing content here */}
         <div className={styles.stats}>
           <div className={styles.statItem}>
             <span className={styles.statLabel}>FPS:</span>

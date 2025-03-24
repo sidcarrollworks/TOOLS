@@ -392,26 +392,12 @@ export class ShaderApp {
   }
 
   /**
-   * Recreate the plane with current parameters (alias for backward compatibility)
-   */
-  recreatePlane(): void {
-    this.recreateGeometry();
-  }
-
-  /**
    * Recreate the geometry with high quality
    */
   recreateGeometryHighQuality(): void {
     if (this.sceneManager) {
       this.sceneManager.recreateGeometryHighQuality();
     }
-  }
-
-  /**
-   * Recreate the plane with high quality (alias for backward compatibility)
-   */
-  recreatePlaneHighQuality(): void {
-    this.recreateGeometryHighQuality();
   }
 
   /**
