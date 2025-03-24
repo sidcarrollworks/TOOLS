@@ -69,6 +69,11 @@ export class SceneManager {
       parentElement.clientHeight
     );
 
+    // Expose renderer to window for DevPanel access
+    if (typeof window !== "undefined") {
+      (window as any).threeRenderer = this.app.renderer;
+    }
+
     // Set clear color based on transparent background setting
     if (this.app.params.exportTransparentBg) {
       // Set transparent background (alpha = 0)

@@ -335,6 +335,7 @@ export const App: ComponentType = () => {
                   showSettings={showSettingsSignal.value}
                   isFullscreen={isFullscreenSignal.value}
                 />
+
                 {showDevPanelSignal.value && (
                   <DevPanel
                     visible={showDevPanelSignal.value}
