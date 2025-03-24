@@ -240,14 +240,14 @@ export class CameraInitializer extends InitializerBase<CameraParameters> {
 
     // Update facade
     try {
-      // Some facades might expect "cameraFov" parameter instead of going through updateParam
-      if (typeof facade.updateParam === "function") {
-        facade.updateParam("cameraFov" as any, value);
-      } else {
-        console.warn(
-          "Facade does not support updateParam, FOV update may not be applied"
-        );
-      }
+      // Update the facade parameter directly with resetCamera: true
+      // This ensures the camera projection matrix is updated
+      facade.updateParam("cameraFov", value, {
+        skipValidation: false,
+        deferUpdate: false,
+        source: "user",
+        resetCamera: true, // This is crucial to update the actual camera
+      });
 
       // Record history
       this.recordFovHistory(prevFov, value);

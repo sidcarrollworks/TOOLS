@@ -11,10 +11,10 @@ import { getExportStore } from "../../lib/stores/ExportStore";
 import {
   getColorInitializer,
   getColorParameter,
+  type ColorParameters,
 } from "../../lib/stores/ColorInitializer";
 import { useSignalValue } from "../../lib/hooks/useSignals";
 import { facadeSignal } from "../../app";
-import { getColorStore, type ColorState } from "../../lib/stores/ColorStore";
 
 interface ColorsPanelProps {
   // No props needed for now
@@ -31,14 +31,13 @@ const GRADIENT_MODE_OPTIONS = [
 ];
 
 export const ColorsPanel: FunctionComponent<ColorsPanelProps> = () => {
-  // Get the stores and initializer
-  const colorStore = getColorStore();
+  // Get the initializer
   const colorInitializer = getColorInitializer();
   const uiStore = getUIStore();
   const exportStore = getExportStore();
 
   // Local state for immediate UI updates
-  const [colorState, setColorState] = useState<ColorState>({
+  const [colorState, setColorState] = useState<ColorParameters>({
     gradientMode: 0,
     gradientShiftX: 0,
     gradientShiftY: 0,
@@ -56,7 +55,7 @@ export const ColorsPanel: FunctionComponent<ColorsPanelProps> = () => {
     transparentBackground: false,
   });
 
-  // Synchronize local state with store on initialization and when panel is opened
+  // Synchronize local state with initializer on initialization and when panel is opened
   useEffect(() => {
     console.log("ColorsPanel: Initializing panel");
 
@@ -70,7 +69,7 @@ export const ColorsPanel: FunctionComponent<ColorsPanelProps> = () => {
 
       // Get all needed parameters directly from facade
       try {
-        const updatedState: ColorState = {
+        const updatedState: ColorParameters = {
           gradientMode: facade.getParam("gradientMode"),
           gradientShiftX: facade.getParam("gradientShiftX"),
           gradientShiftY: facade.getParam("gradientShiftY"),
@@ -96,13 +95,13 @@ export const ColorsPanel: FunctionComponent<ColorsPanelProps> = () => {
       }
     }
 
-    // Also sync with store as a fallback
-    syncWithStore();
+    // Also sync with initializer as a fallback
+    syncWithInitializer();
 
     // Set up polling interval to keep UI updated with any external changes
     // (similar to CameraPanel approach)
     const intervalId = setInterval(() => {
-      syncWithStore();
+      syncWithInitializer();
     }, 500);
 
     // Set up facade event listener for preset changes
@@ -132,17 +131,17 @@ export const ColorsPanel: FunctionComponent<ColorsPanelProps> = () => {
 
         // Get current color parameter values directly from signals for debugging
         const signalValues = {
-          color1: colorStore.color1.value,
-          color2: colorStore.color2.value,
-          color3: colorStore.color3.value,
-          color4: colorStore.color4.value,
-          gradientMode: colorStore.gradientMode.value,
+          color1: colorInitializer.getSignal("color1").value,
+          color2: colorInitializer.getSignal("color2").value,
+          color3: colorInitializer.getSignal("color3").value,
+          color4: colorInitializer.getSignal("color4").value,
+          gradientMode: colorInitializer.getSignal("gradientMode").value,
         };
 
         console.log("ColorsPanel: Signal values after sync:", signalValues);
 
         // Direct update from facade
-        const updatedState: ColorState = {
+        const updatedState: ColorParameters = {
           gradientMode: facade.getParam("gradientMode"),
           gradientShiftX: facade.getParam("gradientShiftX"),
           gradientShiftY: facade.getParam("gradientShiftY"),
@@ -184,13 +183,28 @@ export const ColorsPanel: FunctionComponent<ColorsPanelProps> = () => {
     };
   }, []);
 
-  // Function to sync local state from the store
-  const syncWithStore = () => {
-    const storeState = colorStore.getColorState();
+  // Function to sync local state from the initializer
+  const syncWithInitializer = () => {
+    const newState: ColorParameters = {
+      gradientMode: colorInitializer.getSignal("gradientMode").value,
+      gradientShiftX: colorInitializer.getSignal("gradientShiftX").value,
+      gradientShiftY: colorInitializer.getSignal("gradientShiftY").value,
+      gradientShiftSpeed:
+        colorInitializer.getSignal("gradientShiftSpeed").value,
+      color1: colorInitializer.getSignal("color1").value,
+      color2: colorInitializer.getSignal("color2").value,
+      color3: colorInitializer.getSignal("color3").value,
+      color4: colorInitializer.getSignal("color4").value,
+      colorNoiseScale: colorInitializer.getSignal("colorNoiseScale").value,
+      colorNoiseSpeed: colorInitializer.getSignal("colorNoiseSpeed").value,
+      backgroundColor: colorInitializer.getSignal("backgroundColor").value,
+      transparentBackground: colorInitializer.getSignal("transparentBackground")
+        .value,
+    };
 
     // Debug for sync
     const oldColor1 = colorState.color1;
-    const newColor1 = storeState.color1;
+    const newColor1 = newState.color1;
 
     if (oldColor1 !== newColor1) {
       console.log(
@@ -198,7 +212,7 @@ export const ColorsPanel: FunctionComponent<ColorsPanelProps> = () => {
       );
     }
 
-    setColorState(storeState);
+    setColorState(newState);
   };
 
   // Handle gradient mode change
@@ -211,8 +225,8 @@ export const ColorsPanel: FunctionComponent<ColorsPanelProps> = () => {
       gradientMode: numericValue,
     }));
 
-    // Update store/initializer
-    colorStore.setColorParameter("gradientMode", numericValue);
+    // Update initializer
+    colorInitializer.updateParameter("gradientMode", numericValue);
   };
 
   // Handle color changes
@@ -223,8 +237,8 @@ export const ColorsPanel: FunctionComponent<ColorsPanelProps> = () => {
       color1: value,
     }));
 
-    // Update store/initializer
-    colorStore.setColorParameter("color1", value);
+    // Update initializer
+    colorInitializer.updateParameter("color1", value);
   };
 
   const handleColor2Change = (value: string) => {
@@ -234,8 +248,8 @@ export const ColorsPanel: FunctionComponent<ColorsPanelProps> = () => {
       color2: value,
     }));
 
-    // Update store/initializer
-    colorStore.setColorParameter("color2", value);
+    // Update initializer
+    colorInitializer.updateParameter("color2", value);
   };
 
   const handleColor3Change = (value: string) => {
@@ -245,8 +259,8 @@ export const ColorsPanel: FunctionComponent<ColorsPanelProps> = () => {
       color3: value,
     }));
 
-    // Update store/initializer
-    colorStore.setColorParameter("color3", value);
+    // Update initializer
+    colorInitializer.updateParameter("color3", value);
   };
 
   const handleColor4Change = (value: string) => {
@@ -256,8 +270,8 @@ export const ColorsPanel: FunctionComponent<ColorsPanelProps> = () => {
       color4: value,
     }));
 
-    // Update store/initializer
-    colorStore.setColorParameter("color4", value);
+    // Update initializer
+    colorInitializer.updateParameter("color4", value);
   };
 
   // Handle color noise changes
@@ -268,8 +282,8 @@ export const ColorsPanel: FunctionComponent<ColorsPanelProps> = () => {
       colorNoiseScale: value,
     }));
 
-    // Update store/initializer
-    colorStore.setColorParameter("colorNoiseScale", value);
+    // Update initializer
+    colorInitializer.updateParameter("colorNoiseScale", value);
   };
 
   const handleColorNoiseSpeedChange = (value: number) => {
@@ -279,8 +293,8 @@ export const ColorsPanel: FunctionComponent<ColorsPanelProps> = () => {
       colorNoiseSpeed: value,
     }));
 
-    // Update store/initializer
-    colorStore.setColorParameter("colorNoiseSpeed", value);
+    // Update initializer
+    colorInitializer.updateParameter("colorNoiseSpeed", value);
   };
 
   // Handle gradient shift changes
@@ -291,8 +305,8 @@ export const ColorsPanel: FunctionComponent<ColorsPanelProps> = () => {
       gradientShiftX: value,
     }));
 
-    // Update store/initializer
-    colorStore.setColorParameter("gradientShiftX", value);
+    // Update initializer
+    colorInitializer.updateParameter("gradientShiftX", value);
   };
 
   const handleGradientShiftYChange = (value: number) => {
@@ -302,8 +316,8 @@ export const ColorsPanel: FunctionComponent<ColorsPanelProps> = () => {
       gradientShiftY: value,
     }));
 
-    // Update store/initializer
-    colorStore.setColorParameter("gradientShiftY", value);
+    // Update initializer
+    colorInitializer.updateParameter("gradientShiftY", value);
   };
 
   const handleGradientShiftSpeedChange = (value: number) => {
@@ -313,8 +327,8 @@ export const ColorsPanel: FunctionComponent<ColorsPanelProps> = () => {
       gradientShiftSpeed: value,
     }));
 
-    // Update store/initializer
-    colorStore.setColorParameter("gradientShiftSpeed", value);
+    // Update initializer
+    colorInitializer.updateParameter("gradientShiftSpeed", value);
   };
 
   // Handle background color change
@@ -325,8 +339,8 @@ export const ColorsPanel: FunctionComponent<ColorsPanelProps> = () => {
       backgroundColor: value,
     }));
 
-    // Update store/initializer
-    colorStore.setColorParameter("backgroundColor", value);
+    // Update initializer
+    colorInitializer.updateParameter("backgroundColor", value);
   };
 
   // Handle transparent background toggle with cross-component sync
@@ -337,15 +351,16 @@ export const ColorsPanel: FunctionComponent<ColorsPanelProps> = () => {
       transparentBackground: checked,
     }));
 
-    // Use initializer's specialized method for cross-component sync
-    colorInitializer.updateTransparentBackground(checked);
+    // Update both color initializer and export store
+    colorInitializer.updateTransparentBackground(checked, "color");
   };
 
   // Handle reset button click
   const handleReset = () => {
+    // Reset all color parameters
     colorInitializer.reset();
     // Sync local state after reset
-    syncWithStore();
+    syncWithInitializer();
     uiStore.showToast("Color settings reset to defaults", "success");
   };
 
@@ -354,7 +369,7 @@ export const ColorsPanel: FunctionComponent<ColorsPanelProps> = () => {
     const option = GRADIENT_MODE_OPTIONS.find(
       (opt) => opt.value === colorState.gradientMode
     );
-    return option ? option.label : "Select mode";
+    return option ? option.label : "Unknown";
   };
 
   return (

@@ -5,12 +5,9 @@ import Select from "../UI/Select";
 import { FigmaInput } from "../FigmaInput";
 import { Checkbox } from "../UI/Checkbox";
 import { SettingsGroup, SettingsField } from "../UI/SettingsGroup";
-import { getGeometryStore } from "../../lib/stores/GeometryStore";
+import { getGeometryInitializer } from "../../lib/stores/GeometryInitializer";
 import { getUIStore } from "../../lib/stores/UIStore";
-import {
-  getGeometryInitializer,
-  getGeometryParameter,
-} from "../../lib/stores/GeometryInitializer";
+import { getGeometryParameter } from "../../lib/stores/GeometryInitializer";
 import { useSignalValue } from "../../lib/hooks/useSignals";
 import { facadeSignal } from "../../app";
 
@@ -110,7 +107,6 @@ const GEOMETRY_SETTINGS: GeometrySettings = {
 export const GeometryPanel: FunctionComponent<GeometryPanelProps> = () => {
   // Get the geometry initializer and store
   const geometryInitializer = getGeometryInitializer();
-  const geometryStore = getGeometryStore();
 
   // Get UI store for toast messages
   const uiStore = getUIStore();

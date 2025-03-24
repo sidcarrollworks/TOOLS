@@ -1,7 +1,7 @@
 import { StoreBase } from "./StoreBase";
 import { facadeSignal } from "../../app";
 import { getUIStore } from "./UIStore";
-import { getDistortionStore } from "./DistortionStore";
+import { getDistortionInitializer } from "./DistortionInitializer";
 import type { PresetInfo } from "../facade/types";
 
 /**
@@ -273,8 +273,8 @@ export class PresetStore extends StoreBase<PresetState> {
         });
 
         // Force the distortion store to sync with the facade
-        const distortionStore = getDistortionStore();
-        distortionStore.syncWithFacade();
+        const distortionInitializer = getDistortionInitializer();
+        distortionInitializer.syncWithFacade();
         console.log("Forced distortion store sync after preset application");
 
         getUIStore().showToast(`Applied preset: ${preset.name}`, "success");

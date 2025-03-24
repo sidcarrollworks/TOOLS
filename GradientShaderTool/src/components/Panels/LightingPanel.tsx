@@ -3,10 +3,10 @@ import { useComputed } from "@preact/signals";
 import { useEffect } from "preact/hooks";
 
 import { FigmaInput } from "../FigmaInput";
-import { getLightingStore } from "../../lib/stores/LightingStore";
 import { Button } from "../UI/Button";
 import { SettingsField, SettingsGroup } from "../UI/SettingsGroup";
 import { getLightingInitializer } from "../../lib/stores/LightingInitializer";
+import { facadeSignal } from "../../app";
 
 interface LightingPanelProps {
   // No props needed for now
@@ -15,8 +15,7 @@ interface LightingPanelProps {
 const LightingPanel: FunctionComponent<LightingPanelProps> = () => {
   console.log("LightingPanel: Component rendering");
 
-  // Use the lighting store and initializer
-  const lightingStore = getLightingStore();
+  // Only use the lighting initializer
   const initializer = getLightingInitializer();
 
   // Get signals directly from the initializer
@@ -46,6 +45,21 @@ const LightingPanel: FunctionComponent<LightingPanelProps> = () => {
     // Ensure we have the latest values from the facade
     console.log("LightingPanel: Syncing initializer with facade");
     initializer.syncWithFacade();
+
+    // Subscribe to preset applied events
+    const facade = facadeSignal.value;
+    if (facade) {
+      const handlePresetApplied = () => {
+        initializer.syncWithFacade();
+      };
+
+      facade.on("preset-applied", handlePresetApplied);
+
+      return () => {
+        facade.off("preset-applied", handlePresetApplied);
+        console.log("LightingPanel: Cleanup effect");
+      };
+    }
 
     return () => {
       console.log("LightingPanel: Cleanup effect");

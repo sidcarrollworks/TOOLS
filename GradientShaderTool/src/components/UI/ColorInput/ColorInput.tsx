@@ -56,7 +56,7 @@ export interface ColorInputProps {
 /**
  * Storage key for recent colors
  */
-const RECENT_COLORS_KEY = "gradientShaderToolRecentColors";
+const RECENT_COLORS_KEY = "shaderforgeRecentColors";
 
 /**
  * Maximum number of recent colors to store

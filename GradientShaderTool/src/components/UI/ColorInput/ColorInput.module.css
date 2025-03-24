@@ -41,7 +41,7 @@
 .colorSwatch {
   width: 24px;
   height: 24px;
-  border-radius: 4px 0 0 4px;
+  border-radius: 4px;
   cursor: pointer;
   position: relative;
   display: flex;

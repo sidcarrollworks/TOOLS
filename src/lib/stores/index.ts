@@ -8,10 +8,10 @@ import { getHistoryStore } from "./HistoryStore";
 import { getExportStore } from "./ExportStore";
 import { getCameraStore } from "./CameraStore";
 import { getLightingStore } from "./LightingStore";
-import { getDistortionStore } from "./DistortionStore";
 import { getColorStore } from "./ColorStore";
 import { getGeometryInitializer } from "./GeometryInitializer";
 import { getLightingInitializer } from "./LightingInitializer";
+import { getDistortionInitializer } from "./DistortionInitializer";
 
 // Store registry for debugging and management
 const storeRegistry: Record<string, any> = {};
@@ -28,7 +28,6 @@ export interface StoreRegistry {
   export: ReturnType<typeof getExportStore>;
   camera: ReturnType<typeof getCameraStore>;
   lighting: ReturnType<typeof getLightingStore>;
-  distortion: ReturnType<typeof getDistortionStore>;
   color: ReturnType<typeof getColorStore>;
   [key: string]: any;
 }
@@ -45,7 +44,6 @@ export function initializeStores(): void {
   const exportStore = getExportStore();
   const cameraStore = getCameraStore();
   const lightingStore = getLightingStore();
-  const distortionStore = getDistortionStore();
   const colorStore = getColorStore();
 
   console.info("All stores initialized");
@@ -139,10 +137,9 @@ export function initializeStoresWithFacade(): void {
         "normalNoiseShiftSpeed",
       ].includes(paramName)
     ) {
-      const distortionStore = getDistortionStore();
-
-      // Our refactored store handles syncing more efficiently
-      distortionStore.syncWithFacade();
+      // Use the distortion initializer to sync with facade
+      const distortionInitializer = getDistortionInitializer();
+      distortionInitializer.syncWithFacade();
     }
   });
 
@@ -169,9 +166,9 @@ export function initializeStoresWithFacade(): void {
     const geometryInitializer = getGeometryInitializer();
     geometryInitializer.syncWithFacade();
 
-    // Sync distortion store
-    const distortionStore = getDistortionStore();
-    distortionStore.syncWithFacade();
+    // Sync distortion initializer
+    const distortionInitializer = getDistortionInitializer();
+    distortionInitializer.syncWithFacade();
 
     // Sync camera store
     const cameraStore = getCameraStore();
@@ -250,12 +247,6 @@ export function disposeStores(): void {
     cameraStore.dispose();
   }
 
-  // Clean up distortion store resources
-  const distortionStore = getDistortionStore();
-  if (distortionStore) {
-    distortionStore.dispose();
-  }
-
   // Clean up other store resources if needed
 }
 
@@ -269,6 +260,5 @@ export {
   getExportStore,
   getCameraStore,
   getLightingStore,
-  getDistortionStore,
   getColorStore,
 };

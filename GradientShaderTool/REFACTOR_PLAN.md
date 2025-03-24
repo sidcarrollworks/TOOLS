@@ -21,10 +21,14 @@
    - Added proper resource management and cleanup
    - ✅ Added ColorStore for managing color-related parameters with full history integration
    - ✅ Added DistortionStore for managing distortion parameters with separate X/Y scaling
+   - ✅ Removed legacy CameraStore in favor of CameraInitializer for simpler, signal-based camera management
+   - ✅ Removed legacy LightingStore in favor of LightingInitializer for more consistent lighting parameter management
+   - ✅ Removed legacy ColorStore in favor of ColorInitializer for improved gradient and color parameter management
+   - ✅ Removed legacy DistortionStore in favor of DistortionInitializer for better distortion parameter handling
 
-3. ✅ Created robust CameraStore for camera management
+3. ✅ Created robust camera management system
 
-   - Implemented CameraStore for position, target, and FOV management
+   - Implemented CameraInitializer for position, target, and FOV management
    - Created OrbitControlsSync component for syncing camera controls
    - Fixed UI rendering issues with camera updates
    - Added bidirectional synchronization between UI and 3D view
@@ -39,11 +43,12 @@
 5. ✅ Completed panel refactoring
    - Refactored PresetPanel to use PresetInitializer with modern initialization pattern
    - Refactored GeometryPanel to use GeometryInitializer to separate UI from initialization logic
-   - ⬜ Next: Review and refactor DistortionPanel
-   - Refactored DistortionPanel to use the new DistortionStore
+   - Refactored DistortionPanel to use the new DistortionInitializer
    - Ensured X and Y scale parameters are properly handled separately
-   - Maintained original UI styling while using store-based state management
+   - Maintained original UI styling while using initializer-based state management
    - Added proper history integration and error handling
+   - Refactored ColorsPanel to use ColorInitializer directly, eliminating redundant ColorStore
+   - Enhanced color and gradient parameter management with proper signal synchronization
 
 ### Performance and User Experience Improvements
 
@@ -68,6 +73,7 @@
    - Moved paused badge styling to global CSS
    - Simplified component hierarchy for better maintenance
    - Streamlined initialization for faster startup
+   - Standardized on initializer pattern for all panel-specific parameters
 
 ### Bug Fixes and Code Improvements
 
@@ -93,10 +99,11 @@
 
 4. ✅ Fixed store initialization issues
    - Added explicit initializeStoresWithFacade call in app initialization
-   - Fixed DistortionStore to properly sync with facade parameters
-   - Added robust error handling in syncWithFacade method
-   - Implemented bidirectional sync to ensure store and facade stay in sync
+   - Updated initializers to properly sync with facade parameters
+   - Added robust error handling in syncWithFacade methods
+   - Implemented bidirectional sync to ensure initializers and facade stay in sync
    - Added fallback mechanisms for undefined facade parameter values
+   - Simplified architecture by removing redundant store layers in favor of initializers
 
 ---
 
@@ -315,7 +322,7 @@
    - Implemented `HistoryStore` for undo/redo functionality
    - Created `ParameterStore` for shader parameter management
    - Implemented `ExportStore` for exporting shaders as images or code
-   - Created `CameraStore` for camera position, target, and FOV management
+   - Created `CameraInitializer` for camera position, target, and FOV management
    - Implemented `ColorStore` for color, gradient, and background management
    - Implemented `DistortionStore` for normal noise scale/strength parameters
 
