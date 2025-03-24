@@ -1,5 +1,16 @@
 # Gradient Shader Tool Refactor Plan
 
+## Recent Accomplishments (May 2024)
+
+### Code Cleanup and Optimization
+
+1. ✅ Removed unused components
+
+   - Deleted unused CodePanel.tsx component
+   - Removed CodePanel export from Panels/index.ts
+   - Confirmed code export functionality works properly through modal interface
+   - Reduced bundle size and simplified codebase
+
 ## Recent Accomplishments (April 2024)
 
 ### Phase 3 Progress: UI Component Improvements and Bug Fixes
@@ -417,7 +428,10 @@
 
 ## Next Priorities:
 
-1. Clean up legacy stores that have been replaced by initializers (when safe to do so)
+1. 🔄 Clean up legacy stores and unused components
+   - ✅ Removed unused CodePanel component
+   - Continue replacing legacy stores with initializers when safe to do so
+   - Identify and remove any other unused components
 2. Document the new architecture and standard patterns
 3. Implement consistent error handling throughout the application
 4. Complete UI component library with remaining components
