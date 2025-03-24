@@ -349,55 +349,70 @@
    - Refactored `DistortionPanel` to use the new store system with separate X/Y scale controls
      - Fixed initialization issues by ensuring proper store-facade synchronization
      - Implemented early synchronization to get latest values on component mount
-     - Added polling mechanism to maintain UI consistency with store state
+     - Added proper signal subscriptions for reactive updates
      - Integrated with preset system for proper parameter restoration
      - Added detailed logging for troubleshooting parameter synchronization
-   - Refactored `ColorsPanel` to use the new `ColorStore` with gradient mode support
+   - Refactored `ColorsPanel` to use the `ColorStore` with gradient mode support
+   - Refactored `PresetPanel` to use initializers for state management
+   - Refactored `SavePanel` to use the `ExportInitializer`
+   - Completed minimal implementation of `CodePanel` sufficient for current needs
 
 6. ✅ **Export Improvements**
+
    - Refactored ExportPanel to use stores instead of direct facade access
    - Fixed syntax highlighting for exported code
    - Enhanced JavaScript export with comprehensive camera setup
    - Added detailed usage instructions for exported code
    - Streamlined export options for better user experience
+   - Fixed high-quality export functionality
+   - Implemented proper parameter preservation during exports
+   - Created consistent event emission for parameter changes
+
+7. ✅ **Signal-Based Architecture Implementation**
+
+   - Created `InitializerBase` for parameter management
+   - Implemented `SignalStoreBase` for reactive state management
+   - Created dedicated initializers for all panels
+   - Implemented proper signal subscriptions in UI components
+   - Added facade parameter mapping for all initializers
+   - Ensured proper cleanup of subscriptions and event listeners
+
+8. ✅ **Parameter Restoration**
+   - Restored missing normalNoiseSpeed parameter to DistortionPanel
+   - Updated DistortionInitializer and DistortionStore with proper parameter definitions
+   - Added UI element for normalNoiseSpeed control
+   - Ensured proper synchronization with facade and stores
 
 ### Continuing Work for Phase 3:
 
-7. 🔄 **Complete UI Component Library**
+9. 🔄 **Complete UI Component Library**
 
    - Implement ColorInput with enhanced features
    - Create ToggleButton with consistent styling
    - Implement TabGroup for panel organization
 
-8. 🔄 **Add Global Error Handling**
+10. 🔄 **Add Global Error Handling**
 
-   - Create error boundary components
-   - Implement toast notification system
-   - Add error logging and reporting
-   - Create recovery mechanisms for common errors
+- Create error boundary components
+- Implement toast notification system
+- Add error logging and reporting
+- Create recovery mechanisms for common errors
 
-9. 🔄 **Optimize Performance**
+11. 🔄 **Optimize Performance**
 
-   - Implement virtualization for long lists
-   - Add memoization for expensive calculations
-   - Create optimized render patterns for components
-   - Implement performance monitoring tools
+- Implement virtualization for long lists
+- Add memoization for expensive calculations
+- Create optimized render patterns for components
+- Implement performance monitoring tools
 
-10. 🔄 **Complete Panel Refactoring**
-
-    - Refactor `PresetPanel` to use the `PresetStore`
-    - Refactor `SavePanel` to use the `ExportStore`
-    - Consider refactoring unused `CodePanel` or remove it
-    - Ensure consistent UI patterns across all panels
-    - Add proper error handling to all panels
-
-11. 🔄 **Add Splash Screen**
+12. 🔄 **Add Splash Screen**
     - Add a welcome/splash screen giving a brief overview of what this does and how to use it.
 
 ## Next Priorities:
 
-1. Continue refactoring remaining panels to use the store system (PresetPanel, SavePanel)
-2. Implement consistent error handling throughout the application
-3. Complete UI component library with remaining components
-4. Optimize performance for large parameter sets and complex scenes
-5. Add comprehensive testing for all refactored components
+1. Clean up legacy stores that have been replaced by initializers (when safe to do so)
+2. Document the new architecture and standard patterns
+3. Implement consistent error handling throughout the application
+4. Complete UI component library with remaining components
+5. Optimize performance for large parameter sets and complex scenes
+6. Add comprehensive testing for all refactored components
