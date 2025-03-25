@@ -120,47 +120,49 @@ export const DistortionPanel: FunctionComponent<DistortionPanelProps> = () => {
   return (
     <>
       <SettingsGroup collapsible={false} header={false}>
-        <SettingsField label="Scale" inputDir="row" labelDir="column">
-          <FigmaInput
-            value={noiseScaleX}
-            min={0.1}
-            max={20}
-            step={0.1}
-            onChange={handleNoiseScaleXChange}
-            dragIcon="X"
-          />
+        <SettingsGroup collapsible={false} header={false}>
+          <SettingsField label="Scale" inputDir="row" labelDir="column">
+            <FigmaInput
+              value={noiseScaleX}
+              min={0.1}
+              max={20}
+              step={0.1}
+              onChange={handleNoiseScaleXChange}
+              dragIcon={<span>X</span>}
+            />
 
-          <FigmaInput
-            value={noiseScaleY}
-            min={0.1}
-            max={20}
-            step={0.1}
-            onChange={handleNoiseScaleYChange}
-            dragIcon="Y"
-          />
-        </SettingsField>
-      </SettingsGroup>
+            <FigmaInput
+              value={noiseScaleY}
+              min={0.1}
+              max={20}
+              step={0.1}
+              onChange={handleNoiseScaleYChange}
+              dragIcon={<span>Y</span>}
+            />
+          </SettingsField>
+        </SettingsGroup>
 
-      <SettingsGroup collapsible={false} header={false} direction="row">
-        <SettingsField label="Strength" labelDir="column">
-          <FigmaInput
-            value={noiseStrength}
-            min={0}
-            max={2}
-            step={0.01}
-            onChange={handleNoiseStrengthChange}
-          />
-        </SettingsField>
+        <SettingsGroup collapsible={false} header={false} direction="row">
+          <SettingsField label="Strength" labelDir="column">
+            <FigmaInput
+              value={noiseStrength}
+              min={0}
+              max={2}
+              step={0.01}
+              onChange={handleNoiseStrengthChange}
+            />
+          </SettingsField>
 
-        <SettingsField label="Speed" labelDir="column">
-          <FigmaInput
-            value={noiseSpeed}
-            min={0}
-            max={1}
-            step={0.01}
-            onChange={handleNoiseSpeedChange}
-          />
-        </SettingsField>
+          <SettingsField label="Speed" labelDir="column">
+            <FigmaInput
+              value={noiseSpeed}
+              min={0}
+              max={1}
+              step={0.01}
+              onChange={handleNoiseSpeedChange}
+            />
+          </SettingsField>
+        </SettingsGroup>
       </SettingsGroup>
 
       <DirectionControl

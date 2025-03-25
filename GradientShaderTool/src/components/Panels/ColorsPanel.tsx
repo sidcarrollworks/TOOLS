@@ -443,18 +443,20 @@ export const ColorsPanel: FunctionComponent<ColorsPanelProps> = () => {
 
       {/* Background Settings */}
       <SettingsGroup title="Background" collapsible={false} header={false}>
-        <SettingsField label="Color">
+        <SettingsField label="Transparent">
+          <Checkbox
+            checked={colorState.transparentBackground}
+            onChange={handleTransparentBackgroundChange}
+          />
+        </SettingsField>
+        <SettingsField
+          label="Color"
+          disabled={colorState.transparentBackground}
+        >
           <ColorInput
             value={colorState.backgroundColor}
             onChange={handleBackgroundColorChange}
             debounce={5}
-          />
-        </SettingsField>
-
-        <SettingsField label="Transparent Background">
-          <Checkbox
-            checked={colorState.transparentBackground}
-            onChange={handleTransparentBackgroundChange}
           />
         </SettingsField>
       </SettingsGroup>

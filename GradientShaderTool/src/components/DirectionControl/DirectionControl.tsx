@@ -71,6 +71,9 @@ export const DirectionControl: FunctionalComponent<DirectionControlProps> = ({
 
   // Always re-initialize signals when key values change
   useEffect(() => {
+    // Skip reinitialization if we're currently dragging
+    if (isDraggingRef.current) return;
+
     // Initialize or re-initialize signals
     const valueXSignal = signal(valueX);
     const valueYSignal = signal(valueY);

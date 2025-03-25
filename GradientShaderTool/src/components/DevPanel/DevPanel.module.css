@@ -65,6 +65,11 @@
   padding-bottom: 30px;
 }
 
+.section:last-child {
+  border-bottom: none;
+  margin-bottom: 0;
+}
+
 .sectionTitle {
   font-weight: bold;
   color: var(--blue-a11);

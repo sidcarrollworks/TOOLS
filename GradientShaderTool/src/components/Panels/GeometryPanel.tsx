@@ -180,20 +180,19 @@ export const GeometryPanel: FunctionComponent<GeometryPanelProps> = () => {
   return (
     <>
       {/* Geometry Type Select */}
-      <SettingsGroup collapsible={false} header={false}>
-        <SettingsField label="Type">
-          <Select.Root value={geometryType} onValueChange={handleTypeChange}>
-            <Select.Trigger>{getGeometryTypeLabel()}</Select.Trigger>
-            <Select.Content>
-              {getGeometryTypeOptions().map((option) => (
-                <Select.Item key={option.value} value={option.value}>
-                  {option.label}
-                </Select.Item>
-              ))}
-            </Select.Content>
-          </Select.Root>
-        </SettingsField>
-      </SettingsGroup>
+
+      <SettingsField label="Type">
+        <Select.Root value={geometryType} onValueChange={handleTypeChange}>
+          <Select.Trigger>{getGeometryTypeLabel()}</Select.Trigger>
+          <Select.Content>
+            {getGeometryTypeOptions().map((option) => (
+              <Select.Item key={option.value} value={option.value}>
+                {option.label}
+              </Select.Item>
+            ))}
+          </Select.Content>
+        </Select.Root>
+      </SettingsField>
 
       <SettingsGroup collapsible={false} header={false}>
         {/* Geometry Settings based on type */}
@@ -290,11 +289,11 @@ export const GeometryPanel: FunctionComponent<GeometryPanelProps> = () => {
             </SettingsField>
           </>
         )}
-
-        <SettingsField label="Wireframe">
-          <Checkbox checked={showWireframe} onChange={handleWireframeChange} />
-        </SettingsField>
       </SettingsGroup>
+
+      <SettingsField label="Wireframe" style={{ marginBottom: 0 }}>
+        <Checkbox checked={showWireframe} onChange={handleWireframeChange} />
+      </SettingsField>
     </>
   );
 };

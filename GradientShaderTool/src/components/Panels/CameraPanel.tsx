@@ -43,7 +43,7 @@ export const CameraPanel: FunctionComponent<CameraPanelProps> = () => {
     <>
       {/* Field of View */}
       <SettingsGroup collapsible={false} header={false}>
-        <SettingsField label="FOV">
+        <SettingsField label="FOV" style={{ marginBottom: 0 }}>
           <FigmaInput
             value={fov}
             min={15}

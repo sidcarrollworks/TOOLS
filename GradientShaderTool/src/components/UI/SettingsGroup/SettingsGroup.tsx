@@ -107,7 +107,7 @@ export const SettingsGroup: FunctionComponent<SettingsGroupProps> = ({
 
   return (
     <div
-      className={`${styles.settingsGroup} ${className} ${
+      className={`${styles.settingsGroup} asdf ${className} ${
         grid ? styles.grid : ""
       } ${direction === "row" ? styles.row : styles.column}`}
     >
@@ -228,6 +228,11 @@ export interface SettingsFieldProps {
    * Diretion of the field label
    */
   labelDir?: "row" | "column";
+
+  /**
+   * Inline style for the field
+   */
+  style?: React.CSSProperties;
 }
 
 /**
@@ -245,6 +250,7 @@ export const SettingsField: FunctionComponent<SettingsFieldProps> = ({
   id,
   inputDir = "column",
   labelDir = "row",
+  style,
 }) => {
   return (
     <div
@@ -253,6 +259,7 @@ export const SettingsField: FunctionComponent<SettingsFieldProps> = ({
       } ${disabled ? styles.disabled : ""} ${
         labelDir === "row" ? styles.row : styles.column
       }`}
+      style={style}
     >
       <label className={styles.settingsFieldLabel} title={tooltip} htmlFor={id}>
         {label}
