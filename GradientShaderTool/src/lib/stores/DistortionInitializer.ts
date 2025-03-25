@@ -77,10 +77,62 @@ const PARAMETER_DEFINITIONS: Record<
 export class DistortionInitializer extends InitializerBase<DistortionParameters> {
   constructor() {
     super(PARAMETER_DEFINITIONS, {
-      debug: false,
+      debug: true,
       autoSync: true,
       updateFacade: true,
+      registerEventListeners: true,
     });
+
+    // Force correct values for animation speeds to fix export issue
+    this.forceCorrectAnimationSpeeds();
+  }
+
+  /**
+   * Fix animation speeds that might be incorrect
+   */
+  private forceCorrectAnimationSpeeds(): void {
+    const facade = this.getFacade();
+    if (!facade || !facade.isInitialized()) {
+      console.warn(
+        "DistortionInitializer: Cannot force animation speeds - facade not available"
+      );
+      return;
+    }
+
+    // Get current values
+    const currentSpeed = facade.getParam("normalNoiseSpeed");
+    const currentShiftSpeed = facade.getParam("normalNoiseShiftSpeed");
+
+    // Check if they don't match defaults and force update if needed
+    if (currentSpeed !== DEFAULT_DISTORTION_PARAMETERS.normalNoiseSpeed) {
+      console.log(
+        `DistortionInitializer: Fixing normalNoiseSpeed from ${currentSpeed} to ${DEFAULT_DISTORTION_PARAMETERS.normalNoiseSpeed}`
+      );
+      facade.updateParam(
+        "normalNoiseSpeed",
+        DEFAULT_DISTORTION_PARAMETERS.normalNoiseSpeed
+      );
+      this.updateParameter(
+        "normalNoiseSpeed",
+        DEFAULT_DISTORTION_PARAMETERS.normalNoiseSpeed
+      );
+    }
+
+    if (
+      currentShiftSpeed !== DEFAULT_DISTORTION_PARAMETERS.normalNoiseShiftSpeed
+    ) {
+      console.log(
+        `DistortionInitializer: Fixing normalNoiseShiftSpeed from ${currentShiftSpeed} to ${DEFAULT_DISTORTION_PARAMETERS.normalNoiseShiftSpeed}`
+      );
+      facade.updateParam(
+        "normalNoiseShiftSpeed",
+        DEFAULT_DISTORTION_PARAMETERS.normalNoiseShiftSpeed
+      );
+      this.updateParameter(
+        "normalNoiseShiftSpeed",
+        DEFAULT_DISTORTION_PARAMETERS.normalNoiseShiftSpeed
+      );
+    }
   }
 
   /**
@@ -146,7 +198,7 @@ export class DistortionInitializer extends InitializerBase<DistortionParameters>
   /**
    * Reset to default values
    */
-  reset(): void {
+  reset(): boolean {
     // Get current parameter values for history
     const currentValues: Partial<DistortionParameters> = {};
     for (const key of Object.keys(DEFAULT_DISTORTION_PARAMETERS) as Array<
@@ -165,7 +217,7 @@ export class DistortionInitializer extends InitializerBase<DistortionParameters>
     );
 
     // Reset all parameters
-    super.reset();
+    return super.reset();
   }
 
   /**

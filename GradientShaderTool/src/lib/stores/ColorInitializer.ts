@@ -1,6 +1,5 @@
-import { Signal } from "@preact/signals";
+import { Signal } from "@preact/signals-core";
 import { InitializerBase } from "./InitializerBase";
-import { getExportStore } from "./ExportStore";
 import { facadeSignal } from "../../app";
 
 /**
@@ -113,9 +112,62 @@ export const PARAMETER_DEFINITIONS = {
 export class ColorInitializer extends InitializerBase<ColorParameters> {
   constructor() {
     super(PARAMETER_DEFINITIONS, {
-      autoSync: true,
       debug: true,
+      autoSync: true,
+      updateFacade: true,
+      registerEventListeners: true,
     });
+
+    // Force correct values for animation speeds to fix export issue
+    this.forceCorrectAnimationSpeeds();
+  }
+
+  /**
+   * Fix animation speeds that might be incorrect
+   */
+  private forceCorrectAnimationSpeeds(): void {
+    const facade = this.getFacade();
+    if (!facade || !facade.isInitialized()) {
+      console.warn(
+        "ColorInitializer: Cannot force animation speeds - facade not available"
+      );
+      return;
+    }
+
+    // Get current values
+    const currentColorNoiseSpeed = facade.getParam("colorNoiseSpeed");
+    const currentGradientShiftSpeed = facade.getParam("gradientShiftSpeed");
+
+    // Check if they don't match defaults and force update if needed
+    if (currentColorNoiseSpeed !== DEFAULT_COLOR_PARAMETERS.colorNoiseSpeed) {
+      console.log(
+        `ColorInitializer: Fixing colorNoiseSpeed from ${currentColorNoiseSpeed} to ${DEFAULT_COLOR_PARAMETERS.colorNoiseSpeed}`
+      );
+      facade.updateParam(
+        "colorNoiseSpeed",
+        DEFAULT_COLOR_PARAMETERS.colorNoiseSpeed
+      );
+      this.updateParameter(
+        "colorNoiseSpeed",
+        DEFAULT_COLOR_PARAMETERS.colorNoiseSpeed
+      );
+    }
+
+    if (
+      currentGradientShiftSpeed !== DEFAULT_COLOR_PARAMETERS.gradientShiftSpeed
+    ) {
+      console.log(
+        `ColorInitializer: Fixing gradientShiftSpeed from ${currentGradientShiftSpeed} to ${DEFAULT_COLOR_PARAMETERS.gradientShiftSpeed}`
+      );
+      facade.updateParam(
+        "gradientShiftSpeed",
+        DEFAULT_COLOR_PARAMETERS.gradientShiftSpeed
+      );
+      this.updateParameter(
+        "gradientShiftSpeed",
+        DEFAULT_COLOR_PARAMETERS.gradientShiftSpeed
+      );
+    }
   }
 
   /**
@@ -206,12 +258,6 @@ export class ColorInitializer extends InitializerBase<ColorParameters> {
 
       // Update our signal
       this.getWritableSignal("transparentBackground").value = transparentValue;
-
-      // Update export store
-      const exportStore = getExportStore();
-      exportStore.updateImageSettings({
-        transparent: transparentValue,
-      });
     }
 
     // Log final state after all fixes
@@ -238,7 +284,6 @@ export class ColorInitializer extends InitializerBase<ColorParameters> {
 
   /**
    * Update transparent background setting
-   * Also updates the export store to keep transparent settings in sync
    */
   updateTransparentBackground(
     value: boolean,
@@ -264,12 +309,6 @@ export class ColorInitializer extends InitializerBase<ColorParameters> {
     // Only sync with Export components if this update didn't come from there
     if (source !== "export") {
       try {
-        // Also update the export store to keep them in sync
-        const exportStore = getExportStore();
-        exportStore.updateImageSettings({
-          transparent: value,
-        });
-
         // Import the ExportInitializer dynamically to avoid circular dependencies
         import("./ExportInitializer")
           .then(({ getExportInitializer }) => {

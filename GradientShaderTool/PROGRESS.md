@@ -79,6 +79,10 @@
     - ✅ Replaced legacy stores with modern initializers
     - ✅ Fixed geometry panel to display proper dimension controls for each shape type
     - ✅ Improved initialization sequence to prevent race conditions
+29. ✅ Added preset images to the preset selection buttons:
+    - ✅ Implemented image display in CardButton component
+    - ✅ Created mapping between preset IDs and image files
+    - ✅ Added type declarations for image assets
 
 ## In Progress
 
@@ -127,6 +131,10 @@
    - 📝 Add responsive layouts for mobile devices
    - 📝 Implement touch controls for mobile use
    - 📝 Create compact mode for small screens
+8. 📝 Enhance preset selection experience:
+   - 📝 Convert static preset images to animated GIFs for hover effects
+   - 📝 Improve preset thumbnails with better visual cues
+   - 📝 Add preset categories or tags for organization
 
 ## Future Enhancements (Post-Rewrite)
 

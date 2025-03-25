@@ -11,8 +11,9 @@ import {
 } from "../UI";
 import styles from "./Export.module.css";
 import { X, JS, OpenGL } from "../Icons";
-import { getExportStore } from "../../lib/stores/ExportStore";
+import { getExportInitializer } from "../../lib/stores/ExportInitializer";
 import { getUIStore } from "../../lib/stores/UIStore";
+import { facadeSignal } from "../../app";
 
 interface ExportPanelProps {
   isOpen: boolean;
@@ -31,7 +32,7 @@ export const ExportPanel: FunctionComponent<ExportPanelProps> = ({
   onOpenChange,
 }) => {
   // Get the stores
-  const exportStore = getExportStore();
+  const initializer = getExportInitializer();
   const uiStore = getUIStore();
 
   const [activeMethod, setActiveMethod] = useState<string>("js");
@@ -72,13 +73,19 @@ export const ExportPanel: FunctionComponent<ExportPanelProps> = ({
     setCodeSections([]);
 
     try {
+      const facade = facadeSignal.value;
+      if (!facade) {
+        throw new Error("Shader application not initialized");
+      }
+
       if (methodId === "js") {
         setCodeTitle("JavaScript Export");
         setCodeDescription(
           "Complete Three.js implementation including scene, material, and camera setup. Add this to your project to recreate the gradient shader effect."
         );
 
-        const jsCode = await exportStore.exportCode({
+        // Call the facade directly to export code
+        const jsCode = await facade.exportAsCode({
           format: "js",
           includeLib: true,
         });
@@ -154,7 +161,8 @@ ${cameraHelpers}
           "Copy just the shader code for use in your own Three.js setup."
         );
 
-        const shaderCode = await exportStore.exportCode({ format: "glsl" });
+        // Call the facade directly to export code
+        const shaderCode = await facade.exportAsCode({ format: "glsl" });
         setCodeSections([{ title: "", code: shaderCode, language: "glsl" }]);
       }
     } catch (error) {

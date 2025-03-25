@@ -5,13 +5,14 @@ interface CardButtonProps {
   label: string;
   onClick?: JSX.MouseEventHandler<HTMLButtonElement>;
   isActive?: boolean;
-  // In the future, we might add a prop for the actual preview image
+  image?: string; // Add prop for the preview image
 }
 
 export const CardButton: FunctionComponent<CardButtonProps> = ({
   label,
   onClick,
   isActive = false,
+  image,
 }) => {
   // Combine classes based on props
   const buttonClasses = [styles.cardButton, isActive ? styles.active : ""]
@@ -20,7 +21,18 @@ export const CardButton: FunctionComponent<CardButtonProps> = ({
 
   return (
     <button className={buttonClasses} onClick={onClick}>
-      <div className={styles.preview} />
+      <div
+        className={styles.preview}
+        style={
+          image
+            ? {
+                backgroundImage: `url(${image})`,
+                backgroundSize: "cover",
+                backgroundPosition: "center",
+              }
+            : undefined
+        }
+      />
       <div className={styles.label}>{label}</div>
     </button>
   );

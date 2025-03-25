@@ -79,6 +79,7 @@
   text-transform: uppercase;
   color: var(--text-secondary); /* Secondary text color */
   margin: 0;
+  user-select: none;
 }
 
 .closeButton {

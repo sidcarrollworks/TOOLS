@@ -7,7 +7,6 @@ import { DirectionControl } from "../DirectionControl";
 import { Checkbox, ColorInput } from "../UI";
 import { SettingsField, SettingsGroup } from "../UI/SettingsGroup";
 import { getUIStore } from "../../lib/stores/UIStore";
-import { getExportStore } from "../../lib/stores/ExportStore";
 import {
   getColorInitializer,
   getColorParameter,
@@ -34,7 +33,6 @@ export const ColorsPanel: FunctionComponent<ColorsPanelProps> = () => {
   // Get the initializer
   const colorInitializer = getColorInitializer();
   const uiStore = getUIStore();
-  const exportStore = getExportStore();
 
   // Local state for immediate UI updates
   const [colorState, setColorState] = useState<ColorParameters>({
@@ -430,8 +428,8 @@ export const ColorsPanel: FunctionComponent<ColorsPanelProps> = () => {
           valueX={colorState.gradientShiftX}
           valueY={colorState.gradientShiftY}
           speed={colorState.gradientShiftSpeed}
-          min={-1}
-          max={1}
+          min={-0.5}
+          max={0.5}
           minSpeed={0}
           maxSpeed={1}
           step={0.01}

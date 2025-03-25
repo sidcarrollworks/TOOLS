@@ -6,7 +6,6 @@ import { getUIStore } from "./UIStore";
 import { getParameterStore } from "./ParameterStore";
 import { getPresetStore } from "./PresetStore";
 import { getHistoryStore } from "./HistoryStore";
-import { getExportStore } from "./ExportStore";
 import { getGeometryInitializer } from "./GeometryInitializer";
 import { getLightingInitializer } from "./LightingInitializer";
 import { getExportInitializer } from "./ExportInitializer";
@@ -26,7 +25,6 @@ export interface StoreRegistry {
   parameter: ReturnType<typeof getParameterStore>;
   preset: ReturnType<typeof getPresetStore>;
   history: ReturnType<typeof getHistoryStore>;
-  export: ReturnType<typeof getExportStore>;
   [key: string]: any;
 }
 
@@ -38,7 +36,6 @@ export function initializeStores(): void {
   const parameterStore = getParameterStore();
   const presetStore = getPresetStore();
   const historyStore = getHistoryStore();
-  const exportStore = getExportStore();
 
   console.info("All stores initialized");
 }
@@ -142,7 +139,6 @@ export {
   getParameterStore,
   getPresetStore,
   getHistoryStore,
-  getExportStore,
   // Initializer exports
   getGeometryInitializer,
   getLightingInitializer,

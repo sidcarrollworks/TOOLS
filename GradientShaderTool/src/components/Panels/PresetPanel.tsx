@@ -11,6 +11,12 @@ import { initializeSettingsFromShaderApp } from "../../lib/settings/initApp";
 import { getColorInitializer } from "../../lib/stores/ColorInitializer";
 import { getDistortionInitializer } from "../../lib/stores/DistortionInitializer";
 
+// Import preset images
+import abstractImage from "../../assets/presetImages/abstract.png";
+import lavaImage from "../../assets/presetImages/lava.png";
+import oceanwavesImage from "../../assets/presetImages/oceanwaves.png";
+import sourcemilkImage from "../../assets/presetImages/sourcemilk.png";
+
 // Mapping from preset ID to facade preset name
 const presetIdToFacadeName = new Map<string, string>([
   ["preset-default", "Default"],
@@ -19,9 +25,22 @@ const presetIdToFacadeName = new Map<string, string>([
   ["preset-abstract-art", "Abstract Art"],
 ]);
 
+// Mapping from preset ID to image
+const presetIdToImage = new Map<string, string>([
+  ["preset-ocean-waves", oceanwavesImage],
+  ["preset-lava-flow", lavaImage],
+  ["preset-abstract-art", abstractImage],
+  ["preset-default", sourcemilkImage],
+]);
+
 // Function to get preset name for a given ID
 const getPresetNameForId = (id: string): string | undefined => {
   return presetIdToFacadeName.get(id);
+};
+
+// Function to get preset image for a given ID
+const getPresetImageForId = (id: string): string | undefined => {
+  return presetIdToImage.get(id);
 };
 
 interface PresetPanelProps {
@@ -131,6 +150,7 @@ export const PresetPanel: FunctionComponent<PresetPanelProps> = () => {
     <SettingsGroup collapsible={false} header={false} grid>
       {presets.map((preset) => {
         const isLastApplied = lastAppliedPreset === preset.id;
+        const presetImage = getPresetImageForId(preset.id);
 
         return (
           <CardButton
@@ -138,6 +158,7 @@ export const PresetPanel: FunctionComponent<PresetPanelProps> = () => {
             label={preset.name}
             onClick={() => handlePresetSelect(preset.id)}
             isActive={isLastApplied}
+            image={presetImage}
           />
         );
       })}

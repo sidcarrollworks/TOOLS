@@ -24,6 +24,11 @@ export interface InitializerOptions {
    * Whether to update the facade on parameter changes
    */
   updateFacade?: boolean;
+
+  /**
+   * Whether to register parameter-changed event listeners
+   */
+  registerEventListeners?: boolean;
 }
 
 /**
@@ -98,6 +103,16 @@ export abstract class InitializerBase<
   protected updateFacade: boolean;
 
   /**
+   * Register parameter-changed event listeners
+   */
+  protected registerEventListeners: boolean;
+
+  /**
+   * Event handler cleanup function
+   */
+  protected eventCleanup: (() => void) | null = null;
+
+  /**
    * Initialize with parameter definitions
    */
   constructor(
@@ -107,10 +122,83 @@ export abstract class InitializerBase<
     this.parameterDefs = parameterDefs;
     this.debug = options.debug || false;
     this.updateFacade = options.updateFacade !== false;
+    this.registerEventListeners = options.registerEventListeners !== false;
 
     // Auto-initialize if requested
     if (options.autoSync !== false) {
       this.syncWithFacade();
+    }
+
+    // Register parameter change event listeners
+    if (this.registerEventListeners) {
+      this.registerParameterChangedListeners();
+    }
+  }
+
+  /**
+   * Register event listeners for parameter changes
+   */
+  protected registerParameterChangedListeners(): void {
+    // Clean up existing listeners first
+    if (this.eventCleanup) {
+      this.eventCleanup();
+      this.eventCleanup = null;
+    }
+
+    const facade = this.getFacade();
+    if (!facade) {
+      if (this.debug) {
+        console.warn(
+          "[InitializerBase] No facade available for event registration"
+        );
+      }
+      return;
+    }
+
+    // Keep track of all the parameter names we need to watch
+    const facadeParamMap = new Map<string, keyof T>();
+
+    // Build a map of facade parameter names to our parameter keys
+    for (const [key, def] of Object.entries(this.parameterDefs)) {
+      const facadeParam = def.facadeParam || key;
+      facadeParamMap.set(facadeParam, key as keyof T);
+    }
+
+    // Handler for parameter-changed events
+    const handleParameterChanged = (event: any) => {
+      if (!event || !event.paramName) return;
+
+      const paramName = event.paramName;
+      const key = facadeParamMap.get(paramName);
+
+      if (key) {
+        if (this.debug) {
+          console.log(
+            `[InitializerBase] Parameter changed externally: ${String(
+              paramName
+            )}, syncing...`
+          );
+        }
+
+        // Sync this specific parameter
+        this.syncParameterFromFacade(key);
+      }
+    };
+
+    // Register the event handler
+    facade.on("parameter-changed", handleParameterChanged);
+
+    // Setup cleanup function
+    this.eventCleanup = () => {
+      if (facade) {
+        facade.off("parameter-changed", handleParameterChanged);
+      }
+    };
+
+    if (this.debug) {
+      console.log(
+        "[InitializerBase] Registered parameter-changed event listeners"
+      );
     }
   }
 
@@ -209,6 +297,11 @@ export abstract class InitializerBase<
             `[InitializerBase] Facade parameter not found: ${facadeParam}`
           );
         }
+      }
+
+      // Ensure we have event listeners registered
+      if (this.registerEventListeners && !this.eventCleanup) {
+        this.registerParameterChangedListeners();
       }
 
       return true;
@@ -492,6 +585,17 @@ export abstract class InitializerBase<
       return false;
     } finally {
       this.isSyncing = false;
+    }
+  }
+
+  /**
+   * Destroy this initializer
+   * This will clean up any event listeners
+   */
+  public destroy(): void {
+    if (this.eventCleanup) {
+      this.eventCleanup();
+      this.eventCleanup = null;
     }
   }
 }

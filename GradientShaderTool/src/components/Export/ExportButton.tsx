@@ -3,7 +3,7 @@ import { useState } from "preact/hooks";
 import { Button } from "../UI";
 import { ExportPanel } from "./ExportPanel";
 import { useComputed } from "@preact/signals";
-import { getExportStore } from "../../lib/stores/ExportStore";
+import { getExportInitializer } from "../../lib/stores/ExportInitializer";
 import { getUIStore } from "../../lib/stores/UIStore";
 
 interface ExportButtonProps {
@@ -22,7 +22,7 @@ export const ExportButton: FunctionComponent<ExportButtonProps> = ({
   onOpenChange: externalOnOpenChange,
 }) => {
   // Get the stores
-  const exportStore = getExportStore();
+  const initializer = getExportInitializer();
   const uiStore = getUIStore();
 
   // Use internal state if external state is not provided

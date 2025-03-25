@@ -125,8 +125,8 @@ export const DistortionPanel: FunctionComponent<DistortionPanelProps> = () => {
             <FigmaInput
               value={noiseScaleX}
               min={0.1}
-              max={20}
-              step={0.1}
+              max={5}
+              step={0.01}
               onChange={handleNoiseScaleXChange}
               dragIcon={<span>X</span>}
             />
@@ -135,7 +135,7 @@ export const DistortionPanel: FunctionComponent<DistortionPanelProps> = () => {
               value={noiseScaleY}
               min={0.1}
               max={20}
-              step={0.1}
+              step={0.01}
               onChange={handleNoiseScaleYChange}
               dragIcon={<span>Y</span>}
             />
@@ -147,7 +147,7 @@ export const DistortionPanel: FunctionComponent<DistortionPanelProps> = () => {
             <FigmaInput
               value={noiseStrength}
               min={0}
-              max={2}
+              max={0.75}
               step={0.01}
               onChange={handleNoiseStrengthChange}
             />
@@ -157,7 +157,7 @@ export const DistortionPanel: FunctionComponent<DistortionPanelProps> = () => {
             <FigmaInput
               value={noiseSpeed}
               min={0}
-              max={1}
+              max={0.5}
               step={0.01}
               onChange={handleNoiseSpeedChange}
             />
@@ -169,10 +169,10 @@ export const DistortionPanel: FunctionComponent<DistortionPanelProps> = () => {
         valueX={shiftX}
         valueY={shiftY}
         speed={shiftSpeed}
-        min={-5}
-        max={5}
+        min={-1}
+        max={1}
         minSpeed={0}
-        maxSpeed={2}
+        maxSpeed={1}
         step={0.01}
         onChangeX={handleShiftXChange}
         onChangeY={handleShiftYChange}

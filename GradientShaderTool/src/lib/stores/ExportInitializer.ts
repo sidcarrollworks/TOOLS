@@ -1,13 +1,16 @@
 /**
  * ExportInitializer for managing export parameters
  */
-import { Signal } from "@preact/signals";
+import { Signal, computed } from "@preact/signals";
 import type { ReadonlySignal } from "@preact/signals";
 import { InitializerBase, type ParameterDefinition } from "./InitializerBase";
 import { getHistoryStore } from "./HistoryStore";
 import { facadeSignal } from "../../app";
-import { getExportStore } from "./index";
-import type { ImageFormat, CodeFormat } from "./ExportStore";
+import { getUIStore } from "./UIStore";
+
+// Export types that were previously defined in ExportStore
+export type ImageFormat = "png" | "jpg" | "webp";
+export type CodeFormat = "glsl" | "js" | "ts";
 
 /**
  * Export parameters interface
@@ -84,6 +87,27 @@ export class ExportInitializer extends InitializerBase<ExportParameters> {
   public readonly includeLib: Signal<boolean>;
   public readonly minify: Signal<boolean>;
 
+  // Additional signals for export state
+  private readonly _isExporting: Signal<boolean> = new Signal<boolean>(false);
+  private readonly _lastExportResult: Signal<string | null> = new Signal<
+    string | null
+  >(null);
+  private readonly _lastExportType: Signal<"image" | "code" | null> =
+    new Signal<"image" | "code" | null>(null);
+  private readonly _lastExportFileName: Signal<string> = new Signal<string>(
+    "gradient-shader"
+  );
+
+  // Computed signals
+  public readonly isExporting: ReadonlySignal<boolean> = this._isExporting;
+  public readonly lastExportResult: ReadonlySignal<string | null> =
+    this._lastExportResult;
+  public readonly lastExportType: ReadonlySignal<"image" | "code" | null> =
+    this._lastExportType;
+
+  // File name to use for exports
+  private readonly _fileName: string = "gradient-shader";
+
   // Singleton instance
   private static _instance: ExportInitializer | null = null;
 
@@ -117,6 +141,107 @@ export class ExportInitializer extends InitializerBase<ExportParameters> {
       this.syncWithFacade();
     } catch (error) {
       console.warn("ExportInitializer: Error during initial sync:", error);
+    }
+  }
+
+  /**
+   * Export the current state as an image
+   * @returns Promise that resolves with the exported image URL
+   */
+  public async exportImage(): Promise<string> {
+    const facade = this.getFacade();
+    if (!facade || !facade.isInitialized()) {
+      const errorMsg = "Cannot export: Application not ready";
+      getUIStore().showToast(errorMsg, "error");
+      return Promise.reject(new Error(errorMsg));
+    }
+
+    this._isExporting.value = true;
+
+    try {
+      // Prepare export options with all available settings
+      const exportOptions = {
+        format: this.imageFormat.value,
+        transparent: this.transparent.value,
+        highQuality: this.highQuality.value,
+        fileName: this._fileName,
+      };
+
+      // Log export options (helps with debugging)
+      console.log(
+        "ExportInitializer: Starting image export with options:",
+        exportOptions
+      );
+
+      // Call facade to export
+      const result = await facade.exportAsImage(exportOptions);
+
+      // Store result
+      this._lastExportResult.value = result;
+      this._lastExportType.value = "image";
+      this._lastExportFileName.value = this._fileName;
+
+      getUIStore().showToast("Image exported successfully", "success");
+      return result;
+    } catch (error) {
+      console.error("Failed to export image:", error);
+      const errorMessage =
+        error instanceof Error ? error.message : "Unknown error";
+      getUIStore().showToast(
+        `Failed to export image: ${errorMessage}`,
+        "error"
+      );
+      return Promise.reject(error);
+    } finally {
+      this._isExporting.value = false;
+    }
+  }
+
+  /**
+   * Download the last export result
+   * @returns Whether the download was successful
+   */
+  public downloadLastExport(): boolean {
+    const result = this._lastExportResult.value;
+    const type = this._lastExportType.value;
+
+    if (!result) {
+      getUIStore().showToast("No export result to download", "warning");
+      return false;
+    }
+
+    try {
+      // Create download link
+      const link = document.createElement("a");
+
+      if (type === "image") {
+        // For images, use data URL directly
+        link.href = result;
+        const format = this.imageFormat.value;
+        link.download = `${this._lastExportFileName.value}.${format}`;
+      } else {
+        // For code, create a blob
+        const blob = new Blob([result], { type: "text/plain" });
+        link.href = URL.createObjectURL(blob);
+
+        const format = this.codeFormat.value;
+        link.download = `${this._lastExportFileName.value}.${format}`;
+      }
+
+      // Trigger download
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+
+      getUIStore().showToast("Download started", "success");
+      return true;
+    } catch (error) {
+      console.error("Failed to download:", error);
+
+      const errorMessage =
+        error instanceof Error ? error.message : "Unknown error";
+      getUIStore().showToast(`Failed to download: ${errorMessage}`, "error");
+      return false;
     }
   }
 
@@ -170,9 +295,6 @@ export class ExportInitializer extends InitializerBase<ExportParameters> {
         console.warn("ExportInitializer: Error updating facade params:", error);
         return false;
       }
-
-      // Update the export store settings
-      this.updateExportStore();
     } else {
       console.warn(
         "ExportInitializer: Some signals not initialized during sync"
@@ -181,29 +303,6 @@ export class ExportInitializer extends InitializerBase<ExportParameters> {
     }
 
     return true;
-  }
-
-  /**
-   * Update the export store to maintain consistency with our signals
-   */
-  private updateExportStore(): void {
-    const exportStore = getExportStore();
-
-    // Update image settings
-    exportStore.updateImageSettings({
-      transparent: this.transparent.value,
-      highQuality: this.highQuality.value,
-      format: this.imageFormat.value,
-    });
-
-    // Update code settings
-    exportStore.updateCodeSettings({
-      format: this.codeFormat.value,
-      includeLib: this.includeLib.value,
-      minify: this.minify.value,
-    });
-
-    console.log("ExportInitializer: Updated export store settings");
   }
 
   /**
@@ -230,30 +329,22 @@ export class ExportInitializer extends InitializerBase<ExportParameters> {
 
     const result = this.updateParameters(updates);
 
-    // Update the export store to keep them in sync
-    if (result) {
-      this.updateExportStore();
-
-      // Directly update facade parameters for immediate effect
-      const facade = this.getFacade();
-      if (facade && facade.isInitialized()) {
-        try {
-          if (settings.transparent !== undefined) {
-            facade.updateParam("exportTransparentBg", settings.transparent);
-          }
-          if (settings.highQuality !== undefined) {
-            facade.updateParam("exportHighQuality", settings.highQuality);
-          }
-          console.log(
-            "ExportInitializer: Updated facade parameters directly:",
-            settings
-          );
-        } catch (error) {
-          console.warn(
-            "ExportInitializer: Error updating facade params:",
-            error
-          );
+    // Directly update facade parameters for immediate effect
+    const facade = this.getFacade();
+    if (facade && facade.isInitialized()) {
+      try {
+        if (settings.transparent !== undefined) {
+          facade.updateParam("exportTransparentBg", settings.transparent);
         }
+        if (settings.highQuality !== undefined) {
+          facade.updateParam("exportHighQuality", settings.highQuality);
+        }
+        console.log(
+          "ExportInitializer: Updated facade parameters directly:",
+          settings
+        );
+      } catch (error) {
+        console.warn("ExportInitializer: Error updating facade params:", error);
       }
     }
 
@@ -282,14 +373,7 @@ export class ExportInitializer extends InitializerBase<ExportParameters> {
       updates.minify = settings.minify;
     }
 
-    const result = this.updateParameters(updates);
-
-    // Update the export store to keep them in sync
-    if (result) {
-      this.updateExportStore();
-    }
-
-    return result;
+    return this.updateParameters(updates);
   }
 
   /**
@@ -322,17 +406,6 @@ export class ExportInitializer extends InitializerBase<ExportParameters> {
           error
         );
       }
-    }
-
-    // Update export store directly (our signal updates should handle this, but being explicit)
-    try {
-      const exportStore = getExportStore();
-      exportStore.updateImageSettings({ transparent });
-      console.log(
-        `ExportInitializer: Updated ExportStore transparent setting to ${transparent}`
-      );
-    } catch (error) {
-      console.warn("ExportInitializer: Error updating ExportStore:", error);
     }
 
     // Only sync with ColorInitializer if this update didn't come from it
@@ -385,9 +458,6 @@ export class ExportInitializer extends InitializerBase<ExportParameters> {
    */
   public override reset(): boolean {
     super.reset();
-
-    // Update the export store to keep them in sync
-    this.updateExportStore();
 
     return true;
   }
