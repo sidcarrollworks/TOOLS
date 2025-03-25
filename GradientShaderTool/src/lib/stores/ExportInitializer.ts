@@ -167,12 +167,6 @@ export class ExportInitializer extends InitializerBase<ExportParameters> {
         fileName: this._fileName,
       };
 
-      // Log export options (helps with debugging)
-      console.log(
-        "ExportInitializer: Starting image export with options:",
-        exportOptions
-      );
-
       // Call facade to export
       const result = await facade.exportAsImage(exportOptions);
 
@@ -251,7 +245,7 @@ export class ExportInitializer extends InitializerBase<ExportParameters> {
   syncWithFacade(): boolean {
     const facade = this.getFacade();
     if (!facade || !facade.isInitialized()) {
-      console.warn("ExportInitializer: No facade available for sync");
+      // No facade available for sync
       return false;
     }
 
@@ -292,13 +286,11 @@ export class ExportInitializer extends InitializerBase<ExportParameters> {
         facade.updateParam("exportTransparentBg", this.transparent.value);
         facade.updateParam("exportHighQuality", this.highQuality.value);
       } catch (error) {
-        console.warn("ExportInitializer: Error updating facade params:", error);
+        // Error updating facade params
         return false;
       }
     } else {
-      console.warn(
-        "ExportInitializer: Some signals not initialized during sync"
-      );
+      // Some signals not initialized during sync
       return false;
     }
 
@@ -339,12 +331,8 @@ export class ExportInitializer extends InitializerBase<ExportParameters> {
         if (settings.highQuality !== undefined) {
           facade.updateParam("exportHighQuality", settings.highQuality);
         }
-        console.log(
-          "ExportInitializer: Updated facade parameters directly:",
-          settings
-        );
       } catch (error) {
-        console.warn("ExportInitializer: Error updating facade params:", error);
+        // Error updating facade params
       }
     }
 
@@ -384,10 +372,6 @@ export class ExportInitializer extends InitializerBase<ExportParameters> {
     transparent: boolean,
     source: "color" | "export" = "export"
   ): boolean {
-    console.log(
-      `ExportInitializer: Updating transparent bg to ${transparent} (source: ${source})`
-    );
-
     // First, update our own parameter
     const result = this.updateParameter("transparent", transparent);
 
@@ -397,14 +381,8 @@ export class ExportInitializer extends InitializerBase<ExportParameters> {
     if (facade) {
       try {
         facade.updateParam("exportTransparentBg", transparent);
-        console.log(
-          `ExportInitializer: Updated facade param 'exportTransparentBg' to ${transparent}`
-        );
       } catch (error) {
-        console.warn(
-          "ExportInitializer: Error updating facade parameter:",
-          error
-        );
+        // Error updating facade parameter
       }
     }
 
@@ -415,12 +393,9 @@ export class ExportInitializer extends InitializerBase<ExportParameters> {
         import("../../lib/settings/store")
           .then(({ updateSettingValue }) => {
             updateSettingValue("transparentBackground", transparent);
-            console.log(
-              `ExportInitializer: Updated global setting 'transparentBackground' to ${transparent}`
-            );
           })
           .catch((err) => {
-            console.warn("ExportInitializer: Error updating settings:", err);
+            // Error updating settings
           });
 
         // Update ColorInitializer
@@ -432,21 +407,12 @@ export class ExportInitializer extends InitializerBase<ExportParameters> {
               "transparentBackground",
               transparent
             );
-            console.log(
-              `ExportInitializer: Updated ColorInitializer 'transparentBackground' to ${transparent}`
-            );
           })
           .catch((err) => {
-            console.warn(
-              "ExportInitializer: Error updating ColorInitializer:",
-              err
-            );
+            // Error updating ColorInitializer
           });
       } catch (error) {
-        console.warn(
-          "ExportInitializer: Error syncing transparent background:",
-          error
-        );
+        // Error syncing transparent background
       }
     }
 

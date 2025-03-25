@@ -148,9 +148,7 @@ export abstract class InitializerBase<
     const facade = this.getFacade();
     if (!facade) {
       if (this.debug) {
-        console.warn(
-          "[InitializerBase] No facade available for event registration"
-        );
+        // No facade available for event registration
       }
       return;
     }
@@ -173,11 +171,7 @@ export abstract class InitializerBase<
 
       if (key) {
         if (this.debug) {
-          console.log(
-            `[InitializerBase] Parameter changed externally: ${String(
-              paramName
-            )}, syncing...`
-          );
+          // Parameter changed externally, syncing...
         }
 
         // Sync this specific parameter
@@ -196,9 +190,7 @@ export abstract class InitializerBase<
     };
 
     if (this.debug) {
-      console.log(
-        "[InitializerBase] Registered parameter-changed event listeners"
-      );
+      // Registered parameter-changed event listeners
     }
   }
 
@@ -208,7 +200,7 @@ export abstract class InitializerBase<
   public initialize(): void {
     const facade = this.getFacade();
     if (!facade || !facade.isInitialized()) {
-      console.warn("[Initializer] Facade not available, using defaults");
+      // Facade not available, using defaults
       return;
     }
 
@@ -264,9 +256,7 @@ export abstract class InitializerBase<
   public syncWithFacade(): boolean {
     const facade = this.getFacade();
     if (!facade || !facade.isInitialized()) {
-      console.warn(
-        "[InitializerBase] Cannot sync - facade not available or not initialized"
-      );
+      // Cannot sync - facade not available or not initialized
       return false;
     }
 
@@ -293,9 +283,7 @@ export abstract class InitializerBase<
             this.getWritableSignal(key as any).value = transformedValue;
           }
         } else {
-          console.warn(
-            `[InitializerBase] Facade parameter not found: ${facadeParam}`
-          );
+          // Facade parameter not found: ${facadeParam}
         }
       }
 
@@ -306,7 +294,7 @@ export abstract class InitializerBase<
 
       return true;
     } catch (error) {
-      console.error("[InitializerBase] Error syncing with facade:", error);
+      // Error syncing with facade: ${error}
       return false;
     } finally {
       this.isSyncing = false;
@@ -320,14 +308,12 @@ export abstract class InitializerBase<
     const paramDef = this.parameterDefs[key];
 
     if (!paramDef) {
-      console.error(`[Initializer] Parameter not found: ${String(key)}`);
+      // Parameter not found: ${String(key)}
       return false;
     }
 
     if (paramDef.readOnly) {
-      console.error(
-        `[Initializer] Cannot update read-only parameter: ${String(key)}`
-      );
+      // Cannot update read-only parameter: ${String(key)}
       return false;
     }
 
@@ -335,7 +321,7 @@ export abstract class InitializerBase<
     if (this.parameterSignals.has(String(key))) {
       this.parameterSignals.get(String(key))!.value = value;
     } else {
-      console.warn(`[InitializerBase] No signal found for ${String(key)}`);
+      // No signal found for ${String(key)}
     }
 
     // Update facade if not syncing
@@ -349,11 +335,7 @@ export abstract class InitializerBase<
 
         return facade.updateParam(facadeParam as any, transformedValue);
       } else {
-        console.warn(
-          `[InitializerBase] Facade not available for parameter update: ${String(
-            key
-          )}`
-        );
+        // Facade not available for parameter update: ${String(key)}
       }
     }
 
@@ -373,15 +355,13 @@ export abstract class InitializerBase<
       const paramDef = this.parameterDefs[paramKey];
 
       if (!paramDef) {
-        console.error(`[Initializer] Parameter not found: ${key}`);
+        // Parameter not found: ${key}
         success = false;
         continue;
       }
 
       if (paramDef.readOnly) {
-        console.error(
-          `[Initializer] Cannot update read-only parameter: ${key}`
-        );
+        // Cannot update read-only parameter: ${key}
         success = false;
         continue;
       }
@@ -516,10 +496,7 @@ export abstract class InitializerBase<
         facade.updateParam(paramName as any, defaultValue);
       }
     } catch (e) {
-      console.error(
-        `[Initializer] Error ensuring parameter ${paramName} exists:`,
-        e
-      );
+      // Error ensuring parameter ${paramName} exists: ${e}
     }
   }
 
@@ -539,11 +516,7 @@ export abstract class InitializerBase<
   public syncParameterFromFacade<K extends keyof T>(key: K): boolean {
     const facade = this.getFacade();
     if (!facade || !facade.isInitialized()) {
-      console.warn(
-        `[InitializerBase] Cannot sync parameter ${String(
-          key
-        )}, facade not available`
-      );
+      // Cannot sync parameter ${String(key)}, facade not available
       return false;
     }
 
@@ -553,7 +526,7 @@ export abstract class InitializerBase<
       // Get parameter definition
       const paramDef = this.parameterDefs[key];
       if (!paramDef) {
-        console.warn(`[InitializerBase] Parameter ${String(key)} not defined`);
+        // Parameter ${String(key)} not defined
         return false;
       }
 
@@ -575,13 +548,10 @@ export abstract class InitializerBase<
         return true;
       }
 
-      console.warn(`[InitializerBase] No signal found for ${String(key)}`);
+      // No signal found for ${String(key)}
       return false;
     } catch (error) {
-      console.error(
-        `[InitializerBase] Error syncing parameter ${String(key)}:`,
-        error
-      );
+      // Error syncing parameter ${String(key)}: ${error}
       return false;
     } finally {
       this.isSyncing = false;

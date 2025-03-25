@@ -92,10 +92,9 @@ export class DistortionInitializer extends InitializerBase<DistortionParameters>
    */
   private forceCorrectAnimationSpeeds(): void {
     const facade = this.getFacade();
+
     if (!facade || !facade.isInitialized()) {
-      console.warn(
-        "DistortionInitializer: Cannot force animation speeds - facade not available"
-      );
+      // Cannot force animation speeds - facade not available
       return;
     }
 
@@ -105,9 +104,7 @@ export class DistortionInitializer extends InitializerBase<DistortionParameters>
 
     // Check if they don't match defaults and force update if needed
     if (currentSpeed !== DEFAULT_DISTORTION_PARAMETERS.normalNoiseSpeed) {
-      console.log(
-        `DistortionInitializer: Fixing normalNoiseSpeed from ${currentSpeed} to ${DEFAULT_DISTORTION_PARAMETERS.normalNoiseSpeed}`
-      );
+      // Fixing normalNoiseSpeed
       facade.updateParam(
         "normalNoiseSpeed",
         DEFAULT_DISTORTION_PARAMETERS.normalNoiseSpeed
@@ -121,9 +118,7 @@ export class DistortionInitializer extends InitializerBase<DistortionParameters>
     if (
       currentShiftSpeed !== DEFAULT_DISTORTION_PARAMETERS.normalNoiseShiftSpeed
     ) {
-      console.log(
-        `DistortionInitializer: Fixing normalNoiseShiftSpeed from ${currentShiftSpeed} to ${DEFAULT_DISTORTION_PARAMETERS.normalNoiseShiftSpeed}`
-      );
+      // Fixing normalNoiseShiftSpeed
       facade.updateParam(
         "normalNoiseShiftSpeed",
         DEFAULT_DISTORTION_PARAMETERS.normalNoiseShiftSpeed
@@ -233,15 +228,11 @@ export class DistortionInitializer extends InitializerBase<DistortionParameters>
    * Sync a specific parameter from the facade
    */
   syncParameterFromFacade(paramName: keyof DistortionParameters): boolean {
-    console.log(
-      `DistortionInitializer: Syncing parameter ${paramName} from facade`
-    );
+    // Syncing parameter from facade
 
     const facade = this.getFacade();
     if (!facade || !facade.isInitialized()) {
-      console.warn(
-        `DistortionInitializer: Cannot sync parameter ${paramName}, facade not available`
-      );
+      // Cannot sync parameter, facade not available
       return false;
     }
 
@@ -251,9 +242,7 @@ export class DistortionInitializer extends InitializerBase<DistortionParameters>
       // Get parameter definition
       const paramDef = this.parameterDefs[paramName];
       if (!paramDef) {
-        console.warn(
-          `DistortionInitializer: Parameter ${paramName} not defined`
-        );
+        // Parameter not defined
         return false;
       }
 
@@ -272,19 +261,14 @@ export class DistortionInitializer extends InitializerBase<DistortionParameters>
       const signal = this.parameterSignals.get(paramName as string);
       if (signal) {
         signal.value = value;
-        console.log(
-          `DistortionInitializer: Updated signal for ${paramName} to ${value}`
-        );
+        // Updated signal
         return true;
       }
 
-      console.warn(`DistortionInitializer: No signal found for ${paramName}`);
+      // No signal found
       return false;
     } catch (error) {
-      console.error(
-        `DistortionInitializer: Error syncing parameter ${paramName}:`,
-        error
-      );
+      // Error syncing parameter
       return false;
     } finally {
       this.isSyncing = false;

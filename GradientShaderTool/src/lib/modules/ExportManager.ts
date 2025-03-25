@@ -44,7 +44,6 @@ export class ExportManager {
     }
 
     // Export the canvas - high quality geometry should already be created by the facade if needed
-    console.log("ExportManager: Exporting canvas to image");
     const dataURL = this.exportCanvas();
 
     // Always restore original renderer settings

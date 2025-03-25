@@ -23,7 +23,6 @@ export class ExportUI {
    * Show export modal with code
    */
   async showExportCode(): Promise<void> {
-    console.log("ExportUI.showExportCode called");
     // Create container if it doesn't exist
     if (!this.modalContainer) {
       this.modalContainer = document.createElement("div");
@@ -39,7 +38,6 @@ export class ExportUI {
    * Render the export panel using Preact
    */
   private renderExportPanel(): void {
-    console.log("ExportUI.renderExportPanel called");
     if (!this.modalContainer) return;
 
     const handleOpenChange = (open: boolean) => {

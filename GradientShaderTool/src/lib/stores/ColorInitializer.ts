@@ -126,11 +126,10 @@ export class ColorInitializer extends InitializerBase<ColorParameters> {
    * Fix animation speeds that might be incorrect
    */
   private forceCorrectAnimationSpeeds(): void {
-    const facade = this.getFacade();
+    const facade = facadeSignal.value;
+
     if (!facade || !facade.isInitialized()) {
-      console.warn(
-        "ColorInitializer: Cannot force animation speeds - facade not available"
-      );
+      // Cannot force animation speeds - facade not available
       return;
     }
 
@@ -140,9 +139,7 @@ export class ColorInitializer extends InitializerBase<ColorParameters> {
 
     // Check if they don't match defaults and force update if needed
     if (currentColorNoiseSpeed !== DEFAULT_COLOR_PARAMETERS.colorNoiseSpeed) {
-      console.log(
-        `ColorInitializer: Fixing colorNoiseSpeed from ${currentColorNoiseSpeed} to ${DEFAULT_COLOR_PARAMETERS.colorNoiseSpeed}`
-      );
+      // Fixing colorNoiseSpeed
       facade.updateParam(
         "colorNoiseSpeed",
         DEFAULT_COLOR_PARAMETERS.colorNoiseSpeed
@@ -156,9 +153,7 @@ export class ColorInitializer extends InitializerBase<ColorParameters> {
     if (
       currentGradientShiftSpeed !== DEFAULT_COLOR_PARAMETERS.gradientShiftSpeed
     ) {
-      console.log(
-        `ColorInitializer: Fixing gradientShiftSpeed from ${currentGradientShiftSpeed} to ${DEFAULT_COLOR_PARAMETERS.gradientShiftSpeed}`
-      );
+      // Fixing gradientShiftSpeed
       facade.updateParam(
         "gradientShiftSpeed",
         DEFAULT_COLOR_PARAMETERS.gradientShiftSpeed
@@ -177,7 +172,7 @@ export class ColorInitializer extends InitializerBase<ColorParameters> {
     const facade = facadeSignal.value;
 
     if (!facade) {
-      console.warn("ColorInitializer: No facade available for sync");
+      // No facade available for sync
       return false;
     }
 
@@ -236,10 +231,7 @@ export class ColorInitializer extends InitializerBase<ColorParameters> {
           : currentValue !== facadeValue;
 
         if (valuesDiffer) {
-          console.warn(
-            `ColorInitializer: Mismatch detected for ${key}. Forcing update.`
-          );
-          console.warn(`  Facade: ${facadeValue}, Signal: ${currentValue}`);
+          // Mismatch detected, forcing update
 
           // Force update the signal
           this.isSyncing = true;
@@ -259,15 +251,6 @@ export class ColorInitializer extends InitializerBase<ColorParameters> {
       // Update our signal
       this.getWritableSignal("transparentBackground").value = transparentValue;
     }
-
-    // Log final state after all fixes
-    const finalValues = {
-      color1: this.getSignal("color1").value,
-      color2: this.getSignal("color2").value,
-      color3: this.getSignal("color3").value,
-      color4: this.getSignal("color4").value,
-      gradientMode: this.getSignal("gradientMode").value,
-    };
 
     return true;
   }
@@ -299,10 +282,7 @@ export class ColorInitializer extends InitializerBase<ColorParameters> {
       try {
         facade.updateParam("exportTransparentBg", value);
       } catch (error) {
-        console.warn(
-          "ColorInitializer: Error updating facade parameter:",
-          error
-        );
+        // Error updating facade parameter
       }
     }
 
@@ -317,16 +297,10 @@ export class ColorInitializer extends InitializerBase<ColorParameters> {
             exportInitializer.updateParameter("transparent", value);
           })
           .catch((err) => {
-            console.warn(
-              "ColorInitializer: Error updating ExportInitializer:",
-              err
-            );
+            // Error updating ExportInitializer
           });
       } catch (error) {
-        console.warn(
-          "ColorInitializer: Error syncing with export components:",
-          error
-        );
+        // Error syncing with export components
       }
     }
 

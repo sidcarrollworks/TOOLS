@@ -175,9 +175,7 @@ const SavePanel: FunctionComponent<SavePanelProps> = () => {
         transparentBg && !hasPreserveDrawingBuffer;
 
       if (needsTransparencyWorkaround) {
-        console.log(
-          "Using transparency workaround due to missing preserveDrawingBuffer"
-        );
+        // Using transparency workaround due to missing preserveDrawingBuffer
       }
 
       // Apply transparent background if needed
@@ -255,9 +253,7 @@ const SavePanel: FunctionComponent<SavePanelProps> = () => {
 
       // Important: JPEG format doesn't support transparency, so warn if needed
       if (transparentBg && imageFormat === "jpg") {
-        console.warn(
-          "JPEG format doesn't support transparency. Using PNG instead."
-        );
+        // JPEG format doesn't support transparency. Using PNG instead.
         const pngDataUrl = canvas.toDataURL("image/png");
 
         // Trigger download with PNG instead
@@ -354,7 +350,7 @@ const SavePanel: FunctionComponent<SavePanelProps> = () => {
       // Use direct renderer call instead of animate which might advance time
       app.renderer.render(app.scene, app.camera);
 
-      console.log("Export complete - Time reset to: ", originalTimeValue);
+      // Export complete
     } catch (error) {
       console.error("Error saving image:", error);
       alert(
