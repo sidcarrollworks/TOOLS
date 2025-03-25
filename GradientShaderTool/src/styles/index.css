@@ -26,6 +26,7 @@ body {
 #app {
   width: 100%;
   height: 100%;
+  padding: 4px;
 }
 
 /* Custom scrollbar for a modern look */
@@ -62,8 +63,10 @@ body {
 
 .app-container {
   width: 100%;
-  height: 100vh;
+  height: 100%;
   position: relative;
+  border-radius: 6px;
+  overflow: hidden;
 }
 
 .canvas-wrapper {
@@ -99,8 +102,8 @@ body {
 .app {
   display: flex;
   flex-direction: column;
-  height: 100vh;
-  width: 100vw;
+  height: 100%;
+  width: 100%;
 }
 
 /* Header styles */
