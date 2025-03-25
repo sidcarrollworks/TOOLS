@@ -10,7 +10,7 @@ import { getUIStore } from "./UIStore";
 
 // Export types that were previously defined in ExportStore
 export type ImageFormat = "png" | "jpg" | "webp";
-export type CodeFormat = "glsl" | "js" | "ts";
+export type CodeFormat = "glsl" | "js" | "ts" | "html";
 
 /**
  * Export parameters interface

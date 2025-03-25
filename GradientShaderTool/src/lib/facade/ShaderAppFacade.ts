@@ -1248,6 +1248,46 @@ const material = new THREE.ShaderMaterial({
   fragmentShader,
   uniforms
 });`;
+      } else if (format === "html") {
+        // Import HTMLExporter dynamically to avoid circular dependencies
+        const { HTMLExporter } = await import("../modules/export/HTMLExporter");
+        const htmlExporter = new HTMLExporter(this.app!);
+
+        // Generate HTML parts
+        const htmlSetup = htmlExporter.generateHTMLSetup();
+        const sceneSetup = htmlExporter.generateSceneSetup();
+        const geometryAnimation = htmlExporter.generateGeometryAndAnimation();
+
+        // Format shaders with backticks to ensure proper multi-line strings in JavaScript
+        // Add extra escaping to preserve the backticks in the resulting code
+        const escapedVertexShader = vertexShader.replace(/`/g, "\\`");
+        const escapedFragmentShader = fragmentShader.replace(/`/g, "\\`");
+
+        // Combine all parts
+        const fullHtmlCode = htmlSetup.replace(
+          "// Your shader code will go here",
+          `
+    // Vertex shader
+    const vertexShader = \`${escapedVertexShader}\`;
+    
+    // Fragment shader
+    const fragmentShader = \`${escapedFragmentShader}\`;
+    
+    ${sceneSetup}
+    
+    // Create shader material
+    const material = new THREE.ShaderMaterial({
+      vertexShader,
+      fragmentShader,
+      uniforms,
+      wireframe: ${this.app!.params.showWireframe}
+    });
+    
+    ${geometryAnimation}
+    `
+        );
+
+        code = fullHtmlCode;
       }
 
       // Apply minification if requested
@@ -1410,6 +1450,19 @@ const material = new THREE.ShaderMaterial({
       try {
         return (
           this.config.export.defaultImageExport.format === format ||
+          typeof format === "string"
+        );
+      } catch {
+        return false;
+      }
+    });
+
+    // Test code format support
+    const codeFormats = ["glsl", "js", "ts", "html"];
+    results.codeFormatSupport = codeFormats.every((format) => {
+      try {
+        return (
+          this.config.export.defaultCodeExport.format === format ||
           typeof format === "string"
         );
       } catch {

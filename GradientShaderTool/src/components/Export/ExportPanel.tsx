@@ -10,7 +10,7 @@ import {
   Code,
 } from "../UI";
 import styles from "./Export.module.css";
-import { X, JS, OpenGL } from "../Icons";
+import { X, JS, OpenGL, HTML } from "../Icons";
 import { getExportInitializer } from "../../lib/stores/ExportInitializer";
 import { getUIStore } from "../../lib/stores/UIStore";
 import { facadeSignal } from "../../app";
@@ -55,6 +55,12 @@ export const ExportPanel: FunctionComponent<ExportPanelProps> = ({
       name: "Shaders",
       description: "Export just the shader code",
       icon: <OpenGL height={16} width={16} />,
+    },
+    {
+      id: "html",
+      name: "HTML",
+      description: "Standalone HTML page with Three.js",
+      icon: <HTML height={16} width={16} />,
     },
   ];
 
@@ -164,6 +170,25 @@ ${cameraHelpers}
         // Call the facade directly to export code
         const shaderCode = await facade.exportAsCode({ format: "glsl" });
         setCodeSections([{ title: "", code: shaderCode, language: "glsl" }]);
+      } else if (methodId === "html") {
+        setCodeTitle("HTML Export");
+        setCodeDescription(
+          "Complete standalone HTML page with embedded Three.js and shader implementation. Just save and open in any browser."
+        );
+
+        // Get the HTML code directly from the facade
+        const htmlCode = await facade.exportAsCode({
+          format: "html",
+          includeLib: true,
+        });
+
+        setCodeSections([
+          {
+            title: "",
+            code: htmlCode,
+            language: "html",
+          },
+        ]);
       }
     } catch (error) {
       console.error("Error loading code:", error);

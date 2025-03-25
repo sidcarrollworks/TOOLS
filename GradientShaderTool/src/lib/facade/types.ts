@@ -136,7 +136,7 @@ export interface ExportImageOptions {
 }
 
 export interface ExportCodeOptions {
-  format?: "glsl" | "js" | "ts";
+  format?: "glsl" | "js" | "ts" | "html";
   includeLib?: boolean;
   minify?: boolean;
   fileName?: string;
