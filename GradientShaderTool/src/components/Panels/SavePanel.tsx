@@ -176,7 +176,7 @@ const SavePanel: FunctionComponent<SavePanelProps> = () => {
       <SettingsGroup collapsible={false} header={false}>
         {canvasDimensions.width > 0 && (
           <SettingsField label="Dimensions">
-            <div className="">
+            <div style={{ fontSize: "12px" }}>
               {canvasDimensions.width} × {canvasDimensions.height}px
             </div>
           </SettingsField>

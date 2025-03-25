@@ -5,6 +5,7 @@ import type { ShaderParams } from "../../lib/ShaderApp";
 import type { IShaderAppFacade } from "../../lib/facade/types";
 import { facadeSignal } from "../../app";
 import styles from "./DevPanel.module.css";
+import Select from "../UI/Select";
 
 interface DevPanelProps {
   visible: boolean;
@@ -67,6 +68,20 @@ const paramCategories = {
   visualization: ["showWireframe", "flatShading"],
   animation: ["animationSpeed", "pauseAnimation"],
   export: ["exportTransparentBg", "exportHighQuality"],
+};
+
+// Define category labels for better readability
+const categoryLabels: Record<string, string> = {
+  all: "All Parameters",
+  geometry: "Geometry",
+  colors: "Colors",
+  lighting: "Lighting",
+  normalNoise: "Normal Noise",
+  colorNoise: "Color Noise",
+  gradientShift: "Gradient Shift",
+  visualization: "Visualization",
+  animation: "Animation",
+  camera: "Camera",
 };
 
 // Format parameter values for display
@@ -260,9 +275,8 @@ export const DevPanel: FunctionComponent<DevPanelProps> = ({
   };
 
   // Handle category change
-  const handleCategoryChange = (e: Event) => {
-    const select = e.target as HTMLSelectElement;
-    setActiveCategory(select.value);
+  const handleCategoryChange = (value: string) => {
+    setActiveCategory(value);
   };
 
   // Filter parameters based on selected category
@@ -279,16 +293,6 @@ export const DevPanel: FunctionComponent<DevPanelProps> = ({
     : [];
 
   if (!visible) return null;
-
-  // Debug output
-  console.log("DevPanel is rendering with:", {
-    hasParams: Boolean(params),
-    paramCount: params ? Object.keys(params).length : 0,
-    fps,
-    drawCallInfo,
-    facadeInitialized: facade.value && facade.value.isInitialized(),
-    rendererAvailable: Boolean((window as any).threeRenderer),
-  });
 
   return (
     <div className={styles.devPanel}>
@@ -353,18 +357,21 @@ export const DevPanel: FunctionComponent<DevPanelProps> = ({
           <div className={styles.sectionTitle}>Current Parameters</div>
           <div className={styles.categorySelector}>
             <label>Category:</label>
-            <select onChange={handleCategoryChange} value={activeCategory}>
-              <option value="all">All Parameters</option>
-              <option value="geometry">Geometry</option>
-              <option value="colors">Colors</option>
-              <option value="lighting">Lighting</option>
-              <option value="normalNoise">Normal Noise</option>
-              <option value="colorNoise">Color Noise</option>
-              <option value="gradientShift">Gradient Shift</option>
-              <option value="visualization">Visualization</option>
-              <option value="animation">Animation</option>
-              <option value="camera">Camera</option>
-            </select>
+            <Select.Root
+              value={activeCategory}
+              onValueChange={handleCategoryChange}
+            >
+              <Select.Trigger className={styles.categorySelect}>
+                {categoryLabels[activeCategory] || "All Parameters"}
+              </Select.Trigger>
+              <Select.Content>
+                {Object.entries(categoryLabels).map(([value, label]) => (
+                  <Select.Item key={value} value={value}>
+                    {label}
+                  </Select.Item>
+                ))}
+              </Select.Content>
+            </Select.Root>
           </div>
           <div
             className={
