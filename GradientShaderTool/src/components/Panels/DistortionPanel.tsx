@@ -169,10 +169,10 @@ export const DistortionPanel: FunctionComponent<DistortionPanelProps> = () => {
         valueX={shiftX}
         valueY={shiftY}
         speed={shiftSpeed}
-        min={-1}
-        max={1}
+        min={-2}
+        max={2}
         minSpeed={0}
-        maxSpeed={1}
+        maxSpeed={2}
         step={0.01}
         onChangeX={handleShiftXChange}
         onChangeY={handleShiftYChange}

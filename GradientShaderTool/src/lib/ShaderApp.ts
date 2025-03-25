@@ -117,6 +117,8 @@ export class ShaderApp {
   time: number;
   stats: Stats | null;
   private _animationFrameId: number | null;
+  private _clock: THREE.Clock;
+  private _lastTime: number;
 
   // Shader resources
   shaders: {
@@ -156,6 +158,8 @@ export class ShaderApp {
     this.time = 0;
     this.stats = null;
     this.parentElement = null;
+    this._clock = new THREE.Clock();
+    this._lastTime = performance.now() / 1000;
     this.shaders = {
       perlinNoise: "",
       vertex: "",
@@ -409,9 +413,16 @@ export class ShaderApp {
     // Begin stats measurement
     if (this.stats) this.stats.begin();
 
+    // Get delta time (time elapsed since last frame)
+    const delta = this._clock.getDelta();
+    // Apply a maximum delta to prevent huge jumps if the tab loses focus
+    const maxDelta = 1 / 30; // Max 1/30th of a second
+    const cappedDelta = Math.min(delta, maxDelta);
+
     if (!this.params.pauseAnimation) {
-      // Update time for shader uniforms
-      this.time += this.params.animationSpeed;
+      // Update time based on delta and animation speed
+      // This makes the animation frame-rate independent
+      this.time += this.params.animationSpeed * cappedDelta * 60.0; // Scale by 60 to maintain similar speed to previous implementation
     }
 
     // Always update the time uniform

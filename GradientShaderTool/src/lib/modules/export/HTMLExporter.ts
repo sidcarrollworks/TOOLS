@@ -158,11 +158,19 @@ plane.rotation.z = ${params.rotationZ};
 scene.add(plane);
 
 // Animation loop
+let clock = new THREE.Clock();
+
 function animate() {
   requestAnimationFrame(animate);
   
-  // Update time uniform
-  uniforms.uTime.value += ${params.animationSpeed};
+  // Get delta time for frame-rate independent animation
+  const delta = clock.getDelta();
+  // Maximum delta to prevent huge jumps if the tab loses focus
+  const maxDelta = 1/30;
+  const cappedDelta = Math.min(delta, maxDelta);
+  
+  // Update time uniform using delta time for frame-rate independence
+  uniforms.uTime.value += ${params.animationSpeed} * cappedDelta * 60.0;
   
   renderer.render(scene, camera);
 }
