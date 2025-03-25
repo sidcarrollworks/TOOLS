@@ -1,253 +1,415 @@
 import type { FunctionComponent } from "preact";
-import { useComputed } from "@preact/signals";
-import { useRef } from "preact/hooks";
-import "./Panel.css";
+import { useEffect, useState } from "preact/hooks";
+import * as THREE from "three";
+
 import { Button } from "../UI/Button";
 import { Checkbox } from "../UI/Checkbox";
-import {
-  getPanelSettings,
-  getSettingValue,
-  updateSettingValue,
-} from "../../lib/settings/store";
-import type { SettingGroup } from "../../lib/settings/types";
-import { appSignal } from "../../app";
+import { SettingsGroup, SettingsField } from "../UI/SettingsGroup";
+import Select from "../UI/Select";
+import { facadeSignal } from "../../app";
+
+// Image format options
+const FORMAT_OPTIONS = [
+  { label: "PNG", value: "png" },
+  { label: "JPG", value: "jpg" },
+  { label: "WebP", value: "webp" },
+];
+
+// Format types
+type ImageFormat = "png" | "jpg" | "webp";
 
 interface SavePanelProps {
-  // No props needed for now
+  // No props needed
 }
 
 const SavePanel: FunctionComponent<SavePanelProps> = () => {
-  // Get the app instance
-  const app = useComputed(() => appSignal.value);
+  // State for UI controls
+  const [transparentBg, setTransparentBg] = useState(false);
+  const [highQuality, setHighQuality] = useState(true);
+  const [imageFormat, setImageFormat] = useState<ImageFormat>("png");
+  const [isExporting, setIsExporting] = useState(false);
+  const [canvasDimensions, setCanvasDimensions] = useState({
+    width: 0,
+    height: 0,
+  });
 
-  // Debounce timer for updates
-  const debounceTimerRef = useRef<number | null>(null);
-
-  // Get the save panel settings
-  const savePanelConfigSignal = getPanelSettings("save");
-  const savePanelConfig = useComputed(() => savePanelConfigSignal.value);
-
-  // If no settings are available, show a placeholder
-  if (!savePanelConfig.value) {
-    return <div className="noSettings">No save settings available</div>;
-  }
-
-  // Find the save options group
-  const saveOptionsGroup = savePanelConfig.value.groups.find(
-    (group: SettingGroup) => group.id === "saveOptions"
-  );
-
-  // Handle transparent background toggle
-  const handleTransparentBgChange = (checked: boolean) => {
-    // Update the setting value in the store
-    updateSettingValue("transparentBackground", checked);
-
-    // Update the app parameter
-    if (app.value) {
-      app.value.params.exportTransparentBg = checked;
-
-      // Clear any existing timer
-      if (debounceTimerRef.current !== null) {
-        window.clearTimeout(debounceTimerRef.current);
-      }
-
-      // Debounce updates to avoid too many updates
-      debounceTimerRef.current = window.setTimeout(() => {
-        if (app.value) {
-          app.value.updateParams(false); // Update without camera reset
+  // Get canvas dimensions on component mount
+  useEffect(() => {
+    const facade = facadeSignal.value;
+    if (facade && facade.isInitialized()) {
+      try {
+        // Get the app instance
+        const app = (facade as any).app;
+        if (app && app.renderer) {
+          const canvas = app.renderer.domElement;
+          setCanvasDimensions({
+            width: canvas.width,
+            height: canvas.height,
+          });
         }
-        debounceTimerRef.current = null;
-      }, 50);
+      } catch (error) {
+        console.warn("SavePanel: Failed to get canvas dimensions:", error);
+      }
+    }
+  }, []);
+
+  // Handle checkbox changes
+  const handleTransparentBgChange = (checked: boolean) => {
+    setTransparentBg(checked);
+
+    // Update app parameter directly
+    const facade = facadeSignal.value;
+    if (facade && facade.isInitialized()) {
+      try {
+        const app = (facade as any).app;
+        if (app) {
+          // Update the parameter
+          app.params.exportTransparentBg = checked;
+
+          // Apply background change immediately
+          if (app.renderer) {
+            if (checked) {
+              // Set transparent background
+              app.renderer.setClearColor(0x000000, 0);
+
+              // Apply checkered background to the canvas element for visual feedback
+              const canvas = app.renderer.domElement;
+              canvas.style.backgroundColor = "#191919";
+              canvas.style.backgroundImage = `
+                linear-gradient(45deg, #222222 25%, transparent 25%), 
+                linear-gradient(-45deg, #222222 25%, transparent 25%),
+                linear-gradient(45deg, transparent 75%, #222222 75%),
+                linear-gradient(-45deg, transparent 75%, #222222 75%)
+              `;
+              canvas.style.backgroundSize = "20px 20px";
+              canvas.style.backgroundPosition =
+                "0 0, 0 10px, 10px -10px, -10px 0px";
+            } else {
+              // Set solid background color
+              const bgColor = new THREE.Color(app.params.backgroundColor);
+              app.renderer.setClearColor(bgColor);
+
+              // Remove checkered background
+              const canvas = app.renderer.domElement;
+              canvas.style.backgroundColor = "";
+              canvas.style.backgroundImage = "";
+              canvas.style.backgroundSize = "";
+              canvas.style.backgroundPosition = "";
+            }
+
+            // Force a render to update the scene immediately
+            if (app.scene && app.camera) {
+              app.renderer.render(app.scene, app.camera);
+            }
+          }
+        }
+      } catch (error) {
+        console.warn("Error updating transparent background:", error);
+      }
     }
   };
 
-  // Handle high quality toggle
   const handleHighQualityChange = (checked: boolean) => {
-    // Update the setting value in the store
-    updateSettingValue("highQuality", checked);
+    setHighQuality(checked);
 
-    // Update the app parameter
-    if (app.value) {
-      app.value.params.exportHighQuality = checked;
-      // No need to call updateParams for this setting as it only affects export time
+    // Update app parameter directly
+    const facade = facadeSignal.value;
+    if (facade && facade.isInitialized()) {
+      try {
+        const app = (facade as any).app;
+        if (app) {
+          app.params.exportHighQuality = checked;
+        }
+      } catch (error) {
+        console.warn("Error updating high quality setting:", error);
+      }
     }
   };
 
-  // Handle save image button click
-  const handleSaveImage = () => {
-    if (!app.value) return;
+  // Handle format change
+  const handleFormatChange = (value: string) => {
+    setImageFormat(value as ImageFormat);
+  };
+
+  // Basic direct save image function
+  const saveImage = async () => {
+    const facade = facadeSignal.value;
+    if (!facade || !facade.isInitialized()) {
+      console.error("Cannot save: Application not ready");
+      return;
+    }
 
     try {
-      // Original geometry segment counts to restore after export
-      let originalSettings: {
-        planeSegments?: number;
-        sphereWidthSegments?: number;
-        sphereHeightSegments?: number;
-        cubeWidthSegments?: number;
-        cubeHeightSegments?: number;
-        cubeDepthSegments?: number;
-      } | null = null;
+      setIsExporting(true);
 
-      // If high quality export is enabled, use high resolution
-      if (app.value.params.exportHighQuality) {
-        console.log("Using high quality export");
+      // Get the app instance directly
+      const app = (facade as any).app;
+      if (!app || !app.renderer) {
+        throw new Error("Renderer not available");
+      }
 
-        // Store original settings and apply high quality settings based on geometry type
-        originalSettings = {};
+      // IMPORTANT: Store ALL animation-related values
+      const originalTimeValue = app.time;
+      const originalPauseState = app.params.pauseAnimation;
+      const originalAnimationSpeed = app.params.animationSpeed;
 
-        // Apply high quality settings based on geometry type
-        switch (app.value.params.geometryType) {
+      // Completely stop animation by setting speed to 0 and pausing
+      app.params.animationSpeed = 0;
+      app.params.pauseAnimation = true;
+
+      // Force time value to be exactly what it was before
+      app.time = originalTimeValue;
+      app.uniforms.uTime.value = originalTimeValue;
+
+      // Store original renderer settings
+      const originalColor = app.renderer.getClearColor(new THREE.Color());
+      const originalAlpha = app.renderer.getClearAlpha();
+
+      // CRITICAL FIX: Check if preserveDrawingBuffer is enabled
+      const hasPreserveDrawingBuffer = app.renderer
+        .getContext()
+        .getContextAttributes().preserveDrawingBuffer;
+
+      // For transparent background with no preserveDrawingBuffer, we need to work around it
+      const needsTransparencyWorkaround =
+        transparentBg && !hasPreserveDrawingBuffer;
+
+      if (needsTransparencyWorkaround) {
+        // Using transparency workaround due to missing preserveDrawingBuffer
+      }
+
+      // Apply transparent background if needed
+      if (transparentBg) {
+        app.renderer.setClearColor(0x000000, 0); // Black with 0 opacity
+      } else {
+        const bgColor = new THREE.Color(app.params.backgroundColor);
+        app.renderer.setClearColor(bgColor);
+      }
+
+      // Store original geometry settings
+      const originalSettings: any = {};
+
+      // Apply high quality settings if needed
+      if (highQuality) {
+        // Store and update geometry settings based on type
+        switch (app.params.geometryType) {
+          case "plane":
+            originalSettings.planeSegments = app.params.planeSegments;
+            app.params.planeSegments = Math.max(
+              originalSettings.planeSegments * 2,
+              256
+            );
+            break;
+
           case "sphere":
-            // Store original sphere segment counts
             originalSettings.sphereWidthSegments =
-              app.value.params.sphereWidthSegments;
+              app.params.sphereWidthSegments;
             originalSettings.sphereHeightSegments =
-              app.value.params.sphereHeightSegments;
-
-            // Increase sphere segment counts for export (at least double or go to 128)
-            app.value.params.sphereWidthSegments = Math.max(
+              app.params.sphereHeightSegments;
+            app.params.sphereWidthSegments = Math.max(
               originalSettings.sphereWidthSegments * 2,
               128
             );
-            app.value.params.sphereHeightSegments = Math.max(
+            app.params.sphereHeightSegments = Math.max(
               originalSettings.sphereHeightSegments * 2,
               128
             );
             break;
 
           case "cube":
-            // Store original cube segment counts
-            originalSettings.cubeWidthSegments =
-              app.value.params.cubeWidthSegments;
-            originalSettings.cubeHeightSegments =
-              app.value.params.cubeHeightSegments;
-            originalSettings.cubeDepthSegments =
-              app.value.params.cubeDepthSegments;
-
-            // Increase cube segment counts for export (at least double or go to 16)
-            app.value.params.cubeWidthSegments = Math.max(
+            originalSettings.cubeWidthSegments = app.params.cubeWidthSegments;
+            originalSettings.cubeHeightSegments = app.params.cubeHeightSegments;
+            originalSettings.cubeDepthSegments = app.params.cubeDepthSegments;
+            app.params.cubeWidthSegments = Math.max(
               originalSettings.cubeWidthSegments * 2,
               16
             );
-            app.value.params.cubeHeightSegments = Math.max(
+            app.params.cubeHeightSegments = Math.max(
               originalSettings.cubeHeightSegments * 2,
               16
             );
-            app.value.params.cubeDepthSegments = Math.max(
+            app.params.cubeDepthSegments = Math.max(
               originalSettings.cubeDepthSegments * 2,
               16
             );
             break;
+        }
 
+        // Recreate geometry with higher quality
+        app.recreateGeometry();
+      }
+
+      // Force a render frame with our frozen time
+      app.renderer.render(app.scene, app.camera);
+
+      // Get the canvas and export as image
+      const canvas = app.renderer.domElement;
+      const mimeType =
+        imageFormat === "jpg"
+          ? "image/jpeg"
+          : imageFormat === "webp"
+          ? "image/webp"
+          : "image/png";
+
+      // Important: JPEG format doesn't support transparency, so warn if needed
+      if (transparentBg && imageFormat === "jpg") {
+        // JPEG format doesn't support transparency. Using PNG instead.
+        const pngDataUrl = canvas.toDataURL("image/png");
+
+        // Trigger download with PNG instead
+        const link = document.createElement("a");
+        link.href = pngDataUrl;
+        link.download = `gradient-shader.png`;
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+      } else if (needsTransparencyWorkaround) {
+        // Apply workaround for transparency when preserveDrawingBuffer is not enabled
+
+        // 1. Create a new canvas with the same dimensions
+        const offscreenCanvas = document.createElement("canvas");
+        offscreenCanvas.width = canvas.width;
+        offscreenCanvas.height = canvas.height;
+        const ctx = offscreenCanvas.getContext("2d");
+
+        if (!ctx) {
+          throw new Error(
+            "Failed to create canvas context for transparency workaround"
+          );
+        }
+
+        // 2. Draw the WebGL canvas to our new canvas, preserving transparency
+        ctx.drawImage(canvas, 0, 0);
+
+        // 3. Get the data URL from our offscreen canvas
+        const dataUrl = offscreenCanvas.toDataURL(
+          mimeType === "image/jpeg" ? "image/png" : mimeType
+        );
+
+        // 4. Trigger download
+        const link = document.createElement("a");
+        link.href = dataUrl;
+        link.download = `gradient-shader.${
+          mimeType === "image/jpeg" ? "png" : imageFormat
+        }`;
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+      } else {
+        // For PNG and WebP which support transparency and no workaround needed
+        const quality = imageFormat === "jpg" ? 0.95 : undefined;
+        const dataUrl = canvas.toDataURL(mimeType, quality);
+
+        // Trigger download
+        const link = document.createElement("a");
+        link.href = dataUrl;
+        link.download = `gradient-shader.${imageFormat}`;
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+      }
+
+      // CRITICAL: Reset everything in proper order:
+
+      // 1. First restore renderer settings
+      app.renderer.setClearColor(originalColor, originalAlpha);
+
+      // 2. Restore original geometry if we changed it
+      if (highQuality) {
+        // Restore geometry settings based on type
+        switch (app.params.geometryType) {
           case "plane":
-          default:
-            // Store original plane segment count
-            originalSettings.planeSegments = app.value.params.planeSegments;
+            app.params.planeSegments = originalSettings.planeSegments;
+            break;
 
-            // Increase plane segment count for export (at least double or go to 256)
-            app.value.params.planeSegments = Math.max(
-              originalSettings.planeSegments * 2,
-              256
-            );
+          case "sphere":
+            app.params.sphereWidthSegments =
+              originalSettings.sphereWidthSegments;
+            app.params.sphereHeightSegments =
+              originalSettings.sphereHeightSegments;
+            break;
+
+          case "cube":
+            app.params.cubeWidthSegments = originalSettings.cubeWidthSegments;
+            app.params.cubeHeightSegments = originalSettings.cubeHeightSegments;
+            app.params.cubeDepthSegments = originalSettings.cubeDepthSegments;
             break;
         }
 
-        // Recreate geometry with higher segment counts
-        app.value.recreateGeometry();
-
-        // Run an update to ensure new geometry is fully rendered
-        app.value.updateParams(false);
-
-        // Give a small delay to ensure high quality rendering is ready before saving
-        setTimeout(() => {
-          if (app.value) {
-            // Actually save the image once high quality rendering is ready
-            app.value.saveAsImage();
-
-            // Restore original settings after a delay
-            setTimeout(() => {
-              if (app.value && originalSettings) {
-                // Restore original settings based on geometry type
-                switch (app.value.params.geometryType) {
-                  case "sphere":
-                    app.value.params.sphereWidthSegments =
-                      originalSettings.sphereWidthSegments as number;
-                    app.value.params.sphereHeightSegments =
-                      originalSettings.sphereHeightSegments as number;
-                    break;
-
-                  case "cube":
-                    app.value.params.cubeWidthSegments =
-                      originalSettings.cubeWidthSegments as number;
-                    app.value.params.cubeHeightSegments =
-                      originalSettings.cubeHeightSegments as number;
-                    app.value.params.cubeDepthSegments =
-                      originalSettings.cubeDepthSegments as number;
-                    break;
-
-                  case "plane":
-                  default:
-                    app.value.params.planeSegments =
-                      originalSettings.planeSegments as number;
-                    break;
-                }
-
-                // Recreate geometry with original settings
-                app.value.recreateGeometry();
-                app.value.updateParams(false);
-
-                console.log("Restored original quality settings");
-              }
-            }, 100);
-          }
-        }, 100);
-      } else {
-        // Just save without high quality
-        app.value.saveAsImage();
+        // Recreate geometry with original settings
+        app.recreateGeometry();
       }
+
+      // 3. Reset time and animation values to exactly what they were
+      app.time = originalTimeValue;
+      app.uniforms.uTime.value = originalTimeValue;
+      app.params.animationSpeed = originalAnimationSpeed;
+      app.params.pauseAnimation = originalPauseState;
+
+      // 4. Force one more render to ensure everything is correct
+      // Use direct renderer call instead of animate which might advance time
+      app.renderer.render(app.scene, app.camera);
+
+      // Export complete
     } catch (error) {
       console.error("Error saving image:", error);
+      alert(
+        "Failed to save image: " +
+          (error instanceof Error ? error.message : String(error))
+      );
+    } finally {
+      setIsExporting(false);
     }
   };
 
   return (
-    <div className="panel">
-      <div className="settingsGroup">
-        <Checkbox
-          label="Transparent Background"
-          checked={
-            app.value?.params.exportTransparentBg ??
-            (getSettingValue("transparentBackground") as boolean) ??
-            false
-          }
-          onChange={handleTransparentBgChange}
-        />
+    <>
+      <SettingsGroup collapsible={false} header={false}>
+        <SettingsField label="Format">
+          <Select.Root value={imageFormat} onValueChange={handleFormatChange}>
+            <Select.Trigger>
+              {FORMAT_OPTIONS.find((opt) => opt.value === imageFormat)?.label ||
+                "PNG"}
+            </Select.Trigger>
+            <Select.Content>
+              {FORMAT_OPTIONS.map((option) => (
+                <Select.Item key={option.value} value={option.value}>
+                  {option.label}
+                </Select.Item>
+              ))}
+            </Select.Content>
+          </Select.Root>
+        </SettingsField>
 
-        <Checkbox
-          label="High Quality"
-          checked={
-            app.value?.params.exportHighQuality ??
-            (getSettingValue("highQuality") as boolean) ??
-            true
-          }
-          onChange={handleHighQualityChange}
-        />
+        <SettingsField label="Transparent Background">
+          <Checkbox
+            checked={transparentBg}
+            onChange={handleTransparentBgChange}
+          />
+        </SettingsField>
 
+        <SettingsField label="High Quality">
+          <Checkbox checked={highQuality} onChange={handleHighQualityChange} />
+        </SettingsField>
+      </SettingsGroup>
+      <SettingsGroup collapsible={false} header={false}>
+        {canvasDimensions.width > 0 && (
+          <SettingsField label="Dimensions">
+            <div style={{ fontSize: "12px" }}>
+              {canvasDimensions.width} × {canvasDimensions.height}px
+            </div>
+          </SettingsField>
+        )}
         <Button
+          onClick={saveImage}
           variant="primary"
-          onClick={handleSaveImage}
-          style={{
-            width: "100%",
-            height: "24px",
-            fontSize: "12px",
-            opacity: app.value ? 1 : 0.5,
-            cursor: app.value ? "pointer" : "not-allowed",
-          }}
+          size="small"
+          disabled={isExporting}
         >
-          Save Image
+          {isExporting ? "Exporting..." : "Save Image"}
         </Button>
-      </div>
-    </div>
+      </SettingsGroup>
+    </>
   );
 };
 

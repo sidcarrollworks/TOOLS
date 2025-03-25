@@ -1,6 +1,6 @@
-# Gradient Shader Tool
+# ShaderForge
 
-A GLSL gradient shader generator built with Preact and Three.js. This tool allows you to create and customize beautiful gradient shaders with noise-based normal mapping and various visual effects.
+A powerful web-based tool for creating and manipulating gradient shaders.
 
 ## Features
 

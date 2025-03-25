@@ -1,119 +1,184 @@
 import type { FunctionComponent } from "preact";
-import { useComputed } from "@preact/signals";
-import { useRef } from "preact/hooks";
-import "./Panel.css";
+import { useSignal, useComputed } from "@preact/signals";
+import { useEffect } from "preact/hooks";
+
 import { FigmaInput } from "../FigmaInput";
 import { DirectionControl } from "../DirectionControl";
+import { getUIStore } from "../../lib/stores/UIStore";
+import { SettingsGroup, SettingsField } from "../UI/SettingsGroup";
 import {
-  getPanelSettings,
-  getSettingValue,
-  updateSettingValue,
-} from "../../lib/settings/store";
-import type { SettingGroup, SliderSetting } from "../../lib/settings/types";
-import { appSignal } from "../../app";
+  getDistortionInitializer,
+  getDistortionParameter,
+} from "../../lib/stores/DistortionInitializer";
+import { useSignalValue } from "../../lib/hooks/useSignals";
+import { facadeSignal } from "../../app";
 
 interface DistortionPanelProps {
   // No props needed for now
 }
 
 export const DistortionPanel: FunctionComponent<DistortionPanelProps> = () => {
-  // Get the app instance
-  const app = useComputed(() => appSignal.value);
+  // Get the distortion initializer
+  const distortionInitializer = getDistortionInitializer();
 
-  // Debounce timer for distortion updates
-  const debounceTimerRef = useRef<number | null>(null);
+  // Get UI store for toast messages
+  const uiStore = getUIStore();
 
-  // Get the distortion panel settings
-  const distortionPanelConfigSignal = getPanelSettings("distortion");
-  const distortionPanelConfig = useComputed(
-    () => distortionPanelConfigSignal.value
+  // Use signal values directly with custom hooks
+  const noiseScaleX = useSignalValue(
+    getDistortionParameter("normalNoiseScaleX")
+  );
+  const noiseScaleY = useSignalValue(
+    getDistortionParameter("normalNoiseScaleY")
+  );
+  const noiseStrength = useSignalValue(
+    getDistortionParameter("normalNoiseStrength")
+  );
+  const noiseSpeed = useSignalValue(getDistortionParameter("normalNoiseSpeed"));
+  const shiftX = useSignalValue(getDistortionParameter("normalNoiseShiftX"));
+  const shiftY = useSignalValue(getDistortionParameter("normalNoiseShiftY"));
+  const shiftSpeed = useSignalValue(
+    getDistortionParameter("normalNoiseShiftSpeed")
   );
 
-  // If no settings are available, show a placeholder
-  if (!distortionPanelConfig.value) {
-    return <div className="noSettings">No distortion settings available</div>;
-  }
+  // Create update handlers using the initializer's methods
+  const handleNoiseScaleXChange = (value: number) => {
+    distortionInitializer.updateParameter("normalNoiseScaleX", value);
+  };
 
-  // Find the normal noise settings group
-  const normalNoiseGroup = distortionPanelConfig.value.groups.find(
-    (group: SettingGroup) => group.id === "normalNoise"
-  );
+  const handleNoiseScaleYChange = (value: number) => {
+    distortionInitializer.updateParameter("normalNoiseScaleY", value);
+  };
 
-  // Find the normal noise shift settings group
-  const normalNoiseShiftGroup = distortionPanelConfig.value.groups.find(
-    (group: SettingGroup) => group.id === "normalNoiseShift"
-  );
+  const handleNoiseStrengthChange = (value: number) => {
+    distortionInitializer.updateParameter("normalNoiseStrength", value);
+  };
 
-  // Handle slider value change
-  const handleSliderChange = (id: string, value: number) => {
-    updateSettingValue(id, value);
+  const handleNoiseSpeedChange = (value: number) => {
+    distortionInitializer.updateParameter("normalNoiseSpeed", value);
+  };
 
-    // Update the app parameter
-    if (app.value) {
-      // Check if the parameter exists in the app.params object
-      if (id in app.value.params) {
-        // Use type assertion to safely update the parameter
-        (app.value.params as any)[id] = value;
-      }
+  const handleShiftXChange = (value: number) => {
+    distortionInitializer.updateParameter("normalNoiseShiftX", value);
+  };
 
-      // Clear any existing timer
-      if (debounceTimerRef.current !== null) {
-        window.clearTimeout(debounceTimerRef.current);
-      }
+  const handleShiftYChange = (value: number) => {
+    distortionInitializer.updateParameter("normalNoiseShiftY", value);
+  };
 
-      // Debounce updates to avoid too many updates
-      debounceTimerRef.current = window.setTimeout(() => {
-        if (app.value && app.value.updateParams) {
-          app.value.updateParams(false); // Update without camera reset
+  const handleShiftSpeedChange = (value: number) => {
+    distortionInitializer.updateParameter("normalNoiseShiftSpeed", value);
+  };
+
+  // Handle facade preset events and parameter changes
+  useEffect(() => {
+    const facade = facadeSignal.value;
+
+    if (facade) {
+      const handlePresetApplied = () => {
+        // Sync initializer with facade
+        distortionInitializer.syncWithFacade();
+      };
+
+      const handleParamChanged = (data: any) => {
+        // Only respond to changes in distortion-related parameters
+        if (data && data.paramName) {
+          const distortionParams = [
+            "normalNoiseScaleX",
+            "normalNoiseScaleY",
+            "normalNoiseStrength",
+            "normalNoiseShiftX",
+            "normalNoiseShiftY",
+            "normalNoiseShiftSpeed",
+            "normalNoiseSpeed",
+          ];
+
+          if (distortionParams.includes(data.paramName)) {
+            // Sync the specific parameter with the facade
+            distortionInitializer.syncParameterFromFacade(data.paramName);
+          }
         }
-        debounceTimerRef.current = null;
-      }, 50);
+      };
+
+      // Listen for both preset application and parameter changes
+      facade.on("preset-applied", handlePresetApplied);
+      facade.on("parameter-changed", handleParamChanged);
+
+      return () => {
+        facade.off("preset-applied", handlePresetApplied);
+        facade.off("parameter-changed", handleParamChanged);
+      };
     }
+  }, []);
+
+  // Handle reset button click
+  const handleReset = () => {
+    distortionInitializer.reset();
+    uiStore.showToast("Distortion settings reset to defaults", "success");
   };
 
   return (
-    <div className="panel">
-      {/* Noise Settings */}
-      <div className="settingsGroup">
-        {/* Render sliders for noise settings */}
-        {normalNoiseGroup &&
-          normalNoiseGroup.settings.map((setting) => {
-            if (setting.type === "slider") {
-              const sliderSetting = setting as SliderSetting;
-              const currentValue = getSettingValue(setting.id) as number;
+    <>
+      <SettingsGroup collapsible={false} header={false}>
+        <SettingsGroup collapsible={false} header={false}>
+          <SettingsField label="Scale" inputDir="row" labelDir="column">
+            <FigmaInput
+              value={noiseScaleX}
+              min={0.1}
+              max={5}
+              step={0.01}
+              onChange={handleNoiseScaleXChange}
+              dragIcon={<span>X</span>}
+            />
 
-              return (
-                <FigmaInput
-                  key={setting.id}
-                  label={setting.label}
-                  value={currentValue}
-                  min={sliderSetting.min}
-                  max={sliderSetting.max}
-                  step={sliderSetting.step}
-                  onChange={(value) => handleSliderChange(setting.id, value)}
-                />
-              );
-            }
-            return null;
-          })}
+            <FigmaInput
+              value={noiseScaleY}
+              min={0.1}
+              max={20}
+              step={0.01}
+              onChange={handleNoiseScaleYChange}
+              dragIcon={<span>Y</span>}
+            />
+          </SettingsField>
+        </SettingsGroup>
 
-        <DirectionControl
-          valueX={getSettingValue("normalNoiseShiftX") as number}
-          valueY={getSettingValue("normalNoiseShiftY") as number}
-          speed={getSettingValue("normalNoiseShiftSpeed") as number}
-          min={-1}
-          max={1}
-          minSpeed={0}
-          maxSpeed={1}
-          step={0.01}
-          onChangeX={(value) => handleSliderChange("normalNoiseShiftX", value)}
-          onChangeY={(value) => handleSliderChange("normalNoiseShiftY", value)}
-          onChangeSpeed={(value) =>
-            handleSliderChange("normalNoiseShiftSpeed", value)
-          }
-        />
-      </div>
-    </div>
+        <SettingsGroup collapsible={false} header={false} direction="row">
+          <SettingsField label="Strength" labelDir="column">
+            <FigmaInput
+              value={noiseStrength}
+              min={0}
+              max={0.75}
+              step={0.01}
+              onChange={handleNoiseStrengthChange}
+            />
+          </SettingsField>
+
+          <SettingsField label="Speed" labelDir="column">
+            <FigmaInput
+              value={noiseSpeed}
+              min={0}
+              max={0.5}
+              step={0.01}
+              onChange={handleNoiseSpeedChange}
+            />
+          </SettingsField>
+        </SettingsGroup>
+      </SettingsGroup>
+
+      <DirectionControl
+        valueX={shiftX}
+        valueY={shiftY}
+        speed={shiftSpeed}
+        min={-2}
+        max={2}
+        minSpeed={0}
+        maxSpeed={2}
+        step={0.01}
+        onChangeX={handleShiftXChange}
+        onChangeY={handleShiftYChange}
+        onChangeSpeed={handleShiftSpeedChange}
+      />
+    </>
   );
 };
 

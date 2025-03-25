@@ -1,1 +1,2 @@
-export { default as DevPanel } from './DevPanel'; 
+export { DevPanel } from "./DevPanel";
+export { FacadeTestPanel } from "./FacadeTestPanel";

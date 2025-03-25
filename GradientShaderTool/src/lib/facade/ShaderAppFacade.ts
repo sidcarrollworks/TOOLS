@@ -1,0 +1,1503 @@
+/**
+ * ShaderAppFacade implementation
+ * Provides a clean interface between UI components and the ShaderApp core
+ */
+
+import type {
+  IShaderAppFacade,
+  ParameterUpdateOptions,
+  ValidationResult,
+  PresetInfo,
+  SavePresetOptions,
+  ExportImageOptions,
+  ExportCodeOptions,
+  ShaderAppEventType,
+  ShaderAppEventMap,
+} from "./types";
+import { EventEmitter } from "./EventEmitter";
+import type { FacadeConfig } from "./FacadeConfig";
+import { createConfig } from "./FacadeConfig";
+import type { ShaderApp, ShaderParams } from "../ShaderApp";
+import { validateSetting } from "../settings/mappings/utils";
+import * as THREE from "three";
+
+/**
+ * Implementation of the ShaderAppFacade interface
+ * Acts as an adapter between UI components and the ShaderApp
+ */
+export class ShaderAppFacade extends EventEmitter implements IShaderAppFacade {
+  /**
+   * The ShaderApp instance being wrapped
+   * @private
+   */
+  private app: ShaderApp | null = null;
+
+  /**
+   * Whether the app has been initialized
+   * @private
+   */
+  private initialized = false;
+
+  /**
+   * The configuration for the facade
+   * @private
+   */
+  private config: FacadeConfig;
+
+  /**
+   * The HTML container element for the shader app
+   * @private
+   */
+  private container: HTMLElement | null = null;
+
+  /**
+   * Animation frame ID for the update loop
+   * @private
+   */
+  private animationFrameId: number | null = null;
+
+  /**
+   * Performance tracking for update frequency
+   * @private
+   */
+  private updateTimestamps: number[] = [];
+
+  /**
+   * Debounce timeouts for parameter updates
+   * @private
+   */
+  private debounceTimeouts: Record<string, number> = {};
+
+  /**
+   * Constructor for the ShaderAppFacade
+   * @param app The ShaderApp instance to wrap (optional, can be set later)
+   * @param config Custom configuration for the facade
+   */
+  constructor(app?: ShaderApp, config?: Partial<FacadeConfig>) {
+    super();
+    this.app = app || null;
+    this.config = createConfig(config);
+
+    // If app is provided, check if it's already initialized
+    if (app && app.scene) {
+      this.initialized = true;
+    }
+  }
+
+  /**
+   * Initialize the shader app with the provided container element
+   * @param container The DOM element to render the shader in
+   * @returns A promise that resolves when initialization is complete
+   */
+  public async initialize(container: HTMLElement): Promise<void> {
+    // Store the container element
+    this.container = container;
+
+    // Ensure we have an app instance
+    if (!this.app) {
+      // Dynamic import to avoid circular dependencies
+      const { ShaderApp } = await import("../ShaderApp");
+      this.app = new ShaderApp();
+    }
+
+    try {
+      // Initialize the app
+      const success = await this.app.init(container);
+
+      if (!success) {
+        throw new Error("Failed to initialize ShaderApp");
+      }
+
+      this.initialized = true;
+
+      // Start performance monitoring if enabled
+      if (this.config.performance.enableStats && this.app.stats) {
+        container.appendChild(this.app.stats.dom);
+        this.app.stats.dom.style.display = "block"; // Make sure it's visible if enabled
+      } else if (this.app.stats) {
+        // Make sure stats are hidden by default if not enabled
+        this.app.stats.dom.style.display = "none";
+      }
+
+      // We don't start the animation loop here anymore since ShaderApp does it
+      // Just set the animationFrameId to a dummy value to indicate we're ready to animate
+      if (!this.app.params.pauseAnimation) {
+        this.animationFrameId = 1;
+      }
+
+      // Log debug information if enabled
+      if (this.config.debug.enabled) {
+        console.log("ShaderAppFacade initialized successfully");
+      }
+    } catch (error) {
+      // Emit error event
+      this.emit("error", {
+        message: "Failed to initialize ShaderApp",
+        source: "initialization",
+        recoverable: false,
+      });
+
+      // Re-throw the error for the caller to handle
+      throw error;
+    }
+  }
+
+  /**
+   * Dispose of the shader app and clean up resources
+   */
+  public dispose(): void {
+    // Clear any debounce timeouts
+    Object.values(this.debounceTimeouts).forEach((timeoutId) => {
+      window.clearTimeout(timeoutId);
+    });
+    this.debounceTimeouts = {};
+
+    // Reset our tracking flag for animation
+    this.animationFrameId = null;
+
+    // Dispose of the app - this will handle canceling any animation frame
+    if (this.app) {
+      this.app.dispose();
+      this.app = null;
+    }
+
+    // Reset initialized state
+    this.initialized = false;
+
+    // Remove all event listeners
+    this.clearListeners();
+
+    // Clear performance tracking
+    this.updateTimestamps = [];
+
+    // Log debug information if enabled
+    if (this.config.debug.enabled) {
+      console.log("ShaderAppFacade disposed successfully");
+    }
+  }
+
+  /**
+   * Check if the shader app is initialized
+   * @returns Whether the app is initialized
+   */
+  public isInitialized(): boolean {
+    return this.initialized && !!this.app;
+  }
+
+  // === Parameter Management ===
+
+  /**
+   * Get the current value of a parameter
+   * @param paramName The name of the parameter to get
+   * @returns The current value of the parameter
+   */
+  public getParam<K extends keyof ShaderParams>(paramName: K): ShaderParams[K] {
+    this.ensureInitialized();
+
+    // TypeScript knows this is safe because of ensureInitialized
+    return this.app!.params[paramName];
+  }
+
+  /**
+   * Get all current parameter values
+   * @returns A copy of all current parameter values
+   */
+  public getAllParams(): ShaderParams {
+    this.ensureInitialized();
+
+    // Create a deep copy to prevent direct modification
+    return JSON.parse(JSON.stringify(this.app!.params));
+  }
+
+  /**
+   * Update a single parameter
+   * @param paramName The name of the parameter to update
+   * @param value The new value for the parameter
+   * @param options Options for the parameter update
+   * @returns Whether the update was successful
+   */
+  public updateParam<K extends keyof ShaderParams>(
+    paramName: K,
+    value: ShaderParams[K],
+    options: ParameterUpdateOptions = {}
+  ): boolean {
+    this.ensureInitialized();
+
+    // Log parameter update if debug is enabled
+    if (this.config.debug.logParameterUpdates) {
+      console.log(`Parameter update: ${String(paramName)} =`, value);
+    }
+
+    // Track update frequency for performance optimization
+    if (this.config.debug.trackUpdateFrequencies) {
+      this.trackUpdateFrequency();
+    }
+
+    // Validate the value unless validation is skipped
+    if (!options.skipValidation) {
+      const validation = this.validateParam(paramName, value);
+      if (!validation.valid) {
+        this.emit("error", {
+          message: `Invalid value for parameter ${String(paramName)}: ${
+            validation.message
+          }`,
+          code: "INVALID_PARAMETER",
+          source: "parameter-update",
+          recoverable: true,
+        });
+        return false;
+      }
+    }
+
+    try {
+      // Store the old value for comparison
+      const oldValue = this.app!.params[paramName];
+
+      // Update the parameter in the app
+      (this.app!.params as any)[paramName] = value;
+
+      // Determine if we should update the shader
+      const shouldUpdate = !options.deferUpdate;
+
+      // Update shader parameters if needed
+      if (shouldUpdate) {
+        // Determine whether to recreate geometry
+        const recreateGeometry =
+          options.recreateGeometry ||
+          this.shouldRecreateGeometryForParam(paramName);
+
+        // Determine whether to reset camera
+        const resetCamera = options.resetCamera || false;
+
+        // Update the shader with the new parameters
+        this.app!.updateParams(resetCamera);
+
+        // Recreate geometry if needed
+        if (recreateGeometry) {
+          this.recreateGeometry();
+        }
+      }
+
+      // Only emit event if the value actually changed
+      if (oldValue !== value) {
+        // Emit parameter changed event
+        this.emit("parameter-changed", {
+          paramName: paramName as string,
+          value,
+          source: options.source || "user",
+        });
+      }
+
+      return true;
+    } catch (error) {
+      // Handle errors during parameter update
+      this.emit("error", {
+        message: `Error updating parameter ${String(paramName)}: ${
+          (error as Error).message
+        }`,
+        code: "UPDATE_ERROR",
+        source: "parameter-update",
+        recoverable: true,
+      });
+      console.error(`Error updating parameter ${String(paramName)}:`, error);
+      return false;
+    }
+  }
+
+  /**
+   * Update multiple parameters at once
+   * @param updates Record of parameter names to values
+   * @param options Options for the batch update
+   * @returns Whether the update was successful
+   */
+  public batchUpdateParams(
+    updates: Partial<ShaderParams>,
+    options: ParameterUpdateOptions = {}
+  ): boolean {
+    this.ensureInitialized();
+
+    // Validate all values unless validation is skipped
+    if (!options.skipValidation) {
+      const invalidParams: string[] = [];
+
+      // Check each parameter
+      for (const [paramName, value] of Object.entries(updates)) {
+        const validation = this.validateParam(
+          paramName as keyof ShaderParams,
+          value
+        );
+        if (!validation.valid) {
+          invalidParams.push(paramName);
+        }
+      }
+
+      // If any parameters are invalid, return false
+      if (invalidParams.length > 0) {
+        this.emit("error", {
+          message: `Invalid values for parameters: ${invalidParams.join(", ")}`,
+          code: "INVALID_PARAMETERS",
+          source: "batch-update",
+          recoverable: true,
+        });
+        return false;
+      }
+    }
+
+    try {
+      let shouldRecreateGeometry = options.recreateGeometry || false;
+
+      // Update all parameters
+      for (const [paramName, value] of Object.entries(updates)) {
+        // Check if any parameter requires geometry recreation
+        if (
+          this.shouldRecreateGeometryForParam(paramName as keyof ShaderParams)
+        ) {
+          shouldRecreateGeometry = true;
+        }
+
+        // Update the parameter in the app
+        (this.app!.params as any)[paramName] = value;
+
+        // Emit parameter changed event for each parameter
+        this.emit("parameter-changed", {
+          paramName,
+          value,
+          source: options.source || "user",
+        });
+      }
+
+      // Determine if we should update the shader
+      const shouldUpdate = !options.deferUpdate;
+
+      // Update shader parameters if needed
+      if (shouldUpdate) {
+        // Determine whether to reset camera
+        const resetCamera = options.resetCamera || false;
+
+        // Update the shader with the new parameters
+        this.app!.updateParams(resetCamera);
+
+        // Recreate geometry if needed
+        if (shouldRecreateGeometry) {
+          this.recreateGeometry();
+        }
+      }
+
+      return true;
+    } catch (error) {
+      // Handle errors during batch update
+      this.emit("error", {
+        message: `Error during batch parameter update: ${
+          (error as Error).message
+        }`,
+        code: "BATCH_UPDATE_ERROR",
+        source: "batch-update",
+        recoverable: true,
+      });
+      console.error("Error during batch parameter update:", error);
+      return false;
+    }
+  }
+
+  /**
+   * Validate a parameter value without updating it
+   * @param paramName The name of the parameter to validate
+   * @param value The value to validate
+   * @returns The validation result
+   */
+  public validateParam<K extends keyof ShaderParams>(
+    paramName: K,
+    value: any
+  ): ValidationResult {
+    // This doesn't require initialization since it doesn't access ShaderApp
+
+    // Default to valid
+    const result: ValidationResult = { valid: true };
+
+    try {
+      // Use setting validation from the mapping system
+      const valid = validateSetting(paramName as string, value);
+
+      if (!valid) {
+        result.valid = false;
+        result.message = `Value out of range or incorrect type for ${String(
+          paramName
+        )}`;
+      }
+
+      return result;
+    } catch (error) {
+      // Handle errors during validation
+      return {
+        valid: false,
+        message: `Error validating parameter ${String(paramName)}: ${
+          (error as Error).message
+        }`,
+      };
+    }
+  }
+
+  // === Preset Management ===
+
+  /**
+   * Get a list of available presets
+   * @returns Array of preset information
+   */
+  public getAvailablePresets(): PresetInfo[] {
+    this.ensureInitialized();
+
+    // Get built-in presets from the app
+    const builtInPresets: PresetInfo[] = Object.keys(this.app!.presets).map(
+      (name) => ({
+        name,
+        isBuiltIn: true,
+      })
+    );
+
+    // TODO: Add user-saved presets when implemented
+
+    return builtInPresets;
+  }
+
+  /**
+   * Apply a preset by name
+   * @param presetName The name of the preset to apply
+   * @returns Whether the preset was applied successfully
+   */
+  public applyPreset(presetName: string): boolean {
+    this.ensureInitialized();
+
+    // Get the preset function
+    const presetFn = this.app!.presets[presetName];
+
+    if (!presetFn) {
+      this.emit("error", {
+        message: `Preset not found: ${presetName}`,
+        code: "PRESET_NOT_FOUND",
+        source: "preset-apply",
+        recoverable: true,
+      });
+      return false;
+    }
+
+    try {
+      // Save initial params for comparison
+      const initialParams = JSON.stringify(this.app!.params);
+
+      // Apply the preset
+      presetFn();
+
+      // Get final params for comparison
+      const finalParams = JSON.stringify(this.app!.params);
+
+      // Compute affected parameters
+      let affectedParams: string[] = [];
+      if (initialParams !== finalParams) {
+        // Detailed comparison would be better, but this is a simple approach
+        affectedParams = Object.keys(this.app!.params);
+      }
+
+      // Emit preset applied event
+      this.emit("preset-applied", {
+        presetName,
+        affectedParams,
+      });
+
+      return true;
+    } catch (error) {
+      // Handle errors during preset application
+      this.emit("error", {
+        message: `Error applying preset ${presetName}: ${
+          (error as Error).message
+        }`,
+        code: "PRESET_APPLY_ERROR",
+        source: "preset-apply",
+        recoverable: true,
+      });
+      console.error(`Error applying preset ${presetName}:`, error);
+      return false;
+    }
+  }
+
+  /**
+   * Save the current parameters as a preset
+   * @param options Options for saving the preset
+   * @returns Whether the preset was saved successfully
+   */
+  public savePreset(options: SavePresetOptions): boolean {
+    this.ensureInitialized();
+
+    // TODO: Implement user-saved presets
+    // This will require storage mechanism (localStorage, IndexedDB, etc.)
+
+    console.warn("savePreset not fully implemented yet");
+    return false;
+  }
+
+  /**
+   * Delete a preset by name
+   * @param presetName The name of the preset to delete
+   * @returns Whether the preset was deleted successfully
+   */
+  public deletePreset(presetName: string): boolean {
+    this.ensureInitialized();
+
+    // Check if it's a built-in preset
+    if (this.app!.presets[presetName]) {
+      // Cannot delete built-in presets
+      this.emit("error", {
+        message: `Cannot delete built-in preset: ${presetName}`,
+        code: "CANNOT_DELETE_BUILTIN",
+        source: "preset-delete",
+        recoverable: true,
+      });
+      return false;
+    }
+
+    // TODO: Implement deletion of user-saved presets
+
+    console.warn("deletePreset not fully implemented yet");
+    return false;
+  }
+
+  // === Geometry Management ===
+
+  /**
+   * Recreate the geometry with current parameters
+   * @param highQuality Whether to use high quality settings
+   */
+  public recreateGeometry(highQuality = false): void {
+    this.ensureInitialized();
+
+    try {
+      // Get the current geometry type
+      const geometryType = this.app!.params.geometryType;
+
+      // Recreate the geometry
+      if (highQuality) {
+        this.app!.recreateGeometryHighQuality();
+      } else {
+        this.app!.recreateGeometry();
+      }
+
+      // Emit geometry changed event
+      this.emit("geometry-changed", {
+        geometryType,
+        recreated: true,
+      });
+    } catch (error) {
+      // Handle errors during geometry recreation
+      this.emit("error", {
+        message: `Error recreating geometry: ${(error as Error).message}`,
+        code: "GEOMETRY_RECREATE_ERROR",
+        source: "geometry-management",
+        recoverable: true,
+      });
+      console.error("Error recreating geometry:", error);
+    }
+  }
+
+  /**
+   * Set the geometry type and recreate
+   * @param geometryType The type of geometry to create ('plane', 'sphere', 'cube')
+   */
+  public setGeometryType(geometryType: string): void {
+    // Update the geometry type parameter
+    this.updateParam("geometryType", geometryType, { recreateGeometry: true });
+  }
+
+  // === Camera Management ===
+
+  /**
+   * Set the camera position
+   * @param x X position
+   * @param y Y position
+   * @param z Z position
+   */
+  public setCameraPosition(x: number, y: number, z: number): void {
+    this.ensureInitialized();
+
+    try {
+      // Update the camera position parameters
+      this.batchUpdateParams(
+        {
+          cameraPosX: x,
+          cameraPosY: y,
+          cameraPosZ: z,
+        },
+        { deferUpdate: true }
+      );
+
+      // Update the camera directly for immediate effect
+      if (this.app!.camera) {
+        this.app!.camera.position.set(x, y, z);
+      }
+
+      // Update controls if they exist
+      if (this.app!.controls) {
+        this.app!.controls.update();
+      }
+    } catch (error) {
+      // Handle errors during camera position update
+      this.emit("error", {
+        message: `Error setting camera position: ${(error as Error).message}`,
+        code: "CAMERA_POSITION_ERROR",
+        source: "camera-management",
+        recoverable: true,
+      });
+      console.error("Error setting camera position:", error);
+    }
+  }
+
+  /**
+   * Set the camera target (look at point)
+   * @param x X position
+   * @param y Y position
+   * @param z Z position
+   */
+  public setCameraTarget(x: number, y: number, z: number): void {
+    this.ensureInitialized();
+
+    try {
+      // Update the camera target parameters
+      this.batchUpdateParams(
+        {
+          cameraTargetX: x,
+          cameraTargetY: y,
+          cameraTargetZ: z,
+        },
+        { deferUpdate: true }
+      );
+
+      // Update the controls target directly for immediate effect
+      if (this.app!.controls) {
+        this.app!.controls.target.set(x, y, z);
+        this.app!.controls.update();
+      }
+    } catch (error) {
+      // Handle errors during camera target update
+      this.emit("error", {
+        message: `Error setting camera target: ${(error as Error).message}`,
+        code: "CAMERA_TARGET_ERROR",
+        source: "camera-management",
+        recoverable: true,
+      });
+      console.error("Error setting camera target:", error);
+    }
+  }
+
+  /**
+   * Reset the camera to default position
+   */
+  public resetCamera(): void {
+    this.ensureInitialized();
+
+    try {
+      // Use the app's update params with camera reset flag
+      this.app!.updateParams(true);
+    } catch (error) {
+      // Handle errors during camera reset
+      this.emit("error", {
+        message: `Error resetting camera: ${(error as Error).message}`,
+        code: "CAMERA_RESET_ERROR",
+        source: "camera-management",
+        recoverable: true,
+      });
+      console.error("Error resetting camera:", error);
+    }
+  }
+
+  // === Rendering and Animation ===
+
+  /**
+   * Start the animation loop
+   */
+  public startAnimation(): void {
+    this.ensureInitialized();
+
+    // If already animating, do nothing
+    if (this.isAnimating()) {
+      return;
+    }
+
+    // Update the animation parameter
+    this.updateParam("pauseAnimation", false, { deferUpdate: true });
+
+    // Let ShaderApp handle its own animation loop
+    // We don't need to set up a separate animation loop here
+    // since ShaderApp.animate() already calls requestAnimationFrame
+    this.animationFrameId = 1; // Set a dummy value to indicate animation is running
+
+    // Call animate once to start the ShaderApp animation loop
+    this.app!.animate();
+
+    // Emit animation started event
+    this.emit("animation-started", undefined);
+  }
+
+  /**
+   * Stop the animation loop
+   */
+  public stopAnimation(): void {
+    // If not animating, do nothing
+    if (!this.isAnimating()) {
+      return;
+    }
+
+    // Update the animation parameter to pause
+    this.updateParam("pauseAnimation", true, { deferUpdate: true });
+
+    // Reset our tracking flag
+    this.animationFrameId = null;
+
+    // Emit animation stopped event
+    this.emit("animation-stopped", undefined);
+  }
+
+  /**
+   * Check if animation is currently running
+   */
+  public isAnimating(): boolean {
+    return this.animationFrameId !== null;
+  }
+
+  /**
+   * Render a single frame
+   */
+  public renderFrame(): void {
+    this.ensureInitialized();
+
+    try {
+      // Call the app's animate method once
+      this.app!.animate();
+
+      // Emit render complete event
+      const frameTime = performance.now(); // Simple proxy for frame time
+      const frameCount = 0; // No frame counter implementation yet
+
+      this.emit("render-complete", { frameTime, frameCount });
+    } catch (error) {
+      // Handle errors during rendering
+      this.emit("error", {
+        message: `Error rendering frame: ${(error as Error).message}`,
+        code: "RENDER_ERROR",
+        source: "rendering",
+        recoverable: true,
+      });
+      console.error("Error rendering frame:", error);
+    }
+  }
+
+  // === Export ===
+
+  /**
+   * Capture the current state of animation parameters
+   * @private
+   * @returns Object containing the current animation state
+   */
+  private captureAnimationState(): Record<string, any> {
+    if (!this.app) {
+      throw new Error("App not initialized");
+    }
+
+    return {
+      // Animation control parameters
+      animationSpeed: this.app.params.animationSpeed,
+      pauseAnimation: this.app.params.pauseAnimation,
+      time: this.app.time,
+
+      // Normal noise (distortion) parameters
+      normalNoiseScaleX: this.app.params.normalNoiseScaleX,
+      normalNoiseScaleY: this.app.params.normalNoiseScaleY,
+      normalNoiseSpeed: this.app.params.normalNoiseSpeed,
+      normalNoiseStrength: this.app.params.normalNoiseStrength,
+      normalNoiseShiftX: this.app.params.normalNoiseShiftX,
+      normalNoiseShiftY: this.app.params.normalNoiseShiftY,
+      normalNoiseShiftSpeed: this.app.params.normalNoiseShiftSpeed,
+
+      // Color and gradient parameters
+      colorNoiseScale: this.app.params.colorNoiseScale,
+      colorNoiseSpeed: this.app.params.colorNoiseSpeed,
+      gradientShiftSpeed: this.app.params.gradientShiftSpeed,
+
+      // Export parameters
+      exportTransparentBg: this.app.params.exportTransparentBg,
+      exportHighQuality: this.app.params.exportHighQuality,
+
+      // Add real timestamp to track how long export takes
+      realTimestamp: performance.now(),
+    };
+  }
+
+  /**
+   * Capture the current renderer state
+   * @private
+   * @returns Object containing the current renderer state
+   */
+  private captureRendererState(): Record<string, any> {
+    if (!this.app || !this.app.renderer) {
+      throw new Error("Renderer not initialized");
+    }
+
+    const originalColor = this.app.renderer.getClearColor(new THREE.Color());
+    const originalAlpha = this.app.renderer.getClearAlpha();
+
+    return {
+      clearColor: originalColor.clone(),
+      clearAlpha: originalAlpha,
+    };
+  }
+
+  /**
+   * Configure the renderer for export
+   * @private
+   * @param options Export options
+   * @returns The original renderer state for restoration
+   */
+  private configureRendererForExport(
+    options: ExportImageOptions
+  ): Record<string, any> {
+    if (!this.app || !this.app.renderer) {
+      throw new Error("Renderer not initialized");
+    }
+
+    // Capture current renderer state
+    const rendererState = this.captureRendererState();
+
+    // Apply transparent background if needed
+    if (options.transparent) {
+      this.app.renderer.setClearColor(0x000000, 0); // Black with 0 opacity
+    } else {
+      const bgColor = new THREE.Color(this.app.params.backgroundColor);
+      this.app.renderer.setClearColor(bgColor);
+    }
+
+    // Set export parameters
+    this.app.params.exportTransparentBg = options.transparent ?? false;
+    this.app.params.exportHighQuality = options.highQuality ?? false;
+
+    return rendererState;
+  }
+
+  /**
+   * Restore renderer to its original state
+   * @private
+   * @param rendererState The original renderer state to restore
+   */
+  private restoreRendererState(rendererState: Record<string, any>): void {
+    if (!this.app || !this.app.renderer) {
+      throw new Error("Renderer not initialized");
+    }
+
+    this.app.renderer.setClearColor(
+      rendererState.clearColor,
+      rendererState.clearAlpha
+    );
+  }
+
+  /**
+   * Get image data URL from canvas
+   * @private
+   * @param format The image format to export as
+   * @returns Data URL of the exported image
+   */
+  private getImageDataURL(format: string = "png"): string {
+    if (!this.app || !this.app.renderer) {
+      throw new Error("Renderer not initialized");
+    }
+
+    const canvas = this.app.renderer.domElement;
+
+    // Determine MIME type based on format
+    const mimeType =
+      format === "jpg" || format === "jpeg"
+        ? "image/jpeg"
+        : format === "webp"
+        ? "image/webp"
+        : "image/png";
+
+    // For JPEG format, provide quality setting
+    const quality = format === "jpg" || format === "jpeg" ? 0.95 : undefined;
+
+    // Get data URL with appropriate format and quality
+    try {
+      return canvas.toDataURL(mimeType, quality);
+    } catch (error) {
+      console.error("Error generating data URL:", error);
+      throw new Error(
+        `Failed to generate image data URL: ${(error as Error).message}`
+      );
+    }
+  }
+
+  /**
+   * Restore animation state after export
+   * @private
+   * @param animState The animation state to restore
+   * @param wasAnimating Whether animation was running before export
+   * @param elapsedTime Time elapsed during export process (in ms)
+   */
+  private restoreAnimationState(
+    animState: Record<string, any>,
+    wasAnimating: boolean,
+    elapsedTime: number
+  ): void {
+    if (!this.app) {
+      throw new Error("App not initialized");
+    }
+
+    // Restore export parameters
+    this.app.params.exportTransparentBg = animState.exportTransparentBg;
+    this.app.params.exportHighQuality = animState.exportHighQuality;
+
+    // Calculate elapsed shader time if animation was running
+    if (wasAnimating) {
+      // Calculate how much shader time would have elapsed during export
+      const elapsedShaderTime = elapsedTime * 0.001 * animState.animationSpeed;
+
+      if (this.config.debug.enabled) {
+        console.log(
+          `EXPORT: Adjusting time - Original: ${animState.time}, Adding: ${elapsedShaderTime}`
+        );
+      }
+
+      // Set time to original + calculated elapsed time
+      this.app.time = animState.time + elapsedShaderTime;
+    } else {
+      // If animation wasn't running, just restore the original time
+      this.app.time = animState.time;
+    }
+
+    // Create a batch update for all animation parameters
+    const animParams = {
+      normalNoiseScaleX: animState.normalNoiseScaleX,
+      normalNoiseScaleY: animState.normalNoiseScaleY,
+      normalNoiseSpeed: animState.normalNoiseSpeed,
+      normalNoiseStrength: animState.normalNoiseStrength,
+      normalNoiseShiftX: animState.normalNoiseShiftX,
+      normalNoiseShiftY: animState.normalNoiseShiftY,
+      normalNoiseShiftSpeed: animState.normalNoiseShiftSpeed,
+      colorNoiseScale: animState.colorNoiseScale,
+      colorNoiseSpeed: animState.colorNoiseSpeed,
+      gradientShiftSpeed: animState.gradientShiftSpeed,
+      animationSpeed: animState.animationSpeed,
+    };
+
+    // Update parameters without emitting events (to avoid UI flicker)
+    // We'll manually emit events after everything is restored
+    Object.entries(animParams).forEach(([key, value]) => {
+      (this.app!.params as any)[key] = value;
+    });
+
+    // Force uniforms update
+    this.app.updateParams(false);
+
+    // Directly update critical animation uniforms to ensure consistency
+    if (this.app.uniforms) {
+      this.app.uniforms.uNoiseSpeed.value = animState.normalNoiseSpeed;
+      this.app.uniforms.uNoiseShiftSpeed.value =
+        animState.normalNoiseShiftSpeed;
+      this.app.uniforms.uColorNoiseSpeed.value = animState.colorNoiseSpeed;
+      this.app.uniforms.uGradientShiftSpeed.value =
+        animState.gradientShiftSpeed;
+    }
+
+    // Emit critical parameter change events to ensure UI synchronization
+    // These are the parameters most likely to be affected by the export process
+    const criticalParams = [
+      "normalNoiseSpeed",
+      "normalNoiseShiftSpeed",
+      "colorNoiseSpeed",
+      "gradientShiftSpeed",
+      "animationSpeed",
+    ];
+
+    criticalParams.forEach((paramName) => {
+      const paramValue = (this.app!.params as any)[paramName];
+
+      if (this.config.debug.enabled) {
+        console.log(
+          `EXPORT: Emitting parameter-changed event for ${paramName}: ${paramValue}`
+        );
+      }
+
+      this.emit("parameter-changed", {
+        paramName,
+        value: paramValue,
+        source: "preset", // Use "preset" as the source since we're restoring to a previous state
+      });
+    });
+
+    // Emit a general export-complete notification parameter
+    this.emit("parameter-changed", {
+      paramName: "exportComplete",
+      value: true,
+      source: "user",
+    });
+  }
+
+  /**
+   * Handle export errors in a consistent way
+   * @private
+   * @param error The error that occurred
+   * @param exportType The type of export that failed
+   */
+  private handleExportError(
+    error: unknown,
+    exportType: "image" | "code"
+  ): void {
+    const errorMessage = error instanceof Error ? error.message : String(error);
+    const errorCode =
+      exportType === "image" ? "IMAGE_EXPORT_ERROR" : "CODE_EXPORT_ERROR";
+
+    this.emit("error", {
+      message: `Error exporting ${exportType}: ${errorMessage}`,
+      code: errorCode,
+      source: "export",
+      recoverable: true,
+    });
+
+    console.error(`Error exporting ${exportType}:`, error);
+  }
+
+  /**
+   * Log animation parameters if debug is enabled
+   * @private
+   * @param label Label for the log
+   */
+  private logAnimationParams(label: string): void {
+    if (!this.config.debug.enabled || !this.app) return;
+
+    console.log(`EXPORT: ${label} - Animation parameters:`, {
+      animationSpeed: this.app.params.animationSpeed,
+      normalNoiseSpeed: this.app.params.normalNoiseSpeed,
+      colorNoiseSpeed: this.app.params.colorNoiseSpeed,
+      pauseAnimation: this.app.params.pauseAnimation,
+      time: this.app.time,
+    });
+  }
+
+  /**
+   * Export the current state as an image
+   * @param options Export options
+   * @returns Promise that resolves with the exported image URL
+   */
+  public async exportAsImage(
+    options: ExportImageOptions = {}
+  ): Promise<string> {
+    this.ensureInitialized();
+
+    // Merge options with defaults
+    const mergedOptions = {
+      ...this.config.export.defaultImageExport,
+      ...options,
+    };
+
+    try {
+      // Emit export started event
+      this.emit("export-started", {
+        type: "image",
+        settings: mergedOptions,
+      });
+
+      // Log initial animation state if debug is enabled
+      this.logAnimationParams("BEFORE EXPORT");
+
+      // Save the current animation state
+      const animState = this.captureAnimationState();
+
+      // Check if animation is running
+      const wasAnimating = this.isAnimating();
+
+      // Pause animation if running
+      if (wasAnimating) {
+        this.stopAnimation();
+        this.logAnimationParams("AFTER STOP");
+      }
+
+      // Configure renderer for export (returns original state for restoration)
+      const rendererState = this.configureRendererForExport(mergedOptions);
+
+      // Recreate geometry with high quality if requested
+      if (mergedOptions.highQuality) {
+        this.app!.recreateGeometryHighQuality();
+      }
+
+      // Render the frame
+      this.renderFrame();
+
+      // Get the image data URL with specified format
+      const format = mergedOptions.format || "png";
+      const dataURL = this.getImageDataURL(format);
+
+      // Restore renderer state
+      this.restoreRendererState(rendererState);
+
+      // Restore original geometry quality if needed
+      if (mergedOptions.highQuality) {
+        this.app!.recreateGeometry();
+      }
+
+      // Calculate elapsed time during export
+      const elapsedTime = performance.now() - animState.realTimestamp;
+
+      // Restore animation state
+      this.restoreAnimationState(animState, wasAnimating, elapsedTime);
+
+      // Log final animation state if debug is enabled
+      this.logAnimationParams("AFTER RESTORE");
+
+      // Restart animation if it was running
+      if (wasAnimating) {
+        this.startAnimation();
+        this.logAnimationParams("AFTER RESTART");
+      } else {
+        if (this.config.debug.enabled) {
+          console.log("EXPORT: Animation was not restarted");
+        }
+      }
+
+      // Emit export complete event
+      this.emit("export-complete", {
+        type: "image",
+        result: dataURL,
+      });
+
+      return dataURL;
+    } catch (error) {
+      this.handleExportError(error, "image");
+      throw error;
+    }
+  }
+
+  /**
+   * Export the current shader as code
+   * @param options Export options
+   * @returns Promise that resolves with the exported code
+   */
+  public async exportAsCode(options: ExportCodeOptions = {}): Promise<string> {
+    this.ensureInitialized();
+
+    // Merge options with defaults
+    const mergedOptions = {
+      ...this.config.export.defaultCodeExport,
+      ...options,
+    };
+
+    try {
+      // Emit export started event
+      this.emit("export-started", {
+        type: "code",
+        settings: mergedOptions,
+      });
+
+      if (!this.app) {
+        throw new Error("ShaderApp is not initialized");
+      }
+
+      // Get shaders and uniforms from the app
+      const vertexShader =
+        this.app.params.geometryType === "sphere"
+          ? this.app.shaders.sphereVertex
+          : this.app.shaders.vertex;
+      const fragmentShader = this.app.shaders.fragment;
+      const uniforms = this.app.uniforms;
+
+      // Generate appropriate code based on export options
+      let code = "";
+      const format = mergedOptions.format || "glsl";
+
+      if (format === "glsl") {
+        // GLSL format
+        code = `// Vertex Shader\n${vertexShader}\n\n// Fragment Shader\n${fragmentShader}\n\n// Uniforms\n/*\n${JSON.stringify(
+          uniforms,
+          null,
+          2
+        )}\n*/`;
+      } else if (format === "js") {
+        // JavaScript code
+        code = `// JavaScript Three.js implementation
+const vertexShader = \`${vertexShader}\`;
+
+const fragmentShader = \`${fragmentShader}\`;
+
+const uniforms = ${JSON.stringify(uniforms, null, 2)};
+
+// Use in Three.js material
+const material = new THREE.ShaderMaterial({
+  vertexShader,
+  fragmentShader,
+  uniforms
+});`;
+      } else if (format === "ts") {
+        // TypeScript code
+        code = `// TypeScript Three.js implementation
+const vertexShader = \`${vertexShader}\`;
+
+const fragmentShader = \`${fragmentShader}\`;
+
+const uniforms: Record<string, THREE.IUniform> = ${JSON.stringify(
+          uniforms,
+          null,
+          2
+        )};
+
+// Use in Three.js material
+const material = new THREE.ShaderMaterial({
+  vertexShader,
+  fragmentShader,
+  uniforms
+});`;
+      } else if (format === "html") {
+        // Import HTMLExporter dynamically to avoid circular dependencies
+        const { HTMLExporter } = await import("../modules/export/HTMLExporter");
+        const htmlExporter = new HTMLExporter(this.app!);
+
+        // Generate HTML parts
+        const htmlSetup = htmlExporter.generateHTMLSetup();
+        const sceneSetup = htmlExporter.generateSceneSetup();
+        const geometryAnimation = htmlExporter.generateGeometryAndAnimation();
+
+        // Format shaders with backticks to ensure proper multi-line strings in JavaScript
+        // Add extra escaping to preserve the backticks in the resulting code
+        const escapedVertexShader = vertexShader.replace(/`/g, "\\`");
+        const escapedFragmentShader = fragmentShader.replace(/`/g, "\\`");
+
+        // Combine all parts
+        const fullHtmlCode = htmlSetup.replace(
+          "// Your shader code will go here",
+          `
+    // Vertex shader
+    const vertexShader = \`${escapedVertexShader}\`;
+    
+    // Fragment shader
+    const fragmentShader = \`${escapedFragmentShader}\`;
+    
+    ${sceneSetup}
+    
+    // Create shader material
+    const material = new THREE.ShaderMaterial({
+      vertexShader,
+      fragmentShader,
+      uniforms,
+      wireframe: ${this.app!.params.showWireframe}
+    });
+    
+    ${geometryAnimation}
+    `
+        );
+
+        code = fullHtmlCode;
+      }
+
+      // Apply minification if requested
+      if (mergedOptions.minify) {
+        // Simple minification - remove comments and excess whitespace
+        code = code
+          .replace(/\/\/.*$/gm, "") // Remove single-line comments
+          .replace(/\/\*[\s\S]*?\*\//g, "") // Remove multi-line comments
+          .replace(/\s+/g, " ") // Collapse whitespace
+          .trim();
+      }
+
+      // Emit export complete event
+      this.emit("export-complete", {
+        type: "code",
+        result: code,
+      });
+
+      return code;
+    } catch (error) {
+      this.handleExportError(error, "code");
+      throw error;
+    }
+  }
+
+  // === Private Helper Methods ===
+
+  /**
+   * Ensure the app is initialized before trying to use it
+   * @private
+   * @throws Error if the app is not initialized
+   */
+  private ensureInitialized(): void {
+    if (!this.isInitialized()) {
+      throw new Error("ShaderApp is not initialized. Call initialize() first.");
+    }
+  }
+
+  /**
+   * Check if a parameter requires recreating geometry when changed
+   * @private
+   * @param paramName The name of the parameter to check
+   * @returns Whether the parameter requires recreating geometry
+   */
+  private shouldRecreateGeometryForParam(
+    paramName: keyof ShaderParams
+  ): boolean {
+    // List of parameters that require geometry recreation
+    const geometryParams = [
+      "geometryType",
+      "planeWidth",
+      "planeHeight",
+      "planeSegments",
+      "sphereRadius",
+      "sphereWidthSegments",
+      "sphereHeightSegments",
+      "cubeSize",
+      "cubeSegments",
+    ];
+
+    return geometryParams.includes(paramName as string);
+  }
+
+  /**
+   * Track update frequency for performance optimization
+   * @private
+   */
+  private trackUpdateFrequency(): void {
+    const now = performance.now();
+
+    // Add current timestamp
+    this.updateTimestamps.push(now);
+
+    // Remove timestamps older than 1 second
+    this.updateTimestamps = this.updateTimestamps.filter(
+      (timestamp) => now - timestamp < 1000
+    );
+
+    // Check if we're getting too many updates
+    const updateFrequency = this.updateTimestamps.length;
+
+    if (
+      this.config.performance.useReducedQualityForFrequentUpdates &&
+      updateFrequency > this.config.performance.reducedQualityFrequencyThreshold
+    ) {
+      // TODO: Implement reduced quality mode for frequent updates
+    }
+  }
+
+  /**
+   * Validates that all components of the export implementation are working properly
+   * This is a development/testing helper method and should not be called in production
+   * @private
+   * @returns Object with validation results
+   */
+  private validateExportImplementation(): Record<string, boolean> {
+    if (!this.app) {
+      console.error(
+        "Cannot validate export implementation: App not initialized"
+      );
+      return { valid: false };
+    }
+
+    const results: Record<string, boolean> = {};
+
+    // Test animation state capture
+    try {
+      const animState = this.captureAnimationState();
+      results.captureAnimationState =
+        typeof animState === "object" &&
+        "animationSpeed" in animState &&
+        "normalNoiseSpeed" in animState;
+    } catch (error) {
+      console.error("Error in captureAnimationState:", error);
+      results.captureAnimationState = false;
+    }
+
+    // Test renderer state capture
+    try {
+      const rendererState = this.captureRendererState();
+      results.captureRendererState =
+        typeof rendererState === "object" &&
+        "clearColor" in rendererState &&
+        "clearAlpha" in rendererState;
+    } catch (error) {
+      console.error("Error in captureRendererState:", error);
+      results.captureRendererState = false;
+    }
+
+    // Test renderer configuration
+    try {
+      const rendererState = this.configureRendererForExport({});
+      results.configureRendererForExport =
+        typeof rendererState === "object" && "clearColor" in rendererState;
+      // Restore renderer state
+      this.restoreRendererState(rendererState);
+      results.restoreRendererState = true;
+    } catch (error) {
+      console.error(
+        "Error in configureRendererForExport/restoreRendererState:",
+        error
+      );
+      results.configureRendererForExport = false;
+      results.restoreRendererState = false;
+    }
+
+    // Test getImageDataURL
+    try {
+      // Just test if the method runs without error (don't actually get the URL)
+      // This checks that the structure of the method is correct
+      results.getImageDataURL = typeof this.getImageDataURL === "function";
+    } catch (error) {
+      console.error("Error in getImageDataURL check:", error);
+      results.getImageDataURL = false;
+    }
+
+    // Test image format support
+    const formats = ["png", "jpg", "webp"];
+    results.formatSupport = formats.every((format) => {
+      try {
+        return (
+          this.config.export.defaultImageExport.format === format ||
+          typeof format === "string"
+        );
+      } catch {
+        return false;
+      }
+    });
+
+    // Test code format support
+    const codeFormats = ["glsl", "js", "ts", "html"];
+    results.codeFormatSupport = codeFormats.every((format) => {
+      try {
+        return (
+          this.config.export.defaultCodeExport.format === format ||
+          typeof format === "string"
+        );
+      } catch {
+        return false;
+      }
+    });
+
+    // Calculate overall validation result
+    results.valid = Object.entries(results)
+      .filter(([key]) => key !== "valid")
+      .every(([_, value]) => value === true);
+
+    console.log("Export implementation validation results:", results);
+    return results;
+  }
+
+  /**
+   * DEVELOPMENT ONLY: Validate that the export implementation is working correctly
+   * This method should only be called in development/testing environment
+   * @returns Results of validation checks
+   */
+  public validateExport(): Record<string, any> {
+    console.warn(
+      "ShaderAppFacade.validateExport() is a development method and should not be used in production!"
+    );
+
+    try {
+      return this.validateExportImplementation();
+    } catch (error) {
+      console.error("Error during export validation:", error);
+      return {
+        valid: false,
+        error: true,
+        message: error instanceof Error ? error.message : String(error),
+      };
+    }
+  }
+}

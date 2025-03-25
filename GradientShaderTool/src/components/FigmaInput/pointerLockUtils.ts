@@ -144,8 +144,6 @@ export const positionVirtualCursor = (x: number, y: number) => {
     return;
   }
 
-  console.log('positioning virtual cursor', x, y)
-
   // Update position and ensure it's visible
   cursor.style.left = `${x}px`;
   cursor.style.top = `${y}px`;
@@ -234,6 +232,8 @@ export const setPointerLockActiveState = (active: boolean) => {
   if (active) {
     document.documentElement.classList.add("figma-input-pointer-lock-active");
   } else {
-    document.documentElement.classList.remove("figma-input-pointer-lock-active");
+    document.documentElement.classList.remove(
+      "figma-input-pointer-lock-active"
+    );
   }
-}; 
+};

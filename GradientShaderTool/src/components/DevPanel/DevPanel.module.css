@@ -2,18 +2,24 @@
   position: fixed;
   top: 20px;
   left: 20px;
-  background-color: rgba(0, 0, 0, 0.85);
-  border: 1px solid #444;
+  background-color: color-mix(in srgb, var(--gray-2) 90%, transparent);
+  border: 1px solid var(--gray-a4);
   border-radius: 6px;
-  padding: 15px;
-  color: #fff;
+
+  color: var(--gray-a12);
   font-family: monospace;
   font-size: 12px;
-  max-width: 400px;
+  width: 400px;
   max-height: 80vh;
   overflow-y: auto;
-  z-index: 1000;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+  z-index: 9999;
+
+  box-sizing: border-box;
+  overflow-x: hidden;
+}
+
+.devPanel::-webkit-scrollbar-track {
+  border-radius: 6px;
 }
 
 .hidden {
@@ -24,9 +30,12 @@
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin-bottom: 10px;
-  padding-bottom: 8px;
-  border-bottom: 1px solid #444;
+  padding: 10px 15px;
+
+  position: sticky;
+  top: 0;
+  border-bottom: 1px solid var(--gray-a4);
+  background-color: var(--gray-3);
 }
 
 .title {
@@ -38,48 +47,72 @@
 .closeButton {
   background: none;
   border: none;
-  color: #999;
+  color: var(--gray-a11);
   cursor: pointer;
-  font-size: 16px;
+  font-size: 14px;
   padding: 0;
   margin: 0;
 }
 
 .closeButton:hover {
-  color: #fff;
+  color: var(--gray-a12);
 }
 
 .section {
   margin-bottom: 15px;
+  border-bottom: 1px solid var(--gray-a3);
+  padding: 15px;
+  padding-bottom: 30px;
+}
+
+.section:last-child {
+  border-bottom: none;
+  margin-bottom: 0;
 }
 
 .sectionTitle {
   font-weight: bold;
-  color: #88ccff;
+  color: var(--blue-a11);
   margin-bottom: 5px;
   font-size: 13px;
 }
 
 .paramList {
   display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 8px;
+  grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+  gap: 12px;
+  width: 100%;
+  max-width: 100%;
+  box-sizing: border-box;
 }
 
 .param {
   display: flex;
   justify-content: space-between;
   padding: 3px 0;
-  border-bottom: 1px dotted #333;
+  border-bottom: 1px dotted var(--gray-a4);
+  width: 100%;
+  overflow: hidden;
 }
 
 .paramName {
-  color: #aaa;
+  color: var(--gray-a11);
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  overflow: hidden;
+
+  margin-right: 5px;
 }
 
 .paramValue {
   color: #ffcc66;
   font-weight: bold;
+  text-align: right;
+  overflow: hidden;
+  text-overflow: ellipsis;
+
+  word-break: break-word;
+  width: fit-content;
 }
 
 .colorValue {
@@ -107,10 +140,19 @@
   background-color: #3a3a3a;
 }
 
+.copySuccess {
+  background-color: #2a5e2a !important;
+  border-color: #44aa44 !important;
+}
+
+.presetDescription {
+  color: #aaa;
+  font-size: 12px;
+  margin: 5px 0;
+}
+
 .stats {
-  margin-top: 15px;
-  padding-top: 10px;
-  border-top: 1px solid #444;
+  padding: 15px;
 }
 
 .statItem {
@@ -138,6 +180,8 @@
   font-family: monospace;
   font-size: 11px;
   color: #ddd;
+  max-height: 300px;
+  overflow-y: auto;
 }
 
 .tabs {
@@ -160,10 +204,302 @@
   border-bottom: 2px solid #88ccff;
 }
 
-.tabContent {
-  display: none;
+.content {
+  display: block;
+  width: 100%;
 }
 
-.tabContent.active {
-  display: block;
+/* Facade Test Panel Styles */
+.facadeTestPanel {
+  background-color: rgba(0, 0, 0, 0.8);
+  border: 1px solid #444;
+  border-radius: 6px;
+  padding: 15px;
+  margin-top: 15px;
+  color: #fff;
+  font-family: monospace;
+  font-size: 12px;
+}
+
+.facadeTestPanelHeader {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 15px;
+  padding-bottom: 8px;
+  border-bottom: 1px solid #444;
+}
+
+.facadeTestPanelHeader h2 {
+  font-size: 14px;
+  margin: 0;
+  color: #88ccff;
+}
+
+.facadeTestPanelControls {
+  display: flex;
+  gap: 8px;
+}
+
+.facadeTestPanelControls button {
+  background-color: #2a2a2a;
+  border: 1px solid #444;
+  border-radius: 4px;
+  color: #aaa;
+  padding: 4px 8px;
+  cursor: pointer;
+  font-size: 11px;
+  transition: all 0.2s ease;
+}
+
+.facadeTestPanelControls button.active {
+  background-color: #3a3a3a;
+  color: #fff;
+  border-color: #88ccff;
+}
+
+.paramsPanel,
+.eventsPanel {
+  margin-bottom: 15px;
+}
+
+.categorySelector {
+  display: flex;
+  align-items: center;
+  margin-bottom: 15px;
+  gap: 10px;
+  width: 100%;
+}
+
+.categorySelect:hover {
+  border-color: var(--blue-a10);
+}
+
+.categorySelect:focus {
+  outline: none;
+  border-color: var(--blue-a10);
+  box-shadow: 0 0 0 1px var(--blue-a10);
+}
+
+.eventControls {
+  margin-bottom: 10px;
+}
+
+.eventInput {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 10px;
+}
+
+.eventInput input {
+  flex: 1;
+  background-color: #2a2a2a;
+  border: 1px solid #444;
+  border-radius: 4px;
+  color: #fff;
+  padding: 6px 8px;
+  font-size: 12px;
+}
+
+.eventInput button {
+  background-color: #2a2a2a;
+  border: 1px solid #444;
+  border-radius: 4px;
+  color: #fff;
+  padding: 4px 10px;
+  cursor: pointer;
+  font-size: 12px;
+}
+
+.eventTags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 10px;
+}
+
+.eventTag {
+  display: inline-flex;
+  align-items: center;
+  background-color: #333;
+  border-radius: 4px;
+  padding: 4px 8px;
+  font-size: 11px;
+  color: #fff;
+}
+
+.eventTag button {
+  background: none;
+  border: none;
+  color: #999;
+  margin-left: 5px;
+  padding: 0 0 0 5px;
+  cursor: pointer;
+  font-size: 14px;
+}
+
+.eventTag button:hover {
+  color: #fff;
+}
+
+/* Quick Actions */
+.quickActions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-bottom: 15px;
+}
+
+.quickActions button {
+  background-color: #2a2a2a;
+  border: 1px solid #444;
+  border-radius: 4px;
+  color: #fff;
+  padding: 4px 8px;
+  cursor: pointer;
+  font-size: 11px;
+  transition: background-color 0.2s ease;
+  flex-grow: 1;
+  text-align: center;
+  min-width: 80px;
+}
+
+.quickActions button:hover {
+  background-color: #3a3a3a;
+  border-color: #88ccff;
+}
+
+/* Playground Styles */
+.playgroundPanel {
+  margin-top: 15px;
+}
+
+.playgroundPanel h3 {
+  font-size: 14px;
+  color: #88ccff;
+  margin: 0 0 10px 0;
+}
+
+.playgroundPanel h4 {
+  font-size: 12px;
+  color: #aaa;
+  margin: 0 0 8px 0;
+  border-bottom: 1px dotted #444;
+  padding-bottom: 4px;
+}
+
+.playgroundSection {
+  margin-bottom: 15px;
+  padding-bottom: 15px;
+  border-bottom: 1px solid #333;
+}
+
+.playgroundForm {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.playgroundForm p {
+  font-size: 11px;
+  color: #aaa;
+  margin: 0 0 8px 0;
+}
+
+.formGroup {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.formGroup label {
+  font-size: 11px;
+  color: #aaa;
+}
+
+.formGroup input,
+.formGroup textarea {
+  background-color: #2a2a2a;
+  border: 1px solid #444;
+  border-radius: 4px;
+  color: #fff;
+  padding: 6px 8px;
+  font-size: 12px;
+  width: 100%;
+  font-family: monospace;
+}
+
+.formGroup textarea {
+  resize: vertical;
+  min-height: 60px;
+}
+
+.playgroundForm button {
+  background-color: #2a2a2a;
+  border: 1px solid #444;
+  border-radius: 4px;
+  color: #fff;
+  padding: 6px 10px;
+  cursor: pointer;
+  font-size: 12px;
+  transition: background-color 0.2s ease;
+  align-self: flex-start;
+  margin-top: 5px;
+}
+
+.playgroundForm button:hover {
+  background-color: #3a3a3a;
+  border-color: #88ccff;
+}
+
+.playgroundOutput {
+  margin-top: 15px;
+  font-size: 12px;
+}
+
+.outputSuccess {
+  color: #4caf50;
+  background-color: rgba(76, 175, 80, 0.1);
+  padding: 8px;
+  border-radius: 4px;
+  margin-bottom: 10px;
+}
+
+.outputError {
+  color: #f44336;
+  background-color: rgba(244, 67, 54, 0.1);
+  padding: 8px;
+  border-radius: 4px;
+  margin-bottom: 10px;
+}
+
+/* Mock Facade Indicator */
+.mockBadge {
+  display: inline-block;
+  background-color: #ff9800;
+  color: #000;
+  font-size: 10px;
+  padding: 2px 6px;
+  border-radius: 10px;
+  margin-left: 8px;
+  vertical-align: middle;
+  font-weight: normal;
+}
+
+.mockNotice {
+  background-color: rgba(255, 152, 0, 0.1);
+  border: 1px solid rgba(255, 152, 0, 0.3);
+  color: #ff9800;
+  padding: 8px;
+  font-size: 11px;
+  border-radius: 4px;
+  margin-bottom: 12px;
+  text-align: center;
+}
+
+/* For categories that should display in a single column */
+.singleColumnParams {
+  display: flex;
+  flex-direction: column;
+  width: 100%;
 }

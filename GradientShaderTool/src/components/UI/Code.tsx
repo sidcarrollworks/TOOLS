@@ -5,6 +5,27 @@ import { Copy, Check } from "../Icons";
 
 // Import Prism core and its CSS
 import Prism from "prismjs";
+// Import language components
+import "prismjs/components/prism-markup"; // HTML
+import "prismjs/components/prism-javascript";
+import "prismjs/components/prism-glsl";
+import "prismjs/components/prism-css";
+
+// Setup Prism configuration
+const setupPrism = () => {
+  // Ensure languages are properly configured
+  Prism.languages.markup = Prism.languages.markup || Prism.languages.html;
+  Prism.languages.html = Prism.languages.markup; // Register HTML as an alias for markup
+
+  // Force Prism to reload its configuration
+  Prism.hooks.run("before-highlight", {
+    element: document.createElement("div"),
+    language: "markup",
+  });
+};
+
+// Run setup once
+setupPrism();
 
 interface CodeProps {
   code: string;
@@ -22,7 +43,25 @@ export const Code: FunctionComponent<CodeProps> = ({
   useEffect(() => {
     if (codeRef.current) {
       try {
-        Prism.highlightElement(codeRef.current);
+        // Special handling for HTML
+        if (language === "html") {
+          const highlightedCode = Prism.highlight(
+            code,
+            Prism.languages.html,
+            "html"
+          );
+          if (codeRef.current) {
+            codeRef.current.innerHTML = highlightedCode;
+          }
+        } else {
+          // For other languages, use the standard approach
+          Prism.highlightElement(codeRef.current);
+        }
+
+        // Also highlight all code on the page to be sure
+        setTimeout(() => {
+          Prism.highlightAll();
+        }, 0);
       } catch (err) {
         console.error("Error highlighting code:", err);
       }
@@ -45,6 +84,7 @@ export const Code: FunctionComponent<CodeProps> = ({
   const getLanguageClass = () => {
     switch (language) {
       case "html":
+        // HTML needs to use "language-markup" for proper syntax highlighting in Prism
         return "language-markup";
       case "glsl":
         return "language-glsl";

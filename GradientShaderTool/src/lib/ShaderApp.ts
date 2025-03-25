@@ -23,6 +23,7 @@ export interface ShaderParams {
 
   // Cube geometry
   cubeSize: number;
+  cubeSegments: number;
   cubeWidthSegments: number;
   cubeHeightSegments: number;
   cubeDepthSegments: number;
@@ -88,6 +89,9 @@ export interface ShaderParams {
   // Export options
   exportTransparentBg: boolean;
   exportHighQuality: boolean;
+
+  // Performance options
+  useAdaptiveResolution: boolean;
 }
 
 export interface ShaderPresets {
@@ -113,6 +117,8 @@ export class ShaderApp {
   time: number;
   stats: Stats | null;
   private _animationFrameId: number | null;
+  private _clock: THREE.Clock;
+  private _lastTime: number;
 
   // Shader resources
   shaders: {
@@ -152,6 +158,8 @@ export class ShaderApp {
     this.time = 0;
     this.stats = null;
     this.parentElement = null;
+    this._clock = new THREE.Clock();
+    this._lastTime = performance.now() / 1000;
     this.shaders = {
       perlinNoise: "",
       vertex: "",
@@ -181,6 +189,7 @@ export class ShaderApp {
 
       // Cube geometry
       cubeSize: 1,
+      cubeSegments: 1,
       cubeWidthSegments: 1,
       cubeHeightSegments: 1,
       cubeDepthSegments: 1,
@@ -219,7 +228,7 @@ export class ShaderApp {
       gradientShiftSpeed: 0.05,
 
       // Colors
-      gradientMode: 0, // 0: B-spline, 1: Linear, 2: Step, 3: Smooth step, 4: Direct mapping
+      gradientMode: 0, // 0: B-spline, 1: Linear, 2: Step, 3: Smooth step
       color1: "#ff0000",
       color2: "#00ff00",
       color3: "#0000ff",
@@ -246,6 +255,9 @@ export class ShaderApp {
       // Export options
       exportTransparentBg: false,
       exportHighQuality: true,
+
+      // Performance options
+      useAdaptiveResolution: false,
     };
 
     // Uniforms for the shader
@@ -334,8 +346,8 @@ export class ShaderApp {
       // Set up Three.js scene
       this.sceneManager.setupScene(this.parentElement);
 
-      // Set up performance stats
-      this.utils.setupStats(this);
+      // Set up performance stats - pass false to hide stats by default
+      this.utils.setupStats(this, false);
 
       // Load default preset
       this.presetManager.presetDefault();
@@ -384,26 +396,12 @@ export class ShaderApp {
   }
 
   /**
-   * Recreate the plane with current parameters (alias for backward compatibility)
-   */
-  recreatePlane(): void {
-    this.recreateGeometry();
-  }
-
-  /**
    * Recreate the geometry with high quality
    */
   recreateGeometryHighQuality(): void {
     if (this.sceneManager) {
       this.sceneManager.recreateGeometryHighQuality();
     }
-  }
-
-  /**
-   * Recreate the plane with high quality (alias for backward compatibility)
-   */
-  recreatePlaneHighQuality(): void {
-    this.recreateGeometryHighQuality();
   }
 
   /**
@@ -415,9 +413,16 @@ export class ShaderApp {
     // Begin stats measurement
     if (this.stats) this.stats.begin();
 
+    // Get delta time (time elapsed since last frame)
+    const delta = this._clock.getDelta();
+    // Apply a maximum delta to prevent huge jumps if the tab loses focus
+    const maxDelta = 1 / 30; // Max 1/30th of a second
+    const cappedDelta = Math.min(delta, maxDelta);
+
     if (!this.params.pauseAnimation) {
-      // Update time for shader uniforms
-      this.time += this.params.animationSpeed;
+      // Update time based on delta and animation speed
+      // This makes the animation frame-rate independent
+      this.time += this.params.animationSpeed * cappedDelta * 60.0; // Scale by 60 to maintain similar speed to previous implementation
     }
 
     // Always update the time uniform
@@ -438,9 +443,10 @@ export class ShaderApp {
 
   /**
    * Save canvas as image
+   * @returns The data URL of the saved image, or null if save failed
    */
-  saveAsImage(): void {
-    this.exportManager.saveAsImage();
+  saveAsImage(): string | null {
+    return this.exportManager.saveAsImage();
   }
 
   /**
@@ -467,7 +473,15 @@ export class ShaderApp {
     if (this.stats && this.stats.dom.parentElement) {
       this.stats.dom.parentElement.removeChild(this.stats.dom);
     }
+  }
 
-    console.log("Application resources cleaned up");
+  /**
+   * Set whether to use adaptive resolution for geometry
+   * @param enabled Whether to use adaptive resolution
+   */
+  setAdaptiveResolution(enabled: boolean): void {
+    if (this.sceneManager) {
+      this.sceneManager.setAdaptiveResolution(enabled);
+    }
   }
 }

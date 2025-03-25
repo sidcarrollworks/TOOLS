@@ -1,5 +1,5 @@
 {
-  "name": "gradientshadertool",
+  "name": "shaderforge",
   "module": "index.ts",
   "type": "module",
   "private": true,

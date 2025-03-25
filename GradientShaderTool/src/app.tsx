@@ -2,21 +2,37 @@ import type { ComponentType } from "preact";
 import { useEffect, useRef, useCallback } from "preact/hooks";
 import { signal, computed, batch } from "@preact/signals";
 import "./styles/index.css";
-import { ShaderApp } from "./lib/ShaderApp";
 import ShaderCanvas from "./components/ShaderCanvas/ShaderCanvas";
-import ControlPanel from "./components/ControlPanel/ControlPanel";
-import Layout from "./components/Layout/Layout";
 import { DevPanel } from "./components/DevPanel";
-import { sidePanelVisibleSignal } from "./components/SidebarPanel";
+import {
+  SidePanel,
+  sidePanelVisibleSignal,
+} from "./components/SidebarPanel/SidePanel";
 // Import settings system
 import {
   initializeSettingsSystem,
   connectSettingsToShaderApp,
   initializeSettingsFromShaderApp,
 } from "./lib/settings/initApp";
+// Import facade components
+import {
+  FacadeProvider,
+  FacadeErrorBoundary,
+} from "./lib/facade/FacadeContext";
+import type { IShaderAppFacade } from "./lib/facade/types";
+import { KeyboardHintsContainer } from "./components/KeyboardHints/KeyboardHintsContainer";
+// Import store initialization
+import { initializeStores, initializeStoresWithFacade } from "./lib/stores";
+import { OrbitControlsSync } from "./components/ShaderCanvas/OrbitControlsSync";
+import { initializePresetStore } from "./lib/stores/presetInitializer";
+import { initializeGeometryParameters } from "./lib/stores/GeometryInitializer";
+import { getDistortionInitializer } from "./lib/stores/DistortionInitializer";
+import { getColorInitializer } from "./lib/stores/ColorInitializer";
+import { getLightingInitializer } from "./lib/stores/LightingInitializer";
+import { getExportInitializer } from "./lib/stores/ExportInitializer";
 
 // Create signals for app state
-export const appSignal = signal<ShaderApp | null>(null);
+export const facadeSignal = signal<IShaderAppFacade | null>(null);
 const showSettingsSignal = signal(true);
 const showStatsSignal = signal(false);
 const showDevPanelSignal = signal(false);
@@ -30,8 +46,18 @@ const triggerInitSignal = signal(0);
 
 // Computed value for whether animation is paused
 const isPausedSignal = computed(() => {
-  return appSignal.value?.params.pauseAnimation ?? false;
+  const facade = facadeSignal.value;
+  if (!facade || !facade.isInitialized()) return false;
+
+  // Get the pauseAnimation parameter from the facade
+  return facade.getParam("pauseAnimation");
 });
+
+// Initialize the settings system
+initializeSettingsSystem();
+
+// Initialize the stores
+initializeStores();
 
 // Add a useEffect hook to initialize our settings system
 export const App: ComponentType = () => {
@@ -42,27 +68,17 @@ export const App: ComponentType = () => {
 
   // Toggle animation handler
   const toggleAnimation = useCallback(() => {
-    const app = appSignal.value;
-    if (app) {
-      app.params.pauseAnimation = !app.params.pauseAnimation;
-      // Update the GUI if it's been set up
-      if ("updateGUI" in app) {
-        (app as any).updateGUI();
-      }
-      // Update the dev panel if it's been set up
-      if ("updateDevPanel" in app) {
-        (app as any).updateDevPanel();
-      }
+    const facade = facadeSignal.value;
+    if (facade && facade.isInitialized()) {
+      // Toggle the animation state using the facade
+      const currentPaused = facade.getParam("pauseAnimation");
+      facade.updateParam("pauseAnimation", !currentPaused);
     }
   }, []);
 
   // Toggle settings handler
   const toggleSettings = useCallback(() => {
     const newShowSettings = !showSettingsSignal.value;
-    // console.log("Toggling settings:", {
-    //   newShowSettings,
-    //   appExists: !!appSignal.value,
-    // });
     showSettingsSignal.value = newShowSettings;
 
     // If we're hiding the UI, always hide the stats
@@ -70,12 +86,10 @@ export const App: ComponentType = () => {
       showStatsSignal.value = false;
 
       // Hide stats element if it exists
-      const app = appSignal.value;
-      if (app && app.stats) {
-        const statsElement = app.stats.dom;
-        if (statsElement) {
-          statsElement.style.display = "none";
-        }
+      const facade = facadeSignal.value;
+      if (facade && facade.isInitialized()) {
+        // The facade handles stats visibility internally
+        // We just need to update our local state
       }
     }
   }, []);
@@ -86,12 +100,52 @@ export const App: ComponentType = () => {
     const newShowStats = !showStatsSignal.value;
     showStatsSignal.value = newShowStats;
 
-    // Update the DOM element visibility to match the state
-    const app = appSignal.value;
-    if (app && app.stats) {
-      const statsElement = app.stats.dom;
-      if (statsElement) {
+    // Try to update the facade configuration for stats if possible
+    const facade = facadeSignal.value;
+    if (facade && facade.isInitialized()) {
+      try {
+        // @ts-ignore - Some implementations might have this parameter
+        facade.updateParam("showStats", newShowStats);
+      } catch (e) {
+        // Ignore if parameter doesn't exist
+      }
+    }
+
+    // Look for a Stats.js panel in the DOM
+    // Stats.js typically creates a container with position:absolute at top:0, left:0
+    // Try various querySelector approaches to find it
+    let statsElement = document.querySelector(
+      '[class^="stats"]'
+    ) as HTMLElement;
+
+    if (!statsElement) {
+      // Try to find it by common attributes
+      const elements = document.querySelectorAll("div");
+      for (let i = 0; i < elements.length; i++) {
+        const el = elements[i] as HTMLElement;
+        try {
+          if (
+            el.style.position === "absolute" &&
+            el.style.top === "0px" &&
+            el.style.left === "0px" &&
+            el.children.length > 0
+          ) {
+            statsElement = el;
+            break;
+          }
+        } catch (err) {
+          // Ignore errors from accessing style properties
+          continue;
+        }
+      }
+    }
+
+    // If we found an element that looks like a Stats.js panel, toggle its visibility
+    if (statsElement) {
+      try {
         statsElement.style.display = newShowStats ? "block" : "none";
+      } catch (err) {
+        console.error("Error toggling stats visibility:", err);
       }
     }
   }, []);
@@ -179,240 +233,121 @@ export const App: ComponentType = () => {
 
   // Handle resize when settings panel is toggled
   useEffect(() => {
-    const app = appSignal.value;
-    if (app && app.renderer) {
-      // Force a resize event to update the renderer
-      window.dispatchEvent(new Event("resize"));
-    }
+    // Force a resize event to update the renderer
+    window.dispatchEvent(new Event("resize"));
   }, [showSettingsSignal.value]);
 
-  // Initialize ShaderApp
-  useEffect(() => {
-    // Prevent multiple simultaneous initialization attempts
-    if (isInitializingRef.current) {
-      // console.log("Initialization already in progress, skipping");
-      return;
-    }
+  // Handle facade initialization callback
+  const handleFacadeInitialized = useCallback((facade: IShaderAppFacade) => {
+    batch(() => {
+      facadeSignal.value = facade;
+      appInitializedSignal.value = true;
+      initializationErrorSignal.value = null;
 
-    // Don't re-initialize if we already have an app
-    if (appSignal.value) {
-      // console.log("App already initialized, skipping");
-      return;
-    }
+      // Initialize settings from the facade
+      initializeSettingsFromShaderApp(facade);
 
-    // Get a reference to the shader canvas element
-    const shaderCanvasElement = document.getElementById("shader-canvas");
-    shaderCanvasRef.current = shaderCanvasElement as HTMLDivElement;
+      // Connect settings to the facade
+      connectSettingsToShaderApp(facade);
 
-    // Initialize the shader app if it doesn't exist and we have a reference to the canvas
-    if (!appSignal.value && shaderCanvasRef.current) {
-      isInitializingRef.current = true;
-      initAttemptSignal.value += 1;
-      // console.log(
-      //   `Initializing ShaderApp (attempt ${initAttemptSignal.value})`
-      // );
+      // Initialize stores
+      initializeStores();
+      // Initialize stores with facade
+      initializeStoresWithFacade();
+      // Initialize preset store with our predefined presets
+      initializePresetStore();
+      // Initialize geometry parameters
+      initializeGeometryParameters();
 
-      const shaderApp = new ShaderApp();
+      // Initialize our refactored distortion parameters
+      getDistortionInitializer().syncWithFacade();
+      // Initialize our refactored color parameters
+      getColorInitializer().syncWithFacade();
+      // Initialize our refactored lighting parameters
+      getLightingInitializer().syncWithFacade();
+      // Initialize our refactored export parameters
+      getExportInitializer().syncWithFacade();
 
-      try {
-        shaderApp
-          .init(shaderCanvasRef.current.parentElement as HTMLElement)
-          .then(() => {
-            // console.log("ShaderApp initialized successfully");
-            // Batch the signal updates together to prevent intermediate renders with inconsistent state
-            batch(() => {
-              appSignal.value = shaderApp;
-              appInitializedSignal.value = true;
-              initializationErrorSignal.value = null;
+      // Disable adaptive resolution for higher quality
+      facade.updateParam("useAdaptiveResolution", false);
+    });
 
-              // Initialize settings from the shader app
-              initializeSettingsFromShaderApp(shaderApp);
-
-              // Connect settings to the shader app
-              const unsubscribe = connectSettingsToShaderApp(shaderApp);
-
-              // Store the unsubscribe function for cleanup
-              (shaderApp as any).settingsUnsubscribe = unsubscribe;
-            });
-
-            // Set initial stats visibility to match showStats state (should be false by default)
-            if (shaderApp.stats) {
-              const statsElement = shaderApp.stats.dom;
-              if (statsElement) {
-                statsElement.style.display = "none";
-              }
-            }
-
-            // Reset the initializing flag
-            isInitializingRef.current = false;
-          })
-          .catch((error) => {
-            console.error("Failed to initialize ShaderApp:", error);
-            initializationErrorSignal.value =
-              error.message || "Initialization failed";
-
-            // Reset the initializing flag
-            isInitializingRef.current = false;
-
-            // Retry initialization if we haven't tried too many times
-            if (initAttemptSignal.value < 3) {
-              // console.log("Scheduling retry...");
-              setTimeout(() => {
-                // Increment the trigger signal to force a re-initialization
-                triggerInitSignal.value += 1;
-              }, 1000);
-            }
-          });
-      } catch (error) {
-        console.error("Error during ShaderApp initialization:", error);
-        initializationErrorSignal.value =
-          error instanceof Error ? error.message : "Unknown error";
-
-        // Reset the initializing flag
-        isInitializingRef.current = false;
-      }
-    }
-
-    // Clean up on unmount
-    return () => {
-      // Prevent multiple cleanup operations
-      if (cleanupInProgressRef.current) {
-        // console.log("Cleanup already in progress, skipping");
-        return;
-      }
-
-      const app = appSignal.value;
-      if (app) {
-        // console.log("Cleaning up ShaderApp resources");
-        cleanupInProgressRef.current = true;
-
-        try {
-          // Unsubscribe from settings if there's a subscription
-          if ((app as any).settingsUnsubscribe) {
-            (app as any).settingsUnsubscribe();
-          }
-
-          app.dispose();
-          console.log("ShaderApp resources cleaned up successfully");
-        } catch (error) {
-          console.error("Error during ShaderApp cleanup:", error);
-        } finally {
-          // Reset the app signal
-          appSignal.value = null;
-          cleanupInProgressRef.current = false;
-        }
-      }
-    };
-  }, [triggerInitSignal.value]); // Only re-run when triggerInitSignal changes
-
-  // Initialize settings system
-  useEffect(() => {
-    // Initialize settings system
-    initializeSettingsSystem();
-    console.log("Settings system initialized");
+    // Reset the initializing flag
+    isInitializingRef.current = false;
   }, []);
 
-  // Create component content
-  const viewportContent = (
-    <div style={{ width: "100%", height: "100%" }}>
-      <ShaderCanvas canvasId="shader-canvas" />
-      {initializationErrorSignal.value && (
-        <div
-          style={{
-            position: "absolute",
-            top: "50%",
-            left: "50%",
-            transform: "translate(-50%, -50%)",
-            background: "rgba(255,0,0,0.1)",
-            padding: "20px",
-            borderRadius: "8px",
-            color: "red",
-            textAlign: "center",
-          }}
-        >
-          Error: {initializationErrorSignal.value}
-          <div style={{ marginTop: "10px" }}>
-            <button
-              onClick={() => {
-                appInitializedSignal.value = false;
-                initializationErrorSignal.value = null;
-              }}
-              style={{
-                padding: "8px 16px",
-                background: "#333",
-                color: "white",
-                border: "none",
-                borderRadius: "4px",
-                cursor: "pointer",
-              }}
-            >
-              Retry
-            </button>
-          </div>
-        </div>
-      )}
-    </div>
-  );
+  // Handle facade initialization error
+  const handleFacadeError = useCallback((error: Error) => {
+    console.error("Failed to initialize ShaderAppFacade:", error);
 
-  // Only render ControlPanel when app is available and initialized
-  const settingsContent = appInitializedSignal.value ? (
-    // Temporarily disable the ControlPanel
-    // <ControlPanel app={appSignal.value} key="control-panel" />
-    <div style={{ padding: "20px" }}>
-      <div>Control Panel Disabled</div>
-    </div>
-  ) : (
-    <div style={{ padding: "20px" }}>
-      <div>Loading app...</div>
-      {initAttemptSignal.value > 1 && (
-        <div style={{ marginTop: "10px", fontSize: "0.8em", color: "#888" }}>
-          Attempt {initAttemptSignal.value}
-        </div>
-      )}
+    batch(() => {
+      initializationErrorSignal.value = error.message;
+      appInitializedSignal.value = false;
+    });
 
-      {initAttemptSignal.value >= 2 && (
-        <div style={{ marginTop: "20px" }}>
-          <button
-            onClick={() => {
-              console.log("Manual app initialization attempt");
-              // Force a re-initialization by incrementing the trigger signal
-              triggerInitSignal.value += 1;
-            }}
-            style={{
-              padding: "8px 16px",
-              background: "#333",
-              color: "white",
-              border: "none",
-              borderRadius: "4px",
-              cursor: "pointer",
-              fontSize: "14px",
-            }}
-          >
-            Debug: Reinitialize App
-          </button>
-        </div>
-      )}
-    </div>
-  );
+    // Reset the initializing flag
+    isInitializingRef.current = false;
+  }, []);
 
+  // Effect to clean up canvas on unmount
+  useEffect(() => {
+    return () => {
+      if (facadeSignal.value) {
+        facadeSignal.value.dispose();
+      }
+    };
+  }, []);
+
+  // Render the application
   return (
-    <>
-      <Layout
-        viewportContent={viewportContent}
-        settingsContent={settingsContent}
-        isPaused={isPausedSignal.value}
-        showSettings={showSettingsSignal.value}
-        onToggleSettings={toggleSettings}
-        onToggleStats={toggleStats}
-        showStats={showStatsSignal.value}
-        isFullscreen={isFullscreenSignal.value}
-      />
-      <DevPanel
-        app={appSignal.value}
-        visible={showDevPanelSignal.value}
-        onToggle={toggleDevPanel}
-      />
-    </>
+    <div
+      className={`app-container ${
+        isFullscreenSignal.value ? "fullscreen" : ""
+      }`}
+    >
+      <FacadeErrorBoundary
+        fallback={(error) => (
+          <div className="error-container">
+            <h1>Shader App Error</h1>
+            <p>{error.message}</p>
+            <button onClick={() => triggerInitSignal.value++}>Retry</button>
+          </div>
+        )}
+        onError={(error) => {
+          initializationErrorSignal.value = error.message;
+        }}
+      >
+        <FacadeProvider
+          containerRef={shaderCanvasRef}
+          onInitialized={handleFacadeInitialized}
+          onError={handleFacadeError}
+        >
+          <div className="main-container">
+            {/* ShaderCanvas is wrapped with a container for proper positioning */}
+            <ShaderCanvas ref={shaderCanvasRef} />
+
+            {/* Only show UI components if the app is initialized and facade is available */}
+            {appInitializedSignal.value && facadeSignal.value && (
+              <>
+                <OrbitControlsSync />
+                {sidePanelVisibleSignal.value && <SidePanel visible={true} />}
+                <KeyboardHintsContainer
+                  showSettings={showSettingsSignal.value}
+                  isFullscreen={isFullscreenSignal.value}
+                />
+
+                {showDevPanelSignal.value && (
+                  <DevPanel
+                    visible={showDevPanelSignal.value}
+                    onToggle={toggleDevPanel}
+                  />
+                )}
+              </>
+            )}
+          </div>
+        </FacadeProvider>
+      </FacadeErrorBoundary>
+    </div>
   );
 };
 

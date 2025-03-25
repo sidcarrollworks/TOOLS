@@ -1,30 +1,16 @@
 import type { FunctionComponent } from "preact";
 import { useEffect, useState, useRef } from "preact/hooks";
-import styles from "./Layout.module.css";
 import { KeyboardHints, MinimalHint } from "./KeyboardHints";
-import { SidePanel, sidePanelVisibleSignal } from "../SidebarPanel";
+import styles from "./KeyboardHintsContainer.module.css";
 
-interface LayoutProps {
-  viewportContent?: preact.ComponentChildren;
-  settingsContent?: preact.ComponentChildren;
-  isPaused?: boolean;
+interface KeyboardHintsContainerProps {
   showSettings?: boolean;
-  showStats?: boolean;
   isFullscreen?: boolean;
-  onToggleSettings?: () => void;
-  onToggleStats?: () => void;
 }
 
-export const Layout: FunctionComponent<LayoutProps> = ({
-  viewportContent,
-  settingsContent,
-  isPaused = false,
-  showSettings = true,
-  showStats = true,
-  isFullscreen = false,
-  onToggleSettings,
-  onToggleStats,
-}) => {
+export const KeyboardHintsContainer: FunctionComponent<
+  KeyboardHintsContainerProps
+> = ({ showSettings = true, isFullscreen = false }) => {
   // State to track if hints should be visible
   const [hintsVisible, setHintsVisible] = useState(true);
   // State to track if transitions should be disabled
@@ -103,39 +89,22 @@ export const Layout: FunctionComponent<LayoutProps> = ({
   }, [showSettings]);
 
   return (
-    <>
-      <div
-        className={`${styles.main} ${!showSettings ? styles.fullWidth : ""}`}
-      >
-        <div className={styles.viewportContainer}>
-          <div className={styles.viewport}>
-            {viewportContent}
-            {showSettings ? (
-              <KeyboardHints
-                visible={hintsVisible}
-                disableTransitions={disableTransitions}
-                isFullscreen={isFullscreen}
-              />
-            ) : (
-              <MinimalHint
-                visible={hintsVisible}
-                disableTransitions={disableTransitions}
-                isFullscreen={isFullscreen}
-              />
-            )}
-          </div>
-        </div>
-
-        {/* Temporarily disable the settings panel */}
-        {/* {showSettings && (
-          <div className={styles.settingsPanel}>{settingsContent}</div>
-        )} */}
-
-        {/* Move SidePanel outside of viewportContainer */}
-        <SidePanel visible={true} />
-      </div>
-    </>
+    <div className={styles.hintsContainer}>
+      {showSettings ? (
+        <KeyboardHints
+          visible={hintsVisible}
+          disableTransitions={disableTransitions}
+          isFullscreen={isFullscreen}
+        />
+      ) : (
+        <MinimalHint
+          visible={hintsVisible}
+          disableTransitions={disableTransitions}
+          isFullscreen={isFullscreen}
+        />
+      )}
+    </div>
   );
 };
 
-export default Layout;
+export default KeyboardHintsContainer;

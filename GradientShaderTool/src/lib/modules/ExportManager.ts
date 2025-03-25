@@ -1,102 +1,81 @@
 /**
- * ExportManager - Handles exporting functionality (image and code)
+ * ExportManager - Handles export functionality
  */
 import * as THREE from "three";
 import { ShaderApp } from "../ShaderApp";
-import { HTMLExporter, JSExporter, ShaderExporter, ExportUI } from "./export";
+import { ExportUI } from "./export/ExportUI";
 
 export class ExportManager {
   private app: ShaderApp;
-  public htmlExporter: HTMLExporter;
-  public jsExporter: JSExporter;
-  public shaderExporter: ShaderExporter;
   private exportUI: ExportUI;
 
   /**
-   * Create an ExportManager
-   * @param {ShaderApp} app - Reference to main app
+   * Create an export manager
+   * @param app - Reference to main app
    */
   constructor(app: ShaderApp) {
     this.app = app;
-    
-    // Initialize exporters
-    this.htmlExporter = new HTMLExporter(app);
-    this.jsExporter = new JSExporter(app);
-    this.shaderExporter = new ShaderExporter(app);
     this.exportUI = new ExportUI(app);
   }
 
   /**
-   * Save the canvas as an image
+   * Save the current canvas as image
    */
-  saveAsImage(): void {
+  saveAsImage(): string | null {
     if (!this.app.renderer) {
-      console.error("Renderer not initialized");
-      return;
+      console.error("Cannot save image: Renderer not initialized");
+      return null;
     }
 
-    // Get original background color
-    const originalBgColor = this.app.params.backgroundColor;
-    const transparent = this.app.params.exportTransparentBg;
+    // Store original renderer clear color and alpha
+    const originalClearColor = this.app.renderer.getClearColor(
+      new THREE.Color()
+    );
+    const originalClearAlpha = this.app.renderer.getClearAlpha();
 
-    // Handle transparent background if needed
-    if (transparent) {
-      this.app.renderer.setClearColor(new THREE.Color("#000000"), 0);
+    // Transparent background option
+    if (this.app.params.exportTransparentBg) {
+      // Save with transparency
+      this.app.renderer.setClearColor(0x000000, 0);
+    } else {
+      // Use the current background color
+      const bgColor = new THREE.Color(this.app.params.backgroundColor);
+      this.app.renderer.setClearColor(bgColor);
     }
 
-    // Render the scene
-    if (this.app.scene && this.app.camera) {
-      this.app.renderer.render(this.app.scene, this.app.camera);
-    }
+    // Export the canvas - high quality geometry should already be created by the facade if needed
+    const dataURL = this.exportCanvas();
 
-    // Get canvas and prepare for saving
+    // Always restore original renderer settings
+    this.app.renderer.setClearColor(originalClearColor, originalClearAlpha);
+
+    return dataURL;
+  }
+
+  /**
+   * Export the canvas as an image
+   * @returns The data URL of the exported canvas, or null if export failed
+   */
+  private exportCanvas(): string | null {
+    if (!this.app.renderer) return null;
+
+    // Get the canvas
     const canvas = this.app.renderer.domElement;
 
     try {
-      // Create temporary link element for download
-      const link = document.createElement("a");
-
-      // Generate filename with timestamp
-      const timestamp = new Date().toISOString().replace(/[:.]/g, "-");
-      const filename = `gradient-shader-${timestamp}.png`;
-
-      // Set link attributes for download
-      link.download = filename;
-      link.href = canvas.toDataURL("image/png");
-
-      // Trigger download
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
-
-      console.log("Image saved as", filename);
+      // Generate a data URL from the canvas
+      const dataURL = canvas.toDataURL("image/png");
+      return dataURL;
     } catch (error) {
-      console.error("Error saving image:", error);
-      alert("Failed to save image. See console for details.");
-    }
-
-    // Restore original background
-    if (transparent) {
-      this.app.renderer.setClearColor(new THREE.Color(originalBgColor), 1);
-      // Re-render the scene with original background
-      if (this.app.scene && this.app.camera) {
-        this.app.renderer.render(this.app.scene, this.app.camera);
-      }
+      console.error("Error exporting canvas:", error);
+      return null;
     }
   }
 
   /**
-   * Export code (shaders, parameters, etc.)
+   * Export shader code
    */
   exportCode(): void {
-    // Show the export UI modal instead of downloading JSON
     this.exportUI.showExportCode();
-  }
-  
-  /**
-   * Clean up resources
-   */
-  dispose(): void {
-    this.exportUI.dispose();
   }
 }

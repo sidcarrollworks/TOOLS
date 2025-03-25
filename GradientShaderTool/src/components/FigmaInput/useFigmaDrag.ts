@@ -9,7 +9,7 @@ import {
   exitPointerLock,
   requestPointerLock,
   forceCursorVisible,
-  setPointerLockActiveState
+  setPointerLockActiveState,
 } from "./pointerLockUtils";
 
 // Create a helper to set active instance
@@ -48,8 +48,13 @@ export function useFigmaDrag({
   const [startX, setStartX] = useState<number>(0);
   const [startValue, setStartValue] = useState<number>(value);
   const [currentValue, setCurrentValue] = useState<number>(value);
-  const [dragDirection, setDragDirection] = useState<"none" | "left" | "right">("none");
-  const [virtualCursorPos, setVirtualCursorPos] = useState<{ x: number; y: number } | null>(null);
+  const [dragDirection, setDragDirection] = useState<"none" | "left" | "right">(
+    "none"
+  );
+  const [virtualCursorPos, setVirtualCursorPos] = useState<{
+    x: number;
+    y: number;
+  } | null>(null);
 
   // Refs
   const instanceId = useRef(Symbol("FigmaInput")).current;
@@ -154,13 +159,10 @@ export function useFigmaDrag({
     if (!isDraggingRef.current) {
       return;
     }
-    
+
     // Get the movement from the pointer lock API
     const movementX = e.movementX || 0;
     const movementY = e.movementY || 0;
-
-    console.log('movementX', movementX)
-    console.log('movementY', movementY)
 
     // Update accumulated movement for value calculation
     accumulatedMovementX.current += movementX;
@@ -176,7 +178,7 @@ export function useFigmaDrag({
       // Store initial positions for reference
       initialCursorX.current = initialPos.x;
       initialCursorY.current = initialPos.y;
-      
+
       setVirtualCursorPos(initialPos);
       positionVirtualCursor(initialPos.x, initialPos.y);
       return;
@@ -218,8 +220,6 @@ export function useFigmaDrag({
       // Adjust the initial position to maintain smooth movement
       initialCursorY.current = newY - accumulatedMovementY.current;
     }
-
-    console.log('newX', newX)
 
     // Update cursor position - do this BEFORE updating state to avoid delays
     positionVirtualCursor(newX, newY);
@@ -479,9 +479,9 @@ export function useFigmaDrag({
       startValue,
       currentValue,
       dragDirection,
-      virtualCursorPos
+      virtualCursorPos,
     },
     handleDragStart,
-    cleanup
+    cleanup,
   };
-} 
+}

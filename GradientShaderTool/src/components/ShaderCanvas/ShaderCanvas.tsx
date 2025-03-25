@@ -1,51 +1,76 @@
-import type { FunctionComponent } from "preact";
 import { useEffect, useRef } from "preact/hooks";
+import type { FunctionComponent } from "preact";
+import { forwardRef } from "preact/compat";
 import styles from "./ShaderCanvas.module.css";
+import { OrbitControlsSync } from "./OrbitControlsSync";
 
 interface ShaderCanvasProps {
   canvasId?: string;
 }
 
-export const ShaderCanvas: FunctionComponent<ShaderCanvasProps> = ({
-  canvasId = "shader-canvas",
-}) => {
-  const containerRef = useRef<HTMLDivElement>(null);
+export const ShaderCanvas = forwardRef<HTMLDivElement, ShaderCanvasProps>(
+  ({ canvasId = "shader-canvas" }, forwardedRef) => {
+    // Create a local ref that we'll use for the component
+    const internalRef = useRef<HTMLDivElement>(null);
 
-  useEffect(() => {
-    // The ShaderApp instance will be initialized in the parent component
-    // and will use this container as its parent
+    // Sync the forwarded ref with our internal ref
+    useEffect(() => {
+      if (!forwardedRef) return;
 
-    // Make sure the container takes up the full available space
-    const resizeObserver = new ResizeObserver(() => {
-      if (containerRef.current) {
-        // Force a reflow to ensure the container size is updated
-        containerRef.current.style.width = "100%";
-        containerRef.current.style.height = "100%";
-
-        // Find any canvas elements that might have been added by Three.js
-        const canvasElements = containerRef.current.querySelectorAll("canvas");
-        canvasElements.forEach((canvas) => {
-          // Ensure the canvas also takes up the full space
-          canvas.style.width = "100%";
-          canvas.style.height = "100%";
-        });
+      // Handle callback refs
+      if (typeof forwardedRef === "function") {
+        forwardedRef(internalRef.current);
       }
-    });
-
-    if (containerRef.current) {
-      resizeObserver.observe(containerRef.current);
-    }
-
-    return () => {
-      if (containerRef.current) {
-        resizeObserver.unobserve(containerRef.current);
+      // Handle object refs
+      else {
+        forwardedRef.current = internalRef.current;
       }
-    };
-  }, []);
+    }, [forwardedRef]);
 
-  return (
-    <div id={canvasId} ref={containerRef} className={styles.canvasContainer} />
-  );
-};
+    useEffect(() => {
+      // The ShaderApp instance will be initialized in the parent component
+      // and will use this container as its parent
+      const containerElement = internalRef.current;
+      if (!containerElement) return;
+
+      // Make sure the container takes up the full available space
+      const resizeObserver = new ResizeObserver(() => {
+        if (containerElement) {
+          // Force a reflow to ensure the container size is updated
+          containerElement.style.width = "100%";
+          containerElement.style.height = "100%";
+
+          // Find any canvas elements that might have been added by Three.js
+          const canvasElements = containerElement.querySelectorAll("canvas");
+          canvasElements.forEach((canvas: HTMLCanvasElement) => {
+            // Ensure the canvas also takes up the full space
+            canvas.style.width = "100%";
+            canvas.style.height = "100%";
+          });
+        }
+      });
+
+      resizeObserver.observe(containerElement);
+
+      return () => {
+        resizeObserver.unobserve(containerElement);
+
+        // Remove all canvas elements to prevent duplication
+        if (containerElement) {
+          const canvasElements = containerElement.querySelectorAll("canvas");
+          canvasElements.forEach((canvas: HTMLCanvasElement) => {
+            canvas.remove();
+          });
+        }
+      };
+    }, []);
+
+    return (
+      <div id={canvasId} ref={internalRef} className={styles.canvasContainer}>
+        <OrbitControlsSync />
+      </div>
+    );
+  }
+);
 
 export default ShaderCanvas;

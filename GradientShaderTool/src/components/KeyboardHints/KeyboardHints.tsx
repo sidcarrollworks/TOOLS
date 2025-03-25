@@ -1,6 +1,6 @@
 import type { FunctionComponent } from "preact";
 import { MouseLeftClick, MouseRightClick } from "../Icons";
-import styles from "./Layout.module.css";
+import styles from "./KeyboardHints.module.css";
 
 interface KeyboardHintsProps {
   visible: boolean;

@@ -1,116 +1,168 @@
 import type { FunctionComponent } from "preact";
-import { useState } from "preact/hooks";
+import { useState, useEffect } from "preact/hooks";
 import { CardButton } from "../UI/CardButton";
-import { getPanelSettings } from "../../lib/settings/store";
 import { useComputed } from "@preact/signals";
-import "./Panel.css";
-import type {
-  PanelConfig,
-  SettingGroup,
-  ButtonSetting,
-} from "../../lib/settings/types";
-import { appSignal } from "../../app";
-import { initializeSettingsFromShaderApp } from "../../lib/settings/initApp";
 import { setPresetApplying } from "../FigmaInput/FigmaInput";
+import { SettingsGroup } from "../UI/SettingsGroup/SettingsGroup";
+import { getPresetStore } from "../../lib/stores/PresetStore";
+import type { Preset } from "../../lib/stores/PresetStore";
+import { facadeSignal } from "../../app";
+import { initializeSettingsFromShaderApp } from "../../lib/settings/initApp";
+import { getColorInitializer } from "../../lib/stores/ColorInitializer";
+import { getDistortionInitializer } from "../../lib/stores/DistortionInitializer";
+
+// Import preset images
+import abstractImage from "../../assets/presetImages/abstract.png";
+import lavaImage from "../../assets/presetImages/lava.png";
+import oceanwavesImage from "../../assets/presetImages/oceanwaves.png";
+import sourcemilkImage from "../../assets/presetImages/sourcemilk.png";
+
+// Mapping from preset ID to facade preset name
+const presetIdToFacadeName = new Map<string, string>([
+  ["preset-default", "Default"],
+  ["preset-ocean-waves", "Ocean Waves"],
+  ["preset-lava-flow", "Lava Flow"],
+  ["preset-abstract-art", "Abstract Art"],
+]);
+
+// Mapping from preset ID to image
+const presetIdToImage = new Map<string, string>([
+  ["preset-ocean-waves", oceanwavesImage],
+  ["preset-lava-flow", lavaImage],
+  ["preset-abstract-art", abstractImage],
+  ["preset-default", sourcemilkImage],
+]);
+
+// Function to get preset name for a given ID
+const getPresetNameForId = (id: string): string | undefined => {
+  return presetIdToFacadeName.get(id);
+};
+
+// Function to get preset image for a given ID
+const getPresetImageForId = (id: string): string | undefined => {
+  return presetIdToImage.get(id);
+};
 
 interface PresetPanelProps {
   // No props needed for now
 }
-
-// Map preset IDs to preset names in the ShaderApp
-const presetIdToName: Record<string, string> = {
-  presetDefault: "Default",
-  presetOceanWaves: "Ocean Waves",
-  presetLavaFlow: "Lava Flow",
-  presetAbstractArt: "Abstract Art",
-};
 
 export const PresetPanel: FunctionComponent<PresetPanelProps> = () => {
   // State for tracking the last applied preset
   const [lastAppliedPreset, setLastAppliedPreset] = useState<string | null>(
     null
   );
+  const [presets, setPresets] = useState<Preset[]>([]);
 
-  // Get the presets panel settings
-  const presetPanelConfigSignal = getPanelSettings("presets");
-  const presetPanelConfig = useComputed(() => presetPanelConfigSignal.value);
+  // Get the facade
+  const facade = useComputed(() => facadeSignal.value);
 
-  // If no settings are available, show a placeholder
-  if (!presetPanelConfig.value) {
-    return <div className="noPresets">No presets available</div>;
-  }
+  // Get the preset store
+  const presetStore = getPresetStore();
 
-  // Get all preset settings from all groups
-  const presets = presetPanelConfig.value.groups.flatMap(
-    (group: SettingGroup) =>
-      group.settings.filter(
-        (setting): setting is ButtonSetting => setting.type === "button"
-      )
-  );
+  // Load presets from the store
+  useEffect(() => {
+    // Update local state from store
+    const updatePresetsFromStore = () => {
+      const state = presetStore.getState();
 
-  // Handle preset click
-  const handlePresetClick = (presetId: string) => {
-    console.log(`Applying preset: ${presetId}`);
+      // Convert presets record to array and sort by name
+      const presetsArray = Object.values(state.presets).sort((a: any, b: any) =>
+        a.name.localeCompare(b.name)
+      );
 
-    // Get the app instance from the signal
-    const app = appSignal.value;
-    if (!app) {
-      console.error("App not initialized");
-      return;
-    }
+      setPresets(presetsArray as Preset[]);
 
-    // Get the preset name from the ID
-    const presetName = presetIdToName[presetId];
+      // Update last applied preset if there's a current preset
+      if (state.currentPresetId !== null) {
+        setLastAppliedPreset(state.currentPresetId);
+      }
+    };
+
+    // Initial sync
+    updatePresetsFromStore();
+
+    // Subscribe to store changes
+    const storeSignal = presetStore.getSignal();
+    const unsubscribe = storeSignal.subscribe(updatePresetsFromStore);
+
+    // Cleanup subscription
+    return () => {
+      unsubscribe();
+    };
+  }, []);
+
+  // Handle preset select
+  const handlePresetSelect = (id: string) => {
+    const presetName = getPresetNameForId(id);
     if (!presetName) {
-      console.error(`Unknown preset ID: ${presetId}`);
+      console.error(`PresetPanel: No preset name found for ID: ${id}`);
       return;
     }
 
-    // Set the preset application state to true before applying the preset
+    // Indicate that a preset is being applied (used by some components to avoid updates)
     setPresetApplying(true);
 
-    // Apply the preset
-    if (presetName in app.presets) {
+    // Update the facade with the selected preset
+    const facade = facadeSignal.value;
+    if (facade) {
       try {
-        // Apply the preset to the ShaderApp
-        app.presets[presetName]();
-        console.log(`Applied preset: ${presetName}`);
+        // Apply the preset
+        facade.applyPreset(presetName);
 
-        // Sync the ShaderApp parameters back to the settings store
-        initializeSettingsFromShaderApp(app);
+        // Set current preset in store
+        setLastAppliedPreset(id);
+        presetStore.setState({
+          currentPresetId: id,
+          isModified: false,
+        });
 
-        // Update the UI state
-        setLastAppliedPreset(presetId);
+        // Sync ColorInitializer explicitly (even if ColorsPanel isn't visible)
+        const colorInitializer = getColorInitializer();
+        colorInitializer.syncWithFacade();
 
-        // Set the preset application state back to false after a delay
-        setTimeout(() => {
-          setPresetApplying(false);
-        }, 600); // Slightly longer than the transition duration to ensure it completes
-      } catch (error) {
-        console.error(`Error applying preset: ${presetName}`, error);
+        // Sync DistortionInitializer explicitly
+        const distortionInitializer = getDistortionInitializer();
+        distortionInitializer.syncWithFacade();
+
+        // Re-emit the preset-applied event in case any components missed it
+        facade.emit("preset-applied", {
+          presetName,
+          affectedParams: Object.keys(facade.getAllParams()),
+        });
+      } finally {
+        // Always reset preset applying flag when done
         setPresetApplying(false);
       }
     } else {
-      console.error(`Preset not found: ${presetName}`);
+      console.error("PresetPanel: Facade not available for preset application");
       setPresetApplying(false);
     }
   };
 
+  // If no presets are available, show a placeholder
+  if (presets.length === 0) {
+    return <div className="noPresets">No presets available</div>;
+  }
+
+  // Render the preset buttons
   return (
-    <div className="presetGrid">
-      {presets.map((preset: ButtonSetting) => {
+    <SettingsGroup collapsible={false} header={false} grid>
+      {presets.map((preset) => {
         const isLastApplied = lastAppliedPreset === preset.id;
+        const presetImage = getPresetImageForId(preset.id);
 
         return (
           <CardButton
             key={preset.id}
-            label={preset.label}
-            onClick={() => handlePresetClick(preset.id)}
+            label={preset.name}
+            onClick={() => handlePresetSelect(preset.id)}
             isActive={isLastApplied}
+            image={presetImage}
           />
         );
       })}
-    </div>
+    </SettingsGroup>
   );
 };
 

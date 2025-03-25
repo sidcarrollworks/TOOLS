@@ -111,10 +111,10 @@
 
 .circle {
   position: absolute;
-  width: 80%;
-  height: 80%;
-  top: 10%;
-  left: 10%;
+  width: 75%;
+  height: 75%;
+  top: 12.5%;
+  left: 12.5%;
   border: 1px dashed var(--gray-a4);
   border-radius: 50%;
   transition: border-color var(--transition-fast);

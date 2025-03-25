@@ -27,8 +27,6 @@ export const TooltipPortal: FunctionComponent<TooltipPortalProps> = ({
 
   // Initialize portal container on mount
   useEffect(() => {
-    // console.log(`[${portalId}] TooltipPortal mounting`);
-
     // Set mounted flag
     setIsMounted(true);
 
@@ -37,7 +35,6 @@ export const TooltipPortal: FunctionComponent<TooltipPortalProps> = ({
 
     // If not, create one
     if (!container) {
-      // console.log(`[${portalId}] Creating new tooltip portal container`);
       container = document.createElement("div");
       container.id = "tooltip-portal-container";
 
@@ -56,12 +53,6 @@ export const TooltipPortal: FunctionComponent<TooltipPortalProps> = ({
 
       // Add the container to the document body
       document.body.appendChild(container);
-
-      // console.log(
-      //   `[${portalId}] Tooltip portal container created and added to DOM`
-      // );
-    } else {
-      // console.log(`[${portalId}] Using existing tooltip portal container`);
     }
 
     // Store the container reference
@@ -69,8 +60,6 @@ export const TooltipPortal: FunctionComponent<TooltipPortalProps> = ({
 
     // Clean up on unmount
     return () => {
-      // console.log(`[${portalId}] TooltipPortal unmounting`);
-
       // Check if the child has a data-tooltip-id attribute
       const tooltipId = (children as any)?.props?.["data-tooltip-id"];
       if (tooltipId) {
@@ -87,7 +76,6 @@ export const TooltipPortal: FunctionComponent<TooltipPortalProps> = ({
 
   // If not mounted or no container, don't render anything
   if (!isMounted || !containerRef.current) {
-    // console.log(`[${portalId}] Portal not ready yet (mounted: ${isMounted})`);
     return null;
   }
 
@@ -102,8 +90,6 @@ export const TooltipPortal: FunctionComponent<TooltipPortalProps> = ({
   const enhancedChildren = cloneElement(children, {
     style: childStyle,
   });
-
-  // console.log(`[${portalId}] Rendering tooltip into portal:`, enhancedChildren);
 
   // Create portal with the enhanced children
   return createPortal(enhancedChildren, containerRef.current);

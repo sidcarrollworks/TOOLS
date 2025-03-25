@@ -86,7 +86,6 @@ export class PresetManager {
     this.app.params.backgroundColor = "#fcfcfc";
     this.app.params.showWireframe = false;
 
-
     // Reset animation
     this.app.params.animationSpeed = 0.01;
     this.app.params.pauseAnimation = false;
@@ -95,8 +94,8 @@ export class PresetManager {
     this.app.params.exportTransparentBg = false;
     this.app.params.exportHighQuality = true;
 
-    // Recreate plane and update all parameters
-    this.app.recreatePlane();
+    // Recreate geometry and update all parameters
+    this.app.recreateGeometry();
     this.updateAllParams();
   }
 
@@ -130,7 +129,7 @@ export class PresetManager {
     this.app.params.normalNoiseSpeed = 0.12;
     this.app.params.normalNoiseStrength = 0.15;
     this.app.params.normalNoiseShiftX = 0.33;
-    this.app.params.normalNoiseShiftY = 0.20;
+    this.app.params.normalNoiseShiftY = 0.2;
     this.app.params.normalNoiseShiftSpeed = 0.37;
 
     // Set color noise - create foam and depth variations
@@ -165,8 +164,8 @@ export class PresetManager {
     this.app.params.animationSpeed = 0.009;
     this.app.params.pauseAnimation = false;
 
-    // Recreate plane and update all parameters
-    this.app.recreatePlane();
+    // Recreate geometry and update all parameters
+    this.app.recreateGeometry();
     this.updateAllParams();
   }
 
@@ -224,8 +223,8 @@ export class PresetManager {
     // Set animation
     this.app.params.animationSpeed = 0.008;
 
-    // Recreate plane and update all parameters
-    this.app.recreatePlane();
+    // Recreate geometry and update all parameters
+    this.app.recreateGeometry();
     this.updateAllParams();
   }
 
@@ -280,15 +279,14 @@ export class PresetManager {
     this.app.params.backgroundColor = "#000000";
     this.app.params.showWireframe = false;
 
-
     // Set Camera
     this.app.params.cameraDistance = 0.9;
     this.app.params.cameraFov = 30;
     // Set animation
     this.app.params.animationSpeed = 0.005;
 
-    // Recreate plane and update all parameters
-    this.app.recreatePlane();
+    // Recreate geometry and update all parameters
+    this.app.recreateGeometry();
     this.updateAllParams();
   }
 }

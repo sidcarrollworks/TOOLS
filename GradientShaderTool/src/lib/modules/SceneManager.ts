@@ -27,6 +27,9 @@ declare global {
 export class SceneManager {
   private app: ShaderApp;
 
+  // Add new property to control adaptive resolution
+  private useAdaptiveResolution: boolean = false;
+
   /**
    * Create a SceneManager
    * @param {ShaderApp} app - Reference to main app
@@ -65,6 +68,11 @@ export class SceneManager {
       parentElement.clientWidth,
       parentElement.clientHeight
     );
+
+    // Expose renderer to window for DevPanel access
+    if (typeof window !== "undefined") {
+      (window as any).threeRenderer = this.app.renderer;
+    }
 
     // Set clear color based on transparent background setting
     if (this.app.params.exportTransparentBg) {
@@ -298,9 +306,9 @@ export class SceneManager {
           this.app.params.cubeSize,
           this.app.params.cubeSize,
           this.app.params.cubeSize,
-          this.app.params.cubeWidthSegments,
-          this.app.params.cubeHeightSegments,
-          this.app.params.cubeDepthSegments
+          this.app.params.cubeSegments,
+          this.app.params.cubeSegments,
+          this.app.params.cubeSegments
         );
         break;
       case "plane":
@@ -357,16 +365,16 @@ export class SceneManager {
     this.app.scene.add(this.app.plane);
   }
 
-  // Alias for backward compatibility
-  recreatePlane(): void {
-    this.recreateGeometry();
-  }
-
   /**
    * Get adaptive segment count based on performance considerations
    * This reduces resolution during rapid changes to maintain performance
    */
   private getAdaptiveSegmentCount(): number {
+    // If adaptive resolution is disabled in app parameters, just return the requested segments
+    if (this.app.params.useAdaptiveResolution === false) {
+      return this.app.params.planeSegments;
+    }
+
     const requestedSegments = this.app.params.planeSegments;
 
     // If we're in a high-performance context or resolution is already low, use the requested value
@@ -435,6 +443,7 @@ export class SceneManager {
     this.app.uniforms.uNoiseSpeed.value = this.app.params.normalNoiseSpeed;
     this.app.uniforms.uNoiseStrength.value =
       this.app.params.normalNoiseStrength;
+
     this.app.uniforms.uNoiseShiftX.value = this.app.params.normalNoiseShiftX;
     this.app.uniforms.uNoiseShiftY.value = this.app.params.normalNoiseShiftY;
     this.app.uniforms.uNoiseShiftSpeed.value =
@@ -627,80 +636,129 @@ export class SceneManager {
   }
 
   /**
-   * Recreate the geometry with full quality (no adaptive reduction)
-   * Used after rapid interactions end to restore full quality
+   * Recreate geometry with high quality
+   * Used for high quality exports and after rapid interactions
    */
   recreateGeometryHighQuality(): void {
     if (!this.app.scene) return;
 
-    // Only proceed if we're not already at full quality
-    if (this._geometryUpdateCount > 0) {
-      console.log("Restoring full quality geometry");
+    console.log("Creating high quality geometry");
 
-      // Reset the update counter
-      this._geometryUpdateCount = 0;
+    // Store current segments
+    const currentPlaneSegments = this.app.params.planeSegments;
+    const currentSphereWidthSegments = this.app.params.sphereWidthSegments;
+    const currentSphereHeightSegments = this.app.params.sphereHeightSegments;
+    const currentCubeSegments = this.app.params.cubeSegments;
 
-      if (this.app.plane) {
-        this.app.scene.remove(this.app.plane);
-      }
+    // Increase segment counts for high quality
+    // Use more aggressive multiplication for export
+    const highQualityMultiplier = 4; // 4x the segments for high quality exports
 
-      if (this.app.geometry) {
-        this.app.geometry.dispose();
-      }
+    // Set higher resolution limits for high quality
+    const maxPlaneSegments = 512;
+    const maxSphereSegments = 256;
+    const maxCubeSegments = 128;
 
-      // Create new geometry with full requested resolution based on the selected type
-      switch (this.app.params.geometryType) {
-        case "sphere":
-          this.app.geometry = new THREE.SphereGeometry(
-            this.app.params.sphereRadius,
-            this.app.params.sphereWidthSegments,
-            this.app.params.sphereHeightSegments
-          );
-          break;
-        case "cube":
-          this.app.geometry = new THREE.BoxGeometry(
-            this.app.params.cubeSize,
-            this.app.params.cubeSize,
-            this.app.params.cubeSize,
-            this.app.params.cubeWidthSegments,
-            this.app.params.cubeHeightSegments,
-            this.app.params.cubeDepthSegments
-          );
-          break;
-        case "plane":
-        default:
-          this.app.geometry = new THREE.PlaneGeometry(
-            this.app.params.planeWidth,
-            this.app.params.planeHeight,
-            this.app.params.planeSegments,
-            this.app.params.planeSegments
-          );
-          break;
-      }
+    // Apply higher segment counts with upper limits to prevent crashes
+    this.app.params.planeSegments = Math.min(
+      maxPlaneSegments,
+      Math.max(currentPlaneSegments * highQualityMultiplier, 128)
+    );
+    this.app.params.sphereWidthSegments = Math.min(
+      maxSphereSegments,
+      Math.max(currentSphereWidthSegments * highQualityMultiplier, 64)
+    );
+    this.app.params.sphereHeightSegments = Math.min(
+      maxSphereSegments,
+      Math.max(currentSphereHeightSegments * highQualityMultiplier, 64)
+    );
+    this.app.params.cubeSegments = Math.min(
+      maxCubeSegments,
+      Math.max(currentCubeSegments * highQualityMultiplier, 32)
+    );
 
-      // Standard smooth shading
-      this.app.geometry.computeVertexNormals();
+    console.log("High quality segments:", {
+      plane: this.app.params.planeSegments,
+      sphereWidth: this.app.params.sphereWidthSegments,
+      sphereHeight: this.app.params.sphereHeightSegments,
+      cube: this.app.params.cubeSegments,
+    });
 
-      if (!this.app.material) return;
-
-      // Apply wireframe property directly to the material
-      this.app.material.wireframe = this.app.params.showWireframe;
-
-      // Create the mesh with the geometry and material
-      this.app.plane = new THREE.Mesh(this.app.geometry, this.app.material);
-
-      // Set the rotation
-      this.app.plane.rotation.x = this.app.params.rotationX;
-      this.app.plane.rotation.y = this.app.params.rotationY;
-      this.app.plane.rotation.z = this.app.params.rotationZ;
-
-      // Add to scene
-      this.app.scene.add(this.app.plane);
+    if (this.app.plane) {
+      this.app.scene.remove(this.app.plane);
     }
+
+    if (this.app.geometry) {
+      this.app.geometry.dispose();
+    }
+
+    // Create new geometry with increased resolution based on the selected type
+    switch (this.app.params.geometryType) {
+      case "sphere":
+        this.app.geometry = new THREE.SphereGeometry(
+          this.app.params.sphereRadius,
+          this.app.params.sphereWidthSegments,
+          this.app.params.sphereHeightSegments
+        );
+        break;
+      case "cube":
+        this.app.geometry = new THREE.BoxGeometry(
+          this.app.params.cubeSize,
+          this.app.params.cubeSize,
+          this.app.params.cubeSize,
+          this.app.params.cubeSegments,
+          this.app.params.cubeSegments,
+          this.app.params.cubeSegments
+        );
+        break;
+      case "plane":
+      default:
+        this.app.geometry = new THREE.PlaneGeometry(
+          this.app.params.planeWidth,
+          this.app.params.planeHeight,
+          this.app.params.planeSegments,
+          this.app.params.planeSegments
+        );
+        break;
+    }
+
+    // Standard smooth shading
+    this.app.geometry.computeVertexNormals();
+
+    if (!this.app.material) return;
+
+    // Apply wireframe property directly to the material
+    this.app.material.wireframe = this.app.params.showWireframe;
+
+    // Create the mesh with the geometry and material
+    this.app.plane = new THREE.Mesh(this.app.geometry, this.app.material);
+
+    // Set the rotation
+    this.app.plane.rotation.x = this.app.params.rotationX;
+    this.app.plane.rotation.y = this.app.params.rotationY;
+    this.app.plane.rotation.z = this.app.params.rotationZ;
+
+    // Add to scene
+    this.app.scene.add(this.app.plane);
+
+    // Restore original segment counts to avoid affecting the UI state
+    this.app.params.planeSegments = currentPlaneSegments;
+    this.app.params.sphereWidthSegments = currentSphereWidthSegments;
+    this.app.params.sphereHeightSegments = currentSphereHeightSegments;
+    this.app.params.cubeSegments = currentCubeSegments;
   }
 
-  // Alias for backward compatibility
-  recreatePlaneHighQuality(): void {
-    this.recreateGeometryHighQuality();
+  /**
+   * Set whether to use adaptive resolution for geometry
+   * @param enabled Whether to use adaptive resolution
+   */
+  setAdaptiveResolution(enabled: boolean): void {
+    this.useAdaptiveResolution = enabled;
+    // If we're disabling adaptive resolution and currently using reduced resolution,
+    // recreate the geometry with the full resolution
+    if (!enabled && this._geometryUpdateCount > 3) {
+      this._geometryUpdateCount = 0;
+      this.recreateGeometry();
+    }
   }
 }

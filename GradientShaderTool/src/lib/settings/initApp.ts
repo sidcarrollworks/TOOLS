@@ -1,6 +1,16 @@
 import { initializeSettings } from "./index";
-import { settingsValuesSignal, updateSettingValue } from "./store";
+import {
+  settingsValuesSignal,
+  updateSettingValue,
+  batchUpdateSettings,
+} from "./store";
 import type { ShaderApp } from "../ShaderApp";
+import type { IShaderAppFacade } from "../facade/types";
+import {
+  initMappingLookups,
+  extractSettingsFromParams,
+  applySettingsToParams,
+} from "./mappings/utils";
 
 // Define the interface for camera settings updates
 interface CameraSettings {
@@ -13,6 +23,9 @@ interface CameraSettings {
   cameraTargetZ?: number;
   cameraFov?: number;
 }
+
+// Define a type that can be either ShaderApp or IShaderAppFacade
+export type AppOrFacade = ShaderApp | IShaderAppFacade;
 
 // Declare the global function for TypeScript
 declare global {
@@ -28,6 +41,9 @@ export function initializeSettingsSystem() {
   // Flag to prevent circular updates
   let isUpdatingCamera = false;
 
+  // Initialize the mapping lookups
+  initMappingLookups();
+
   // Initialize the settings with default values
   initializeSettings();
 
@@ -39,14 +55,10 @@ export function initializeSettingsSystem() {
     isUpdatingCamera = true;
 
     try {
-      // Update each setting value in the store
-      Object.entries(settings).forEach(([key, value]) => {
-        if (value !== undefined) {
-          updateSettingValue(key, value);
-        }
-      });
+      // Update each setting value in the store using batch update
+      batchUpdateSettings(settings);
     } finally {
-      // Always reset the flag when done - immediately instead of with setTimeout
+      // Always reset the flag when done
       isUpdatingCamera = false;
     }
   };
@@ -54,96 +66,56 @@ export function initializeSettingsSystem() {
   console.log("Settings system initialized with default values");
 }
 
-// Connect the settings to the shader app
-export function connectSettingsToShaderApp(app: ShaderApp) {
-  console.log("Connecting settings to ShaderApp...");
+// Connect settings changes to shader app or facade
+export function connectSettingsToShaderApp(appOrFacade: AppOrFacade) {
+  console.log("Connecting settings to app...");
 
-  // Create a map of settings IDs to app parameter names
-  const settingsToAppParamsMap: Record<string, string> = {
-    lightX: "lightDirX",
-    lightY: "lightDirY",
-    lightZ: "lightDirZ",
-    lightDiffuse: "diffuseIntensity",
-    lightAmbient: "ambientIntensity",
-    lightRim: "rimLightIntensity",
-    // Add other mappings as needed
-  };
+  // Initialize the app with current settings
+  const settings = settingsValuesSignal.value;
+  if (Object.keys(settings).length > 0) {
+    // Check if we're dealing with a facade or direct ShaderApp
+    if ("updateParam" in appOrFacade) {
+      // It's a facade
+      const facade = appOrFacade as IShaderAppFacade;
 
-  // Get the reverse mapping for app params to settings
-  const appParamsToSettingsMap: Record<string, string> = {};
-  Object.entries(settingsToAppParamsMap).forEach(([settingsId, appParam]) => {
-    appParamsToSettingsMap[appParam] = settingsId;
-  });
+      // Apply each setting to the facade
+      Object.entries(settings).forEach(([settingId, value]) => {
+        facade.updateParam(settingId as any, value, { skipValidation: true });
+      });
+    } else {
+      // It's a ShaderApp
+      const app = appOrFacade as ShaderApp;
+      applySettingsToParams(settings, app.params, app);
+    }
+  }
 
-  // Update the shader app parameters when settings change
-  const unsubscribe = settingsValuesSignal.subscribe((values) => {
-    console.log("Settings values changed, updating ShaderApp parameters");
-
-    // Special handling for lighting parameters to prevent normalization issues
-    const lightingParams = ["lightDirX", "lightDirY", "lightDirZ"];
-    const updatingLighting = lightingParams.some(
-      (param) =>
-        values[appParamsToSettingsMap[param]] !== undefined &&
-        values[appParamsToSettingsMap[param]] !== (app.params as any)[param]
-    );
-
-    // Update the app parameters with the new values
-    Object.entries(values).forEach(([settingsId, value]) => {
-      // Get the corresponding app parameter name
-      const appParam = settingsToAppParamsMap[settingsId] || settingsId;
-
-      // Skip lighting parameters if we're in the middle of updating them
-      // to prevent synchronization issues
-      if (lightingParams.includes(appParam) && updatingLighting) {
-        // Only update if the value actually changed
-        if (value !== (app.params as any)[appParam]) {
-          (app.params as any)[appParam] = value;
-        }
-      }
-      // For all other parameters, update normally
-      else if (appParam in app.params) {
-        (app.params as any)[appParam] = value;
-      }
-    });
-  });
-
-  console.log("Settings connected to ShaderApp");
-  // Return a cleanup function
-  return unsubscribe;
+  console.log("Settings connected to app");
 }
 
-// Initialize the settings values from the shader app
-export function initializeSettingsFromShaderApp(app: ShaderApp) {
-  console.log("Initializing settings from ShaderApp...");
+// Initialize the settings values from the shader app or facade
+export function initializeSettingsFromShaderApp(appOrFacade: AppOrFacade) {
+  console.log("Initializing settings from app...");
 
-  // Create a mapping from app parameters to settings IDs
-  const appParamsToSettingsMap: Record<string, string> = {
-    lightDirX: "lightX",
-    lightDirY: "lightY",
-    lightDirZ: "lightZ",
-    diffuseIntensity: "lightDiffuse",
-    ambientIntensity: "lightAmbient",
-    rimLightIntensity: "lightRim",
-    // Add other mappings as needed
-  };
+  // Extract current values from params
+  let settings: Record<string, any> = {};
 
-  // Get the current values from the app
-  const currentValues: Record<string, any> = {};
+  // Check if we're dealing with a facade or direct ShaderApp
+  if ("getAllParams" in appOrFacade) {
+    // It's a facade
+    const facade = appOrFacade as IShaderAppFacade;
+    const params = facade.getAllParams();
+    settings = extractSettingsFromParams(params);
+  } else {
+    // It's a ShaderApp
+    const app = appOrFacade as ShaderApp;
+    settings = extractSettingsFromParams(app.params);
+  }
 
-  // Copy all parameters from the app to our settings
-  Object.entries(app.params).forEach(([key, value]) => {
-    // Map app parameter names to settings IDs where applicable
-    const settingsId = appParamsToSettingsMap[key] || key;
-    // Ensure lighting parameters are captured directly from the app
-    // without any normalization effects
-    currentValues[settingsId] = value;
-  });
-
-  // Update the settings values signal
+  // Update the settings values signal with a batch update
   settingsValuesSignal.value = {
     ...settingsValuesSignal.value,
-    ...currentValues,
+    ...settings,
   };
 
-  console.log("Settings initialized from ShaderApp");
+  console.log("Settings initialized from app");
 }

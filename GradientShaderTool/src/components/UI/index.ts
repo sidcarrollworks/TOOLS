@@ -19,3 +19,4 @@ export { TooltipPortal } from "./TooltipPortal";
 export { IconButton } from "./IconButton";
 export { CardButton } from "./CardButton";
 export { Checkbox } from "./Checkbox";
+export { ColorInput } from "./ColorInput";
