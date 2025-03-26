@@ -143,7 +143,12 @@ export const FigmaInput: FunctionComponent<FigmaInputProps> = ({
           onMouseDown={handleDragStart}
         >
           {dragIcon ? (
-            dragIcon
+            // if dragIcon is a string wrap it in a span
+            typeof dragIcon === "string" ? (
+              <span>{dragIcon}</span>
+            ) : (
+              dragIcon
+            )
           ) : (
             <svg
               xmlns="http://www.w3.org/2000/svg"
