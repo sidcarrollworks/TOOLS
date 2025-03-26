@@ -2,7 +2,7 @@ import type { FunctionComponent } from "preact";
 import { useSignal, useComputed } from "@preact/signals";
 import { useEffect } from "preact/hooks";
 
-import { FigmaInput } from "../FigmaInput";
+import { FigmaInputWithSignals as FigmaInputRefactored } from "../FigmaInput";
 import { DirectionControl } from "../DirectionControl";
 import { getUIStore } from "../../lib/stores/UIStore";
 import { SettingsGroup, SettingsField } from "../UI/SettingsGroup";
@@ -122,7 +122,7 @@ export const DistortionPanel: FunctionComponent<DistortionPanelProps> = () => {
       <SettingsGroup collapsible={false} header={false}>
         <SettingsGroup collapsible={false} header={false}>
           <SettingsField label="Scale" inputDir="row" labelDir="column">
-            <FigmaInput
+            <FigmaInputRefactored
               value={noiseScaleX}
               min={0.1}
               max={5}
@@ -131,7 +131,7 @@ export const DistortionPanel: FunctionComponent<DistortionPanelProps> = () => {
               dragIcon={<span>X</span>}
             />
 
-            <FigmaInput
+            <FigmaInputRefactored
               value={noiseScaleY}
               min={0.1}
               max={20}
@@ -144,7 +144,7 @@ export const DistortionPanel: FunctionComponent<DistortionPanelProps> = () => {
 
         <SettingsGroup collapsible={false} header={false} direction="row">
           <SettingsField label="Strength" labelDir="column">
-            <FigmaInput
+            <FigmaInputRefactored
               value={noiseStrength}
               min={0}
               max={0.75}
@@ -154,7 +154,7 @@ export const DistortionPanel: FunctionComponent<DistortionPanelProps> = () => {
           </SettingsField>
 
           <SettingsField label="Speed" labelDir="column">
-            <FigmaInput
+            <FigmaInputRefactored
               value={noiseSpeed}
               min={0}
               max={0.5}
