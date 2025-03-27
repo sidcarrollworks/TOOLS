@@ -4,200 +4,256 @@ import { ScrubInput } from "./ScrubInput";
 import type { ScrubInputProps } from "./ScrubInput";
 
 interface ThrottledScrubInputProps extends ScrubInputProps {
-  throttleDelay?: number;
-  debounceDelay?: number;
-  changeCountThreshold?: number;
+  delay?: number;
+  mode?: "throttle" | "debounce";
+  /** If true, optimizes for very expensive updates (like high segment counts) */
+  highPerformanceMode?: boolean;
 }
 
-// Hybrid throttle/debounce function that adapts based on change frequency
-function hybridThrottle<T extends (...args: any[]) => any>(
-  func: T,
-  throttleLimit: number = 150,
-  debounceLimit: number = 300,
-  changeThreshold: number = 5
-): (...args: Parameters<T>) => void {
-  let lastCall = 0;
-  let timeoutId: number | null = null;
-  let lastArgs: Parameters<T> | null = null;
-  let isThrottled = false;
+// Lightweight performance monitor
+const performanceMonitor = {
+  lastDuration: 0,
+  recordUpdate: (duration: number) => {
+    performanceMonitor.lastDuration = duration;
+  },
+  isExpensive: () => performanceMonitor.lastDuration > 50,
+};
 
-  // Track rapid changes
-  let changeCount = 0;
-  let changeCountStartTime = 0;
-  let isDebounceMode = false;
+// Create a controller that provides either throttle or debounce functionality
+function createUpdateController(
+  callback: (value: number) => void,
+  delay: number = 150,
+  mode: "throttle" | "debounce" = "throttle",
+  highPerformanceMode: boolean = false
+) {
+  // Core state
+  let pendingRaf: number | null = null;
+  let pendingTimeout: number | null = null;
+  let lastValue: number | null = null;
+  let lastUpdateTime = 0;
+  let adaptiveDelay = delay;
 
-  // Function to flush the last value
-  const flush = () => {
-    if (lastArgs) {
-      func(...lastArgs);
-      lastArgs = null;
+  // Schedule an update via requestAnimationFrame for smoother updates
+  const scheduleUpdate = (value: number) => {
+    // Store the value
+    lastValue = value;
+
+    // Cancel any pending animation frame
+    if (pendingRaf !== null) {
+      cancelAnimationFrame(pendingRaf);
+      pendingRaf = null;
     }
-    isThrottled = false;
-    isDebounceMode = false;
-    changeCount = 0;
+
+    // For expensive operations in high performance mode, use direct callback
+    if (
+      highPerformanceMode &&
+      performanceMonitor.isExpensive() &&
+      adaptiveDelay > delay
+    ) {
+      const start = performance.now();
+      callback(value);
+      performanceMonitor.recordUpdate(performance.now() - start);
+      // Increase adaptive delay if still expensive
+      if (performance.now() - start > 50) {
+        adaptiveDelay = Math.min(500, adaptiveDelay * 1.2);
+      }
+    } else {
+      // Standard update path
+      pendingRaf = requestAnimationFrame(() => {
+        pendingRaf = null;
+        const start = performance.now();
+        callback(value);
+        const duration = performance.now() - start;
+        performanceMonitor.recordUpdate(duration);
+
+        // Update adaptive delay for high performance mode
+        if (highPerformanceMode) {
+          if (duration > 80) {
+            adaptiveDelay = Math.min(500, delay * 1.5);
+          } else if (duration < 30 && adaptiveDelay > delay) {
+            adaptiveDelay = Math.max(delay, adaptiveDelay * 0.8);
+          }
+        }
+      });
+    }
   };
 
-  // Reset change counter after some time
-  const resetChangeTracking = () => {
-    changeCount = 0;
-    changeCountStartTime = Date.now();
-    isDebounceMode = false;
+  // Handle timeout completion
+  const timeoutHandler = () => {
+    pendingTimeout = null;
+
+    if (lastValue !== null) {
+      const valueToUpdate = lastValue;
+      lastValue = null;
+      scheduleUpdate(valueToUpdate);
+      lastUpdateTime = performance.now();
+    }
   };
 
-  return (...args: Parameters<T>) => {
-    const now = Date.now();
+  // Main update function
+  const update = (value: number) => {
+    const now = performance.now();
 
-    // Always store the latest arguments
-    lastArgs = args;
-
-    // Track changes for mode switching
-    changeCount++;
-
-    // Initialize change tracking time on first call
-    if (changeCountStartTime === 0) {
-      changeCountStartTime = now;
-    }
-
-    // Calculate changes per second
-    const timeWindow = now - changeCountStartTime;
-    if (timeWindow > 1000) {
-      // Reset after 1 second
-      resetChangeTracking();
-    }
-
-    // Determine if we should switch to debounce mode based on change frequency
-    // If we get more than changeThreshold changes in under 500ms, switch to debounce
-    if (!isDebounceMode && timeWindow < 500 && changeCount > changeThreshold) {
-      isDebounceMode = true;
-    }
+    // Always store the latest value
+    lastValue = value;
 
     // Clear any existing timeout
-    if (timeoutId) {
-      clearTimeout(timeoutId);
-      timeoutId = null;
+    if (pendingTimeout !== null) {
+      clearTimeout(pendingTimeout);
+      pendingTimeout = null;
     }
 
-    // If in debounce mode, just wait for changes to stop
-    if (isDebounceMode) {
-      timeoutId = window.setTimeout(() => {
-        flush();
-        resetChangeTracking();
-      }, debounceLimit);
-      return;
-    }
+    // Get current effective delay based on performance
+    const currentDelay = adaptiveDelay;
 
-    // Otherwise use throttle behavior
-    if (!isThrottled) {
-      // Not throttled, execute immediately
-      lastCall = now;
-      isThrottled = true;
-      func(...args);
+    if (mode === "debounce") {
+      // Debounce mode - only update after changes stop
+      pendingTimeout = window.setTimeout(timeoutHandler, currentDelay);
+    } else {
+      // Throttle mode - update at most once per delay period
+      const timeSinceLastUpdate = now - lastUpdateTime;
 
-      // Schedule the next possible execution
-      timeoutId = window.setTimeout(() => {
-        timeoutId = null;
-        lastCall = Date.now();
-
-        // If there were updates during throttle period, process the last one
-        if (lastArgs) {
-          flush();
-        } else {
-          isThrottled = false;
-          // Reset change counter after successful throttled execution
-          resetChangeTracking();
-        }
-      }, throttleLimit);
+      if (timeSinceLastUpdate >= currentDelay) {
+        // Enough time has passed, update now
+        lastUpdateTime = now;
+        scheduleUpdate(value);
+      } else {
+        // Schedule update for when throttle period ends
+        pendingTimeout = window.setTimeout(
+          timeoutHandler,
+          currentDelay - timeSinceLastUpdate
+        );
+      }
     }
   };
+
+  // Clean up function
+  const cancel = () => {
+    if (pendingTimeout !== null) {
+      clearTimeout(pendingTimeout);
+      pendingTimeout = null;
+    }
+
+    if (pendingRaf !== null) {
+      cancelAnimationFrame(pendingRaf);
+      pendingRaf = null;
+    }
+  };
+
+  // Apply final value immediately
+  const flush = () => {
+    cancel();
+    if (lastValue !== null) {
+      // For final values, bypass all throttling
+      callback(lastValue);
+      lastValue = null;
+    }
+  };
+
+  return { update, flush, cancel };
 }
 
 export const ThrottledScrubInput: FunctionComponent<
   ThrottledScrubInputProps
 > = ({
   onChange,
-  throttleDelay = 150,
-  debounceDelay = 300,
-  changeCountThreshold = 5,
+  delay = 150,
+  mode = "throttle",
+  highPerformanceMode = false,
   ...props
 }) => {
-  // State to track the displayed value (UI state)
+  // State to track the displayed value
   const [displayValue, setDisplayValue] = useState(props.value);
 
-  // Flag to track if we're currently dragging/scrubbing
+  // Flag to track if we're currently dragging
   const isDraggingRef = useRef(false);
 
-  // Keep track of the latest value for the throttled function
-  const latestValueRef = useRef(props.value);
+  // Controller ref
+  const controllerRef = useRef<ReturnType<
+    typeof createUpdateController
+  > | null>(null);
 
-  // Ref to store the throttled function instance to avoid recreation
-  const throttledFnRef = useRef<(value: number) => void>();
-
-  // Ref to store timeout ID for drag detection
+  // Drag detection timeout
   const dragStopTimeoutRef = useRef<number>();
 
-  // Update displayValue and ref when props.value changes, but only if we're not dragging
+  // Calculate effective delay based on props
+  const effectiveDelay = useCallback(() => {
+    // For high segment counts, use higher default delay
+    if (highPerformanceMode && props.max > 100) {
+      // Scale delay with max value for very high segment counts
+      if (props.max > 200) {
+        return Math.max(delay, 300);
+      }
+      return Math.max(delay, 250);
+    }
+    return delay;
+  }, [delay, highPerformanceMode, props.max]);
+
+  // Update displayValue when props.value changes and not dragging
   useEffect(() => {
-    // Only sync with incoming props if we're not in the middle of a drag operation
     if (!isDraggingRef.current) {
       setDisplayValue(props.value);
-      latestValueRef.current = props.value;
     }
   }, [props.value]);
 
-  // Create hybrid throttle/debounce handler once
+  // Create controller once
   useEffect(() => {
-    throttledFnRef.current = hybridThrottle(
-      (value: number) => {
-        onChange(value);
-      },
-      throttleDelay,
-      debounceDelay,
-      changeCountThreshold
+    controllerRef.current = createUpdateController(
+      (value: number) => onChange(value),
+      effectiveDelay(),
+      mode,
+      highPerformanceMode
     );
 
-    // Cleanup function to ensure any pending changes are applied when unmounting
     return () => {
-      // If there's an active drag timeout, clear it
       if (dragStopTimeoutRef.current) {
         clearTimeout(dragStopTimeoutRef.current);
       }
 
-      // If there's a final value that's different from what the parent knows,
-      // make sure to sync it before unmounting
-      if (latestValueRef.current !== props.value) {
-        onChange(latestValueRef.current);
+      if (controllerRef.current) {
+        controllerRef.current.flush();
       }
     };
-  }, [
-    onChange,
-    throttleDelay,
-    debounceDelay,
-    changeCountThreshold,
-    props.value,
-  ]);
+  }, [onChange, effectiveDelay, mode, highPerformanceMode]);
 
   // Handle value changes
-  const handleValueChange = useCallback((value: number) => {
-    // Set the dragging flag when values start changing
-    isDraggingRef.current = true;
+  const handleValueChange = useCallback(
+    (value: number) => {
+      // Update local state for immediate UI feedback
+      setDisplayValue(value);
 
-    // Always update the display value immediately for smooth UI
-    setDisplayValue(value);
-    latestValueRef.current = value;
+      // Mark as dragging
+      isDraggingRef.current = true;
 
-    // Use the throttled function from our ref
-    if (throttledFnRef.current) {
-      throttledFnRef.current(value);
-    }
+      // Delegate to controller with special handling for high segment counts
+      if (highPerformanceMode && props.max > 200 && value > props.max * 0.7) {
+        // For very high segments, limit update frequency
+        if (controllerRef.current) {
+          controllerRef.current.update(value);
+        }
+      } else {
+        // Normal handling
+        if (controllerRef.current) {
+          controllerRef.current.update(value);
+        }
+      }
 
-    // Clear any existing timeout and set a new one to detect when dragging stops
-    if (dragStopTimeoutRef.current) {
-      clearTimeout(dragStopTimeoutRef.current);
-    }
-    dragStopTimeoutRef.current = window.setTimeout(() => {
-      isDraggingRef.current = false;
-    }, 150);
-  }, []);
+      // Reset drag detection
+      if (dragStopTimeoutRef.current) {
+        clearTimeout(dragStopTimeoutRef.current);
+      }
+
+      dragStopTimeoutRef.current = window.setTimeout(() => {
+        isDraggingRef.current = false;
+
+        // Ensure we commit the final value
+        if (controllerRef.current) {
+          controllerRef.current.flush();
+        }
+      }, 100);
+    },
+    [highPerformanceMode, props.max]
+  );
 
   return (
     <ScrubInput {...props} value={displayValue} onChange={handleValueChange} />

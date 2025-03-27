@@ -200,20 +200,30 @@ export const GeometryPanel: FunctionComponent<GeometryPanelProps> = () => {
         {geometryType === "plane" && (
           <>
             <SettingsField label="Dimensions" inputDir="row" labelDir="column">
-              <ScrubInput
+              <ThrottledScrubInput
                 value={planeWidth}
                 min={0.1}
                 max={10}
                 step={0.1}
-                onChange={(value) => handleParamChange("planeWidth", value)}
+                mode="throttle"
+                highPerformanceMode={true}
+                delay={150}
+                onChange={(value: number) =>
+                  handleParamChange("planeWidth", value)
+                }
                 dragIcon="W"
               />
-              <ScrubInput
+              <ThrottledScrubInput
                 value={planeHeight}
                 min={0.1}
                 max={10}
                 step={0.1}
-                onChange={(value) => handleParamChange("planeHeight", value)}
+                mode="throttle"
+                highPerformanceMode={true}
+                delay={150}
+                onChange={(value: number) =>
+                  handleParamChange("planeHeight", value)
+                }
                 dragIcon="H"
               />
             </SettingsField>
@@ -222,10 +232,14 @@ export const GeometryPanel: FunctionComponent<GeometryPanelProps> = () => {
               <ThrottledScrubInput
                 value={planeSegments}
                 min={4}
-                max={512}
+                max={256}
                 step={1}
-                throttleDelay={250}
-                onChange={(value) => handleParamChange("planeSegments", value)}
+                delay={300}
+                mode="debounce"
+                highPerformanceMode={true}
+                onChange={(value: number) =>
+                  handleParamChange("planeSegments", value)
+                }
               />
             </SettingsField>
           </>
@@ -239,7 +253,9 @@ export const GeometryPanel: FunctionComponent<GeometryPanelProps> = () => {
                 min={0.1}
                 max={5}
                 step={0.1}
-                onChange={(value) => handleParamChange("sphereRadius", value)}
+                onChange={(value: number) =>
+                  handleParamChange("sphereRadius", value)
+                }
               />
             </SettingsField>
 
@@ -249,7 +265,10 @@ export const GeometryPanel: FunctionComponent<GeometryPanelProps> = () => {
                 min={4}
                 max={128}
                 step={1}
-                onChange={(value) =>
+                delay={250}
+                mode="debounce"
+                highPerformanceMode={true}
+                onChange={(value: number) =>
                   handleParamChange("sphereWidthSegments", value)
                 }
                 dragIcon="W"
@@ -259,7 +278,10 @@ export const GeometryPanel: FunctionComponent<GeometryPanelProps> = () => {
                 min={4}
                 max={128}
                 step={1}
-                onChange={(value) =>
+                delay={250}
+                mode="debounce"
+                highPerformanceMode={true}
+                onChange={(value: number) =>
                   handleParamChange("sphereHeightSegments", value)
                 }
                 dragIcon="H"
@@ -276,7 +298,9 @@ export const GeometryPanel: FunctionComponent<GeometryPanelProps> = () => {
                 min={0.1}
                 max={10}
                 step={0.1}
-                onChange={(value) => handleParamChange("cubeSize", value)}
+                onChange={(value: number) =>
+                  handleParamChange("cubeSize", value)
+                }
               />
             </SettingsField>
 
@@ -286,7 +310,12 @@ export const GeometryPanel: FunctionComponent<GeometryPanelProps> = () => {
                 min={1}
                 max={64}
                 step={1}
-                onChange={(value) => handleParamChange("cubeSegments", value)}
+                delay={250}
+                mode="debounce"
+                highPerformanceMode={true}
+                onChange={(value: number) =>
+                  handleParamChange("cubeSegments", value)
+                }
               />
             </SettingsField>
           </>
