@@ -2,7 +2,7 @@ import type { FunctionComponent } from "preact";
 import { useEffect } from "preact/hooks";
 
 import Select from "../UI/Select";
-import { ScrubInput } from "../ScrubInput";
+import { ScrubInput, ThrottledScrubInput } from "../ScrubInput";
 import { Checkbox } from "../UI/Checkbox";
 import { SettingsGroup, SettingsField } from "../UI/SettingsGroup";
 import { getGeometryInitializer } from "../../lib/stores/GeometryInitializer";
@@ -11,6 +11,7 @@ import { getGeometryParameter } from "../../lib/stores/GeometryInitializer";
 import { useSignalValue } from "../../lib/hooks/useSignals";
 import { facadeSignal } from "../../app";
 
+// Type interfaces
 interface GeometryPanelProps {
   // No props needed for now
 }
@@ -218,11 +219,12 @@ export const GeometryPanel: FunctionComponent<GeometryPanelProps> = () => {
             </SettingsField>
 
             <SettingsField label="Segments" labelDir="column">
-              <ScrubInput
+              <ThrottledScrubInput
                 value={planeSegments}
                 min={4}
                 max={512}
                 step={1}
+                throttleDelay={250}
                 onChange={(value) => handleParamChange("planeSegments", value)}
               />
             </SettingsField>
@@ -242,7 +244,7 @@ export const GeometryPanel: FunctionComponent<GeometryPanelProps> = () => {
             </SettingsField>
 
             <SettingsField label="Segments" inputDir="row" labelDir="column">
-              <ScrubInput
+              <ThrottledScrubInput
                 value={sphereWidthSegments}
                 min={4}
                 max={128}
@@ -252,7 +254,7 @@ export const GeometryPanel: FunctionComponent<GeometryPanelProps> = () => {
                 }
                 dragIcon="W"
               />
-              <ScrubInput
+              <ThrottledScrubInput
                 value={sphereHeightSegments}
                 min={4}
                 max={128}
@@ -279,7 +281,7 @@ export const GeometryPanel: FunctionComponent<GeometryPanelProps> = () => {
             </SettingsField>
 
             <SettingsField label="Segments" labelDir="column">
-              <ScrubInput
+              <ThrottledScrubInput
                 value={cubeSegments}
                 min={1}
                 max={64}
