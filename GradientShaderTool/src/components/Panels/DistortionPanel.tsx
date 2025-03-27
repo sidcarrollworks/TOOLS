@@ -156,7 +156,7 @@ export const DistortionPanel: FunctionComponent<DistortionPanelProps> = () => {
             <FigmaInput
               value={noiseSpeed}
               min={0}
-              max={0.5}
+              max={1}
               step={0.01}
               onChange={handleNoiseSpeedChange}
             />
