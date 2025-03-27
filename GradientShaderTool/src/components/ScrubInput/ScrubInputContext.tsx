@@ -8,10 +8,10 @@ import {
 } from "preact/compat";
 
 /**
- * Context for sharing FigmaInput state across components
+ * Context for sharing ScrubInput state across components
  * Replaces global variables and improves state management
  */
-interface FigmaInputContextType {
+interface ScrubInputContextType {
   // Whether a preset is currently being applied (for transitions)
   isPresetBeingApplied: boolean;
   setPresetApplying: (applying: boolean) => void;
@@ -22,7 +22,7 @@ interface FigmaInputContextType {
 }
 
 // Create context with default values
-const FigmaInputContext = createContext<FigmaInputContextType>({
+const ScrubInputContext = createContext<ScrubInputContextType>({
   isPresetBeingApplied: false,
   setPresetApplying: () => {},
   activeInstance: null,
@@ -30,15 +30,15 @@ const FigmaInputContext = createContext<FigmaInputContextType>({
 });
 
 // Props for the provider component
-interface FigmaInputProviderProps {
+interface ScrubInputProviderProps {
   children: preact.ComponentChildren;
 }
 
 /**
- * Provider component for FigmaInput context
- * Wrap your application with this to access FigmaInput context
+ * Provider component for ScrubInput context
+ * Wrap your application with this to access ScrubInput context
  */
-export const FigmaInputProvider: FC<FigmaInputProviderProps> = ({
+export const ScrubInputProvider: FC<ScrubInputProviderProps> = ({
   children,
 }) => {
   const [isPresetBeingApplied, setPresetApplying] = useState(false);
@@ -61,20 +61,20 @@ export const FigmaInputProvider: FC<FigmaInputProviderProps> = ({
     };
 
     container.addEventListener(
-      "figma-input-preset-apply",
+      "scrub-input-preset-apply",
       handlePresetApplyEvent
     );
 
     return () => {
       container.removeEventListener(
-        "figma-input-preset-apply",
+        "scrub-input-preset-apply",
         handlePresetApplyEvent
       );
     };
   }, []);
 
   return (
-    <FigmaInputContext.Provider
+    <ScrubInputContext.Provider
       value={{
         isPresetBeingApplied,
         setPresetApplying,
@@ -85,12 +85,12 @@ export const FigmaInputProvider: FC<FigmaInputProviderProps> = ({
       <div ref={containerRef} style={{ display: "contents" }}>
         {children}
       </div>
-    </FigmaInputContext.Provider>
+    </ScrubInputContext.Provider>
   );
 };
 
 /**
- * Hook to access the FigmaInput context
- * Use this in components that need to access or update FigmaInput state
+ * Hook to access the ScrubInput context
+ * Use this in components that need to access or update ScrubInput state
  */
-export const useFigmaInputContext = () => useContext(FigmaInputContext);
+export const useScrubInputContext = () => useContext(ScrubInputContext);

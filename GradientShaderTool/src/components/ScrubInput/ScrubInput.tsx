@@ -7,13 +7,13 @@ import {
   useCallback,
 } from "preact/hooks";
 import { memo } from "preact/compat";
-import styles from "./FigmaInput.module.css";
-import { useFigmaDrag } from "./useFigmaDrag";
+import styles from "./ScrubInput.module.css";
+import { useScrubDrag } from "./useScrubDrag";
 import { useInputHandler } from "./useInputHandler";
 import { ensureCursorStyle } from "./pointerLockUtils";
-import { useFigmaInputContext } from "./FigmaInputContext";
+import { useScrubInputContext } from "./ScrubInputContext";
 
-export interface FigmaInputProps {
+export interface ScrubInputProps {
   label?: string | preact.JSX.Element;
   value: number;
   min: number;
@@ -27,7 +27,7 @@ export interface FigmaInputProps {
   dragIcon?: string | preact.JSX.Element;
 }
 
-export const FigmaInput: FunctionComponent<FigmaInputProps> = memo(
+export const ScrubInput: FunctionComponent<ScrubInputProps> = memo(
   ({
     label,
     value,
@@ -41,12 +41,12 @@ export const FigmaInput: FunctionComponent<FigmaInputProps> = memo(
     usePointerLock = true,
     dragIcon,
   }) => {
-    // Use FigmaInput context for preset transitions
-    const { isPresetBeingApplied } = useFigmaInputContext();
+    // Use ScrubInput context for preset transitions
+    const { isPresetBeingApplied } = useScrubInputContext();
 
     // Add an ID for debugging
     const inputId = useRef(
-      `figma-input-${Math.random().toString(36).substring(2, 9)}`
+      `scrub-input-${Math.random().toString(36).substring(2, 9)}`
     ).current;
 
     // Initialize refs
@@ -72,7 +72,7 @@ export const FigmaInput: FunctionComponent<FigmaInputProps> = memo(
     ensureCursorStyle();
 
     // Use hooks for drag and input logic
-    const { dragState, handleDragStart } = useFigmaDrag({
+    const { dragState, handleDragStart } = useScrubDrag({
       value,
       min,
       max,
@@ -143,12 +143,12 @@ export const FigmaInput: FunctionComponent<FigmaInputProps> = memo(
 
     return (
       <div
-        className={`${styles.figmaInput} ${className} ${
+        className={`${styles.scrubInput} ${className} ${
           disabled ? styles.disabled : ""
         }`}
       >
         {label && (
-          <label className={styles.label} data-figma-input-id={inputId}>
+          <label className={styles.label} data-scrub-input-id={inputId}>
             {label}
           </label>
         )}

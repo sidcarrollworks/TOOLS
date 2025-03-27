@@ -22,7 +22,7 @@ GradientShaderTool/
 │   │   ├── DevPanel/         # Development-specific controls
 │   │   ├── DirectionControl/ # Direction control component
 │   │   ├── Export/           # Export functionality components
-│   │   ├── FigmaInput/       # Custom Figma-inspired input components
+│   │   ├── ScrubInput/       # Custom Scrub-inspired input components
 │   │   ├── Icons/            # SVG icons for the UI
 │   │   ├── Layout/           # Layout components
 │   │   ├── Performance/      # Performance monitoring components

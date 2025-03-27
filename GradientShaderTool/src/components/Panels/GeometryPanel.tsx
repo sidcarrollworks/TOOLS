@@ -2,7 +2,7 @@ import type { FunctionComponent } from "preact";
 import { useEffect } from "preact/hooks";
 
 import Select from "../UI/Select";
-import { FigmaInput } from "../FigmaInput";
+import { ScrubInput } from "../ScrubInput";
 import { Checkbox } from "../UI/Checkbox";
 import { SettingsGroup, SettingsField } from "../UI/SettingsGroup";
 import { getGeometryInitializer } from "../../lib/stores/GeometryInitializer";
@@ -199,7 +199,7 @@ export const GeometryPanel: FunctionComponent<GeometryPanelProps> = () => {
         {geometryType === "plane" && (
           <>
             <SettingsField label="Dimensions" inputDir="row" labelDir="column">
-              <FigmaInput
+              <ScrubInput
                 value={planeWidth}
                 min={0.1}
                 max={10}
@@ -207,7 +207,7 @@ export const GeometryPanel: FunctionComponent<GeometryPanelProps> = () => {
                 onChange={(value) => handleParamChange("planeWidth", value)}
                 dragIcon="W"
               />
-              <FigmaInput
+              <ScrubInput
                 value={planeHeight}
                 min={0.1}
                 max={10}
@@ -218,7 +218,7 @@ export const GeometryPanel: FunctionComponent<GeometryPanelProps> = () => {
             </SettingsField>
 
             <SettingsField label="Segments" labelDir="column">
-              <FigmaInput
+              <ScrubInput
                 value={planeSegments}
                 min={4}
                 max={512}
@@ -232,7 +232,7 @@ export const GeometryPanel: FunctionComponent<GeometryPanelProps> = () => {
         {geometryType === "sphere" && (
           <>
             <SettingsField label="Radius" labelDir="column">
-              <FigmaInput
+              <ScrubInput
                 value={sphereRadius}
                 min={0.1}
                 max={5}
@@ -242,7 +242,7 @@ export const GeometryPanel: FunctionComponent<GeometryPanelProps> = () => {
             </SettingsField>
 
             <SettingsField label="Segments" inputDir="row" labelDir="column">
-              <FigmaInput
+              <ScrubInput
                 value={sphereWidthSegments}
                 min={4}
                 max={128}
@@ -252,7 +252,7 @@ export const GeometryPanel: FunctionComponent<GeometryPanelProps> = () => {
                 }
                 dragIcon="W"
               />
-              <FigmaInput
+              <ScrubInput
                 value={sphereHeightSegments}
                 min={4}
                 max={128}
@@ -269,7 +269,7 @@ export const GeometryPanel: FunctionComponent<GeometryPanelProps> = () => {
         {geometryType === "cube" && (
           <>
             <SettingsField label="Size" labelDir="column">
-              <FigmaInput
+              <ScrubInput
                 value={cubeSize}
                 min={0.1}
                 max={10}
@@ -279,7 +279,7 @@ export const GeometryPanel: FunctionComponent<GeometryPanelProps> = () => {
             </SettingsField>
 
             <SettingsField label="Segments" labelDir="column">
-              <FigmaInput
+              <ScrubInput
                 value={cubeSegments}
                 min={1}
                 max={64}

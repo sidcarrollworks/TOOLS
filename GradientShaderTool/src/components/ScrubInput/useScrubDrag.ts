@@ -13,7 +13,7 @@ import {
 } from "./pointerLockUtils";
 
 // Use the context instead of direct imports
-import { useFigmaInputContext } from "./FigmaInputContext";
+import { useScrubInputContext } from "./ScrubInputContext";
 
 // Define state shape
 export interface DragState {
@@ -55,7 +55,7 @@ const calculateStableValue = (
   return newValue;
 };
 
-export interface UseFigmaDragOptions {
+export interface UseScrubDragOptions {
   value: number;
   min: number;
   max: number;
@@ -66,7 +66,7 @@ export interface UseFigmaDragOptions {
 }
 
 /**
- * Handles drag interactions for the FigmaInput component
+ * Handles drag interactions for the ScrubInput component
  *
  * Key features:
  * - Uses individual useState hooks for clear state management
@@ -75,7 +75,7 @@ export interface UseFigmaDragOptions {
  * - Handles pointer lock for continuous dragging
  * - Supports cursor wrapping at screen edges
  */
-export function useFigmaDrag({
+export function useScrubDrag({
   value,
   min,
   max,
@@ -83,9 +83,9 @@ export function useFigmaDrag({
   onChange,
   disabled = false,
   usePointerLock = true,
-}: UseFigmaDragOptions) {
-  // Get the FigmaInput context
-  const { setActiveInstance } = useFigmaInputContext();
+}: UseScrubDragOptions) {
+  // Get the ScrubInput context
+  const { setActiveInstance } = useScrubInputContext();
 
   // Use useState for state management
   const [isDragging, setIsDragging] = useState(false);
@@ -101,7 +101,7 @@ export function useFigmaDrag({
   } | null>(null);
 
   // Refs for tracking values between renders and for cleanup
-  const instanceId = useRef(Symbol("FigmaInput")).current;
+  const instanceId = useRef(Symbol("ScrubInput")).current;
   const pointerLockSupported = useRef(isPointerLockSupported());
   const accumulatedMovementX = useRef(0);
   const requestPending = useRef(false);
@@ -400,14 +400,14 @@ export function useFigmaDrag({
       document.addEventListener(
         "pointerlockerror",
         () => {
-          console.error("[useFigmaDrag] Pointer lock error");
+          console.error("[useScrubDrag] Pointer lock error");
           requestPending.current = false;
           isPointerLocked.current = false;
         },
         { signal: abortControllerRef.current?.signal }
       );
     } catch (error) {
-      console.error("[useFigmaDrag] Error requesting pointer lock:", error);
+      console.error("[useScrubDrag] Error requesting pointer lock:", error);
       requestPending.current = false;
     }
   };

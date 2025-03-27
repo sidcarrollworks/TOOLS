@@ -30,7 +30,7 @@
     - ✅ Lighting controls
     - ✅ Visualization controls
 12. ✅ Added DevPanel for development-specific controls
-13. ✅ Added custom FigmaInput components for better UI/UX
+13. ✅ Added custom ScrubInput components for better UI/UX
 14. ✅ Added Icons for improved visual interface
 15. ✅ Improved Layout components for better organization
 16. ✅ Rewritten app using Preact version 10 and TypeScript using the Bun package manager
@@ -191,7 +191,7 @@ The rewrite maintains the same core functionality as the original project but wi
 4. **Responsive Design**: Improved layout for different screen sizes
 5. **State Management**: Using Preact's signals for reactive state management
 6. **Improved UI/UX**: Added keyboard shortcuts and auto-hiding UI elements for a cleaner experience
-7. **Custom Input Components**: Created Figma-inspired input components for a more professional look
+7. **Custom Input Components**: Created Scrub-inspired input components for a more professional look
 8. **Multiple Geometry Types**: Support for planes, spheres, and cubes with dedicated shaders
 
 ### Challenges

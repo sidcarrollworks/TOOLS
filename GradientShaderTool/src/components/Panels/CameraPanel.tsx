@@ -1,6 +1,6 @@
 import type { FunctionComponent } from "preact";
 import { useEffect, useState } from "preact/hooks";
-import { FigmaInput } from "../FigmaInput";
+import { ScrubInput } from "../ScrubInput";
 import { SettingsGroup } from "../UI/SettingsGroup";
 import { SettingsField } from "../UI/SettingsGroup/SettingsGroup";
 import { getCameraInitializer } from "../../lib/stores/CameraInitializer";
@@ -44,7 +44,7 @@ export const CameraPanel: FunctionComponent<CameraPanelProps> = () => {
       {/* Field of View */}
       <SettingsGroup collapsible={false} header={false}>
         <SettingsField label="FOV" style={{ marginBottom: 0 }}>
-          <FigmaInput
+          <ScrubInput
             value={fov}
             min={15}
             max={90}
