@@ -2,7 +2,7 @@ import type { FunctionComponent } from "preact";
 import { useState, useEffect } from "preact/hooks";
 import { CardButton } from "../UI/CardButton";
 import { useComputed } from "@preact/signals";
-import { setPresetApplying } from "../FigmaInput/FigmaInput";
+
 import { SettingsGroup } from "../UI/SettingsGroup/SettingsGroup";
 import { getPresetStore } from "../../lib/stores/PresetStore";
 import type { Preset } from "../../lib/stores/PresetStore";
@@ -101,7 +101,6 @@ export const PresetPanel: FunctionComponent<PresetPanelProps> = () => {
     }
 
     // Indicate that a preset is being applied (used by some components to avoid updates)
-    setPresetApplying(true);
 
     // Update the facade with the selected preset
     const facade = facadeSignal.value;
@@ -132,11 +131,11 @@ export const PresetPanel: FunctionComponent<PresetPanelProps> = () => {
         });
       } finally {
         // Always reset preset applying flag when done
-        setPresetApplying(false);
+        // setPresetApplying(false);
       }
     } else {
       console.error("PresetPanel: Facade not available for preset application");
-      setPresetApplying(false);
+      // setPresetApplying(false);
     }
   };
 

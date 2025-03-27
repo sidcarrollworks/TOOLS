@@ -1,8 +1,7 @@
 import type { FunctionComponent } from "preact";
-import { useSignal, useComputed } from "@preact/signals";
 import { useEffect } from "preact/hooks";
 
-import { FigmaInputWithSignals as FigmaInputRefactored } from "../FigmaInput";
+import { FigmaInput } from "../FigmaInput";
 import { DirectionControl } from "../DirectionControl";
 import { getUIStore } from "../../lib/stores/UIStore";
 import { SettingsGroup, SettingsField } from "../UI/SettingsGroup";
@@ -122,7 +121,7 @@ export const DistortionPanel: FunctionComponent<DistortionPanelProps> = () => {
       <SettingsGroup collapsible={false} header={false}>
         <SettingsGroup collapsible={false} header={false}>
           <SettingsField label="Scale" inputDir="row" labelDir="column">
-            <FigmaInputRefactored
+            <FigmaInput
               value={noiseScaleX}
               min={0.1}
               max={5}
@@ -131,10 +130,10 @@ export const DistortionPanel: FunctionComponent<DistortionPanelProps> = () => {
               dragIcon={<span>X</span>}
             />
 
-            <FigmaInputRefactored
+            <FigmaInput
               value={noiseScaleY}
               min={0.1}
-              max={20}
+              max={5}
               step={0.01}
               onChange={handleNoiseScaleYChange}
               dragIcon={<span>Y</span>}
@@ -144,7 +143,7 @@ export const DistortionPanel: FunctionComponent<DistortionPanelProps> = () => {
 
         <SettingsGroup collapsible={false} header={false} direction="row">
           <SettingsField label="Strength" labelDir="column">
-            <FigmaInputRefactored
+            <FigmaInput
               value={noiseStrength}
               min={0}
               max={0.75}
@@ -154,7 +153,7 @@ export const DistortionPanel: FunctionComponent<DistortionPanelProps> = () => {
           </SettingsField>
 
           <SettingsField label="Speed" labelDir="column">
-            <FigmaInputRefactored
+            <FigmaInput
               value={noiseSpeed}
               min={0}
               max={0.5}

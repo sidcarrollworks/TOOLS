@@ -12,9 +12,10 @@ import {
   setPointerLockActiveState,
 } from "./pointerLockUtils";
 
-// Create a helper to set active instance
-import { setActiveInstance } from "./instanceManager";
+// Use the context instead of direct imports
+import { useFigmaInputContext } from "./FigmaInputContext";
 
+// Define state shape
 export interface DragState {
   isDragging: boolean;
   startX: number;
@@ -23,6 +24,36 @@ export interface DragState {
   dragDirection: "none" | "left" | "right";
   virtualCursorPos: { x: number; y: number } | null;
 }
+
+// Calculate a stable step-based value from mouse movement
+const calculateStableValue = (
+  distanceMoved: number,
+  shiftKey: boolean,
+  startValue: number,
+  min: number,
+  max: number,
+  step: number
+) => {
+  // Base pixels per step - how many pixels to move for one step change
+  const basePixelsPerStep = 8; // Adjust for sensitivity
+
+  // Apply shift modifier for fine-tuning
+  const pixelsPerStep = shiftKey ? basePixelsPerStep * 5 : basePixelsPerStep;
+
+  // Calculate how many steps we've moved
+  const stepsMoved = distanceMoved / pixelsPerStep;
+
+  // Calculate new value based on starting value and steps moved
+  let newValue = startValue + stepsMoved * step;
+
+  // Clamp the value between min and max
+  newValue = Math.max(min, Math.min(max, newValue));
+
+  // Round to the nearest step to ensure we're always on a valid step
+  newValue = Math.round((newValue - min) / step) * step + min;
+
+  return newValue;
+};
 
 export interface UseFigmaDragOptions {
   value: number;
@@ -34,6 +65,16 @@ export interface UseFigmaDragOptions {
   usePointerLock?: boolean;
 }
 
+/**
+ * Handles drag interactions for the FigmaInput component
+ *
+ * Key features:
+ * - Uses individual useState hooks for clear state management
+ * - Implements proper cleanup with AbortController
+ * - Prevents value jumps during drag operations
+ * - Handles pointer lock for continuous dragging
+ * - Supports cursor wrapping at screen edges
+ */
 export function useFigmaDrag({
   value,
   min,
@@ -43,11 +84,14 @@ export function useFigmaDrag({
   disabled = false,
   usePointerLock = true,
 }: UseFigmaDragOptions) {
-  // State
-  const [isDragging, setIsDragging] = useState<boolean>(false);
-  const [startX, setStartX] = useState<number>(0);
-  const [startValue, setStartValue] = useState<number>(value);
-  const [currentValue, setCurrentValue] = useState<number>(value);
+  // Get the FigmaInput context
+  const { setActiveInstance } = useFigmaInputContext();
+
+  // Use useState for state management
+  const [isDragging, setIsDragging] = useState(false);
+  const [startX, setStartX] = useState(0);
+  const [startValue, setStartValue] = useState(value);
+  const [currentValue, setCurrentValue] = useState(value);
   const [dragDirection, setDragDirection] = useState<"none" | "left" | "right">(
     "none"
   );
@@ -56,7 +100,7 @@ export function useFigmaDrag({
     y: number;
   } | null>(null);
 
-  // Refs
+  // Refs for tracking values between renders and for cleanup
   const instanceId = useRef(Symbol("FigmaInput")).current;
   const pointerLockSupported = useRef(isPointerLockSupported());
   const accumulatedMovementX = useRef(0);
@@ -69,90 +113,67 @@ export function useFigmaDrag({
   const accumulatedMovementY = useRef(0);
   const initialCursorX = useRef(0);
   const initialCursorY = useRef(0);
+  const abortControllerRef = useRef<AbortController | null>(null);
 
-  // Update the ref when state changes
+  // Use refs to track current values to avoid closure issues
+  const currentValueRef = useRef(value);
+  const startValueRef = useRef(value);
+
+  // Update refs when state changes
+  useEffect(() => {
+    currentValueRef.current = currentValue;
+  }, [currentValue]);
+
+  useEffect(() => {
+    startValueRef.current = startValue;
+  }, [startValue]);
+
+  // Update state when prop value changes
+  useEffect(() => {
+    if (!isDragging) {
+      setCurrentValue(value);
+      setStartValue(value);
+      currentValueRef.current = value;
+      startValueRef.current = value;
+    }
+  }, [value, isDragging]);
+
+  // Combined drag state object for API compatibility
+  const dragState: DragState = {
+    isDragging,
+    startX,
+    startValue,
+    currentValue,
+    dragDirection,
+    virtualCursorPos,
+  };
+
+  // Keep the ref updated with current dragging state
   useEffect(() => {
     isDraggingRef.current = isDragging;
-  }, [isDragging]);
 
-  // Calculate a stable step-based value from mouse movement
-  const calculateStableValue = (distanceMoved: number, shiftKey: boolean) => {
-    // Base pixels per step - how many pixels to move for one step change
-    const basePixelsPerStep = 8; // Adjust for sensitivity
-
-    // Apply shift modifier for fine-tuning
-    const pixelsPerStep = shiftKey ? basePixelsPerStep * 5 : basePixelsPerStep;
-
-    // Calculate how many steps we've moved
-    const stepsMoved = distanceMoved / pixelsPerStep;
-
-    // Calculate new value based on starting value and steps moved
-    let newValue = startValue + stepsMoved * step;
-
-    // Clamp the value between min and max
-    newValue = Math.max(min, Math.min(max, newValue));
-
-    // Round to the nearest step to ensure we're always on a valid step
-    newValue = Math.round((newValue - min) / step) * step + min;
-
-    return newValue;
-  };
-
-  // Clean up function to completely reset pointer lock state
-  const cleanup = () => {
-    if (cleanupInProgress.current) {
-      return;
+    // If drag state changed to true, set this instance as active
+    if (isDragging) {
+      setActiveInstance(instanceId);
+    } else if (!isDragging) {
+      setActiveInstance(null);
     }
+  }, [isDragging, setActiveInstance, instanceId, currentValue, startValue]);
 
-    // Set cleanup flag to prevent multiple cleanups
-    cleanupInProgress.current = true;
-
-    // Reset dragging state
-    isDraggingRef.current = false;
-    setIsDragging(false);
-    setDragDirection("none");
-    setVirtualCursorPos(null);
-
-    // Reset accumulated movement
-    accumulatedMovementX.current = 0;
-    accumulatedMovementY.current = 0;
-
-    // Cancel any pending animation frames
-    if (frameId.current !== null) {
-      cancelAnimationFrame(frameId.current);
-      frameId.current = null;
+  // Sync the currentValue with the value prop when not dragging
+  useEffect(() => {
+    if (!isDragging && value !== currentValue) {
+      setCurrentValue(value);
+      currentValueRef.current = value;
     }
+  }, [value, isDragging, currentValue]);
 
-    // Hide virtual cursor
-    hideVirtualCursor();
-
-    // Exit pointer lock if active
-    if (getPointerLockElement()) {
-      exitPointerLock();
+  // Effect to update value when current value changes
+  useEffect(() => {
+    if (isDragging && currentValue !== value) {
+      onChange(currentValue);
     }
-
-    // Hide the overlay
-    const overlay = initDragOverlay();
-    if (overlay) {
-      overlay.style.display = "none";
-    }
-
-    // Reset classes and cursor
-    document.documentElement.classList.remove("figma-input-dragging-active");
-    document.body.classList.remove("figma-input-dragging-active");
-    setPointerLockActiveState(false);
-    forceCursorVisible();
-
-    // Reset request pending state
-    requestPending.current = false;
-    isPointerLocked.current = false;
-    mouseEventListenerAdded.current = false;
-
-    // Reset cleanup flag
-    setTimeout(() => {
-      cleanupInProgress.current = false;
-    }, 100);
-  };
+  }, [currentValue, isDragging, onChange, value]);
 
   // Handle locked mouse movement for dragging
   const handleLockedMouseMove = (e: MouseEvent) => {
@@ -168,320 +189,282 @@ export function useFigmaDrag({
     accumulatedMovementX.current += movementX;
     accumulatedMovementY.current += movementY;
 
-    // Update virtual cursor position
-    if (!virtualCursorPos) {
-      // Initialize position if not set
-      const initialPos = {
-        x: window.innerWidth / 2,
-        y: window.innerHeight / 2,
-      };
-      // Store initial positions for reference
-      initialCursorX.current = initialPos.x;
-      initialCursorY.current = initialPos.y;
+    // Update virtual cursor position for visual feedback
+    if (
+      initialCursorX.current !== undefined &&
+      initialCursorY.current !== undefined
+    ) {
+      // Calculate new position
+      let newX = initialCursorX.current + accumulatedMovementX.current;
+      let newY = initialCursorY.current + accumulatedMovementY.current;
 
-      setVirtualCursorPos(initialPos);
-      positionVirtualCursor(initialPos.x, initialPos.y);
-      return;
+      // Get window dimensions
+      const windowWidth = window.innerWidth;
+      const windowHeight = window.innerHeight;
+
+      // Define padding from the edge (in pixels)
+      const edgePadding = 2;
+
+      // Check if cursor is near the edge and wrap if needed
+      if (newX < edgePadding) {
+        // Wrap from left to right
+        newX = windowWidth - edgePadding;
+        // Adjust the initial position to maintain smooth movement
+        initialCursorX.current = newX - accumulatedMovementX.current;
+      } else if (newX > windowWidth - edgePadding) {
+        // Wrap from right to left
+        newX = edgePadding;
+        // Adjust the initial position to maintain smooth movement
+        initialCursorX.current = newX - accumulatedMovementX.current;
+      }
+
+      // Do the same for Y axis
+      if (newY < edgePadding) {
+        // Wrap from top to bottom
+        newY = windowHeight - edgePadding;
+        // Adjust the initial position to maintain smooth movement
+        initialCursorY.current = newY - accumulatedMovementY.current;
+      } else if (newY > windowHeight - edgePadding) {
+        // Wrap from bottom to top
+        newY = edgePadding;
+        // Adjust the initial position to maintain smooth movement
+        initialCursorY.current = newY - accumulatedMovementY.current;
+      }
+
+      // Update the virtual cursor position
+      setVirtualCursorPos({ x: newX, y: newY });
+      positionVirtualCursor(newX, newY);
     }
 
-    // Calculate new position based on accumulated movement from initial position
-    let newX = initialCursorX.current + accumulatedMovementX.current;
-    let newY = initialCursorY.current + accumulatedMovementY.current;
-
-    // Get window dimensions
-    const windowWidth = window.innerWidth;
-    const windowHeight = window.innerHeight;
-
-    // Define padding from the edge (in pixels)
-    const edgePadding = 2;
-
-    // Check if cursor is near the edge and wrap if needed
-    if (newX < edgePadding) {
-      // Wrap from left to right
-      newX = windowWidth - edgePadding;
-      // Adjust the initial position to maintain smooth movement
-      initialCursorX.current = newX - accumulatedMovementX.current;
-    } else if (newX > windowWidth - edgePadding) {
-      // Wrap from right to left
-      newX = edgePadding;
-      // Adjust the initial position to maintain smooth movement
-      initialCursorX.current = newX - accumulatedMovementX.current;
-    }
-
-    // Do the same for Y axis
-    if (newY < edgePadding) {
-      // Wrap from top to bottom
-      newY = windowHeight - edgePadding;
-      // Adjust the initial position to maintain smooth movement
-      initialCursorY.current = newY - accumulatedMovementY.current;
-    } else if (newY > windowHeight - edgePadding) {
-      // Wrap from bottom to top
-      newY = edgePadding;
-      // Adjust the initial position to maintain smooth movement
-      initialCursorY.current = newY - accumulatedMovementY.current;
-    }
-
-    // Update cursor position - do this BEFORE updating state to avoid delays
-    positionVirtualCursor(newX, newY);
-
-    // Update state after positioning the cursor
-    setVirtualCursorPos({ x: newX, y: newY });
-
-    // Update drag direction for visual feedback
-    if (movementX > 0) {
+    // Determine drag direction based on accumulated movement
+    if (accumulatedMovementX.current > 5 && dragDirection !== "right") {
       setDragDirection("right");
-    } else if (movementX < 0) {
+    } else if (accumulatedMovementX.current < -5 && dragDirection !== "left") {
       setDragDirection("left");
     }
 
-    // Calculate new value using stable calculation
+    // Calculate new value based on accumulated movement
     const newValue = calculateStableValue(
       accumulatedMovementX.current,
-      e.shiftKey
+      e.shiftKey,
+      startValueRef.current, // Use ref for latest value
+      min,
+      max,
+      step
     );
 
-    // Update the current value
-    setCurrentValue(newValue);
+    // Only update if the value has changed
+    if (newValue !== currentValueRef.current) {
+      setCurrentValue(newValue);
+      currentValueRef.current = newValue;
+    }
   };
 
-  // Request pointer lock with a slight delay to avoid race conditions
-  const requestLock = () => {
-    if (
-      requestPending.current ||
-      !isDraggingRef.current ||
-      isPointerLocked.current
-    ) {
+  // Handle standard mouse movement for dragging
+  const handleMouseMove = (e: MouseEvent) => {
+    if (!isDraggingRef.current) {
       return;
     }
 
-    requestPending.current = true;
+    // Calculate the distance moved from the start position
+    const distanceMoved = e.clientX - startX;
 
-    // Use requestAnimationFrame for better timing
-    frameId.current = requestAnimationFrame(() => {
-      if (isDraggingRef.current && !isPointerLocked.current) {
-        const overlay = initDragOverlay();
-        if (overlay) {
-          try {
-            requestPointerLock(overlay);
-          } catch (err) {
-            requestPending.current = false;
-          }
-        }
-      } else {
-        requestPending.current = false;
-      }
-    });
-  };
-
-  // Setup on mount
-  useEffect(() => {
-    initDragOverlay();
-    if (usePointerLock) {
-      initVirtualCursor();
+    // Determine drag direction based on distance moved
+    if (distanceMoved > 5 && dragDirection !== "right") {
+      setDragDirection("right");
+    } else if (distanceMoved < -5 && dragDirection !== "left") {
+      setDragDirection("left");
     }
 
-    return () => {
-      cleanup();
-      setActiveInstance(null);
-    };
-  }, []);
+    // Calculate new value based on distance moved
+    const newValue = calculateStableValue(
+      distanceMoved,
+      e.shiftKey,
+      startValueRef.current, // Use ref for latest value
+      min,
+      max,
+      step
+    );
 
-  // Update current value
-  useEffect(() => {
+    // Only update if the value has changed
+    if (newValue !== currentValueRef.current) {
+      setCurrentValue(newValue);
+      currentValueRef.current = newValue;
+    }
+  };
+
+  // Handle the start of a drag operation
+  const handleDragStart = (e: MouseEvent) => {
+    if (disabled || e.button !== 0) {
+      return;
+    }
+
+    // Prevent default behavior to avoid text selection
+    e.preventDefault();
+
+    // Store the starting position and initial value
+    initialCursorX.current = e.clientX;
+    initialCursorY.current = e.clientY;
+    setStartX(e.clientX);
+
+    // Capture the current value directly from props to avoid stale state
+    setStartValue(value);
     setCurrentValue(value);
-  }, [value]);
+    startValueRef.current = value;
+    currentValueRef.current = value;
 
-  // Handle value changes during dragging
-  useEffect(() => {
-    if (isDragging && currentValue !== value) {
-      onChange(currentValue);
-    }
-  }, [currentValue, isDragging, onChange, value]);
-
-  // Setup pointer lock when dragging starts
-  useEffect(() => {
-    if (!isDragging || !usePointerLock || !pointerLockSupported.current) {
-      return;
-    }
-
-    // Set this instance as the active one
-    setActiveInstance(instanceId);
+    // Set dragging state
+    setIsDragging(true);
+    isDraggingRef.current = true;
+    setDragDirection("none");
 
     // Reset accumulated movement
     accumulatedMovementX.current = 0;
     accumulatedMovementY.current = 0;
 
-    // Position the virtual cursor at the mouse position initially
-    if (virtualCursorPos) {
-      positionVirtualCursor(virtualCursorPos.x, virtualCursorPos.y);
-    }
+    // Create a new abort controller for this drag operation
+    abortControllerRef.current = new AbortController();
 
-    // Add a class to show we're dragging
-    document.documentElement.classList.add("figma-input-dragging-active");
-    document.body.classList.add("figma-input-dragging-active");
+    // Setup event listeners for mouse movement and release
+    setupMouseListeners();
 
-    // Show the overlay (needed as the lockable element)
-    const overlay = initDragOverlay();
-    if (overlay) {
-      overlay.style.display = "block";
-    }
+    // Initialize and show the virtual cursor immediately at the current mouse position
+    initDragOverlay();
+    initVirtualCursor();
+    setVirtualCursorPos({ x: e.clientX, y: e.clientY });
+    positionVirtualCursor(e.clientX, e.clientY);
 
-    // Handle pointer lock changes
-    const handlePointerLockChange = () => {
-      const lockElement = getPointerLockElement();
-
-      if (lockElement) {
-        // Pointer lock acquired
-        setPointerLockActiveState(true);
-        isPointerLocked.current = true;
-
-        // Only add the event listener once
-        if (!mouseEventListenerAdded.current) {
-          document.addEventListener("mousemove", handleLockedMouseMove);
-          mouseEventListenerAdded.current = true;
-        }
-      } else {
-        // Pointer lock released
-        setPointerLockActiveState(false);
-        isPointerLocked.current = false;
-
-        // Clean up event listeners
-        document.removeEventListener("mousemove", handleLockedMouseMove);
-        mouseEventListenerAdded.current = false;
-
-        // Hide the virtual cursor
-        hideVirtualCursor();
-      }
-    };
-
-    // Handle pointer lock errors
-    const handlePointerLockError = () => {
-      if (mouseEventListenerAdded.current) {
-        document.removeEventListener("mousemove", handleLockedMouseMove);
-        mouseEventListenerAdded.current = false;
-      }
-      isPointerLocked.current = false;
-    };
-
-    // Handle mouse up to end dragging
-    const handleMouseUp = (e: MouseEvent) => {
-      if (!isDraggingRef.current) {
-        return;
-      }
-
-      // Remove the mouse move listener if it was added
-      if (mouseEventListenerAdded.current) {
-        document.removeEventListener("mousemove", handleLockedMouseMove);
-        mouseEventListenerAdded.current = false;
-      }
-
-      setIsDragging(false);
-      setDragDirection("none");
-      cleanup();
-
-      // Prevent default behavior
-      e.preventDefault();
-      e.stopPropagation();
-    };
-
-    // Add event listeners for pointer lock state changes
-    document.addEventListener("pointerlockchange", handlePointerLockChange);
-    document.addEventListener("mozpointerlockchange", handlePointerLockChange);
-    document.addEventListener(
-      "webkitpointerlockchange",
-      handlePointerLockChange
-    );
-    document.addEventListener("pointerlockerror", handlePointerLockError);
-    document.addEventListener("mozpointerlockerror", handlePointerLockError);
-    document.addEventListener("webkitpointerlockerror", handlePointerLockError);
-    document.addEventListener("mouseup", handleMouseUp, { capture: true });
-
-    // Request the lock
-    requestLock();
-
-    return () => {
-      // Clean up all event listeners
-      document.removeEventListener(
-        "pointerlockchange",
-        handlePointerLockChange
-      );
-      document.removeEventListener(
-        "mozpointerlockchange",
-        handlePointerLockChange
-      );
-      document.removeEventListener(
-        "webkitpointerlockchange",
-        handlePointerLockChange
-      );
-      document.removeEventListener("pointerlockerror", handlePointerLockError);
-      document.removeEventListener(
-        "mozpointerlockerror",
-        handlePointerLockError
-      );
-      document.removeEventListener(
-        "webkitpointerlockerror",
-        handlePointerLockError
-      );
-
-      if (mouseEventListenerAdded.current) {
-        document.removeEventListener("mousemove", handleLockedMouseMove);
-        mouseEventListenerAdded.current = false;
-      }
-
-      document.removeEventListener("mouseup", handleMouseUp, { capture: true });
-
-      // Only clean up if we're not already in the process of cleaning up
-      if (!cleanupInProgress.current) {
-        cleanup();
-      }
-    };
-  }, [isDragging, usePointerLock]);
-
-  // Handle drag start
-  const handleDragStart = (e: MouseEvent) => {
-    if (disabled || isDraggingRef.current) {
-      return;
-    }
-
-    // Prevent text selection during drag
-    e.preventDefault();
-
-    // Set initial state
-    setIsDragging(true);
-    isDraggingRef.current = true;
-    setStartX(e.clientX);
-    setStartValue(currentValue);
-    accumulatedMovementX.current = 0;
-    accumulatedMovementY.current = 0;
-
-    // Store the initial cursor position for virtual cursor
-    initialCursorX.current = e.clientX;
-    initialCursorY.current = e.clientY;
-
-    // Store the initial cursor position for virtual cursor
-    const initialPos = { x: e.clientX, y: e.clientY };
-    setVirtualCursorPos(initialPos);
-
-    // Ensure virtual cursor is initialized and visible
+    // Request pointer lock if applicable
     if (usePointerLock && pointerLockSupported.current) {
-      // Force cursor initialization
-      initVirtualCursor();
-
-      // Immediately position and show the cursor
-      positionVirtualCursor(initialPos.x, initialPos.y);
+      const target = e.currentTarget as HTMLElement;
+      if (target) {
+        requestLock(target);
+      }
     }
   };
 
+  // Set up mouse movement and release listeners
+  const setupMouseListeners = () => {
+    if (mouseEventListenerAdded.current) {
+      return;
+    }
+
+    mouseEventListenerAdded.current = true;
+    const signal = abortControllerRef.current?.signal;
+
+    document.addEventListener("mousemove", handleLockedMouseMove, { signal });
+    document.addEventListener("mouseup", handleMouseUp, { signal });
+    document.addEventListener("keydown", handleKeyDown, { signal });
+  };
+
+  // Handle mouse up event to end dragging
+  const handleMouseUp = () => {
+    cleanup();
+  };
+
+  // Handle key down events during dragging
+  const handleKeyDown = (e: KeyboardEvent) => {
+    // Cancel drag on Escape key
+    if (e.key === "Escape" && isDraggingRef.current) {
+      setCurrentValue(startValueRef.current); // Revert to the starting value using ref
+      currentValueRef.current = startValueRef.current;
+      cleanup();
+    }
+  };
+
+  // Request pointer lock on an element
+  const requestLock = (element: HTMLElement) => {
+    if (requestPending.current || isPointerLocked.current) {
+      return;
+    }
+
+    requestPending.current = true;
+
+    try {
+      requestPointerLock(element);
+
+      // Set up a pointer lock change listener
+      const handlePointerLockChange = () => {
+        const lockElement = getPointerLockElement();
+        isPointerLocked.current = lockElement === element;
+        requestPending.current = false;
+
+        // Update pointer lock active state for CSS
+        setPointerLockActiveState(isPointerLocked.current);
+      };
+
+      // Add event listeners for pointer lock changes
+      document.addEventListener("pointerlockchange", handlePointerLockChange, {
+        signal: abortControllerRef.current?.signal,
+      });
+      document.addEventListener(
+        "pointerlockerror",
+        () => {
+          console.error("[useFigmaDrag] Pointer lock error");
+          requestPending.current = false;
+          isPointerLocked.current = false;
+        },
+        { signal: abortControllerRef.current?.signal }
+      );
+    } catch (error) {
+      console.error("[useFigmaDrag] Error requesting pointer lock:", error);
+      requestPending.current = false;
+    }
+  };
+
+  // Cleanup function to release resources and reset state
+  const cleanup = () => {
+    if (cleanupInProgress.current) {
+      return;
+    }
+
+    cleanupInProgress.current = true;
+
+    // Cancel any pending animation frame
+    if (frameId.current !== null) {
+      cancelAnimationFrame(frameId.current);
+      frameId.current = null;
+    }
+
+    // Exit pointer lock if it's currently locked
+    if (isPointerLocked.current) {
+      exitPointerLock();
+      isPointerLocked.current = false;
+      hideVirtualCursor();
+      setPointerLockActiveState(false);
+    }
+
+    // Ensure cursor is visible after drag
+    forceCursorVisible();
+
+    // Reset state
+    isDraggingRef.current = false;
+    setIsDragging(false);
+    setDragDirection("none");
+    setVirtualCursorPos(null);
+
+    // Clean up event listeners
+    mouseEventListenerAdded.current = false;
+    if (abortControllerRef.current) {
+      abortControllerRef.current.abort();
+      abortControllerRef.current = null;
+    }
+
+    cleanupInProgress.current = false;
+  };
+
+  // Clean up on unmount
+  useEffect(() => {
+    return () => {
+      if (isDraggingRef.current) {
+        cleanup();
+      }
+    };
+  }, []);
+
+  // Return the drag state and handlers
   return {
-    dragState: {
-      isDragging,
-      startX,
-      startValue,
-      currentValue,
-      dragDirection,
-      virtualCursorPos,
-    },
+    dragState,
     handleDragStart,
-    cleanup,
   };
 }
