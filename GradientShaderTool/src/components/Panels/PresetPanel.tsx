@@ -43,6 +43,30 @@ const getPresetImageForId = (id: string): string | undefined => {
   return presetIdToImage.get(id);
 };
 
+// Preload all preset images
+const preloadImages = () => {
+  return new Promise<void>((resolve) => {
+    const imageUrls = Array.from(presetIdToImage.values());
+    let loadedCount = 0;
+
+    if (imageUrls.length === 0) {
+      resolve();
+      return;
+    }
+
+    imageUrls.forEach((url) => {
+      const img = new Image();
+      img.onload = img.onerror = () => {
+        loadedCount++;
+        if (loadedCount === imageUrls.length) {
+          resolve();
+        }
+      };
+      img.src = url;
+    });
+  });
+};
+
 interface PresetPanelProps {
   // No props needed for now
 }
@@ -53,6 +77,7 @@ export const PresetPanel: FunctionComponent<PresetPanelProps> = () => {
     null
   );
   const [presets, setPresets] = useState<Preset[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
 
   // Get the facade
   const facade = useComputed(() => facadeSignal.value);
@@ -60,33 +85,47 @@ export const PresetPanel: FunctionComponent<PresetPanelProps> = () => {
   // Get the preset store
   const presetStore = getPresetStore();
 
-  // Load presets from the store
+  // Preload images and data when component mounts
   useEffect(() => {
-    // Update local state from store
-    const updatePresetsFromStore = () => {
-      const state = presetStore.getState();
+    const initializePanel = async () => {
+      // Preload all images first
+      await preloadImages();
 
-      // Convert presets record to array and sort by name
+      // Then update the store state
+      const state = presetStore.getState();
       const presetsArray = Object.values(state.presets).sort((a: any, b: any) =>
         a.name.localeCompare(b.name)
       );
 
       setPresets(presetsArray as Preset[]);
 
-      // Update last applied preset if there's a current preset
       if (state.currentPresetId !== null) {
         setLastAppliedPreset(state.currentPresetId);
       }
+
+      // Only mark as loaded after everything is ready
+      setIsLoading(false);
     };
 
-    // Initial sync
-    updatePresetsFromStore();
+    initializePanel();
 
-    // Subscribe to store changes
+    // Subscribe to store changes, but only after initial load
     const storeSignal = presetStore.getSignal();
-    const unsubscribe = storeSignal.subscribe(updatePresetsFromStore);
+    const unsubscribe = storeSignal.subscribe(() => {
+      if (!isLoading) {
+        const state = presetStore.getState();
+        const presetsArray = Object.values(state.presets).sort(
+          (a: any, b: any) => a.name.localeCompare(b.name)
+        );
 
-    // Cleanup subscription
+        setPresets(presetsArray as Preset[]);
+
+        if (state.currentPresetId !== null) {
+          setLastAppliedPreset(state.currentPresetId);
+        }
+      }
+    });
+
     return () => {
       unsubscribe();
     };
@@ -99,8 +138,6 @@ export const PresetPanel: FunctionComponent<PresetPanelProps> = () => {
       console.error(`PresetPanel: No preset name found for ID: ${id}`);
       return;
     }
-
-    // Indicate that a preset is being applied (used by some components to avoid updates)
 
     // Update the facade with the selected preset
     const facade = facadeSignal.value;
@@ -138,6 +175,15 @@ export const PresetPanel: FunctionComponent<PresetPanelProps> = () => {
       // setPresetApplying(false);
     }
   };
+
+  // If still loading, show a placeholder with fixed dimensions
+  if (isLoading) {
+    return (
+      <div style={{ minHeight: "200px", width: "100%" }}>
+        {/* Empty placeholder with height to prevent layout shift */}
+      </div>
+    );
+  }
 
   // If no presets are available, show a placeholder
   if (presets.length === 0) {

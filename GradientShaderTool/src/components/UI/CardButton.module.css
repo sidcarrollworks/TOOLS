@@ -21,10 +21,28 @@
 
 .preview {
   width: 100%;
-  padding-bottom: 75%; /* 4:3 aspect ratio */
   background-color: var(--gray-a4);
   position: relative;
   border-radius: 4px;
+  aspect-ratio: 4 / 3;
+  /* height: 100%; */
+}
+
+/* Add loading state */
+.loading {
+  animation: pulse 1.5s infinite;
+}
+
+@keyframes pulse {
+  0% {
+    opacity: 0.6;
+  }
+  50% {
+    opacity: 0.8;
+  }
+  100% {
+    opacity: 0.6;
+  }
 }
 
 .label {
