@@ -61,6 +61,12 @@ export class PresetManager {
     // Reset color noise
     this.app.params.colorNoiseScale = 2.0;
     this.app.params.colorNoiseSpeed = 0.3;
+    
+    // Reset grain effect
+    this.app.params.enableGrain = false;
+    this.app.params.grainIntensity = 0.1;
+    this.app.params.grainScale = 1.0;
+    this.app.params.grainSpeed = 0.1;
 
     // Reset gradient shift
     this.app.params.gradientShiftX = 0.2;
@@ -135,6 +141,12 @@ export class PresetManager {
     // Set color noise - create foam and depth variations
     this.app.params.colorNoiseScale = 5.0;
     this.app.params.colorNoiseSpeed = 0.04;
+    
+    // Set grain effect - subtle water surface texture
+    this.app.params.enableGrain = true;
+    this.app.params.grainIntensity = 0.05;
+    this.app.params.grainScale = 3.0;
+    this.app.params.grainSpeed = 0.2;
 
     // Set gradient shift - more dynamic color transitions
     this.app.params.gradientShiftX = -0.36;
@@ -195,6 +207,12 @@ export class PresetManager {
     // Set color noise
     this.app.params.colorNoiseScale = 6.1;
     this.app.params.colorNoiseSpeed = 0.09;
+    
+    // Set grain effect - lava texture
+    this.app.params.enableGrain = true;
+    this.app.params.grainIntensity = 0.15;
+    this.app.params.grainScale = 2.0;
+    this.app.params.grainSpeed = 0.05;
 
     // Set gradient shift
     this.app.params.gradientShiftX = 0.1;
@@ -254,6 +272,12 @@ export class PresetManager {
     // Set color noise
     this.app.params.colorNoiseScale = 4.9;
     this.app.params.colorNoiseSpeed = 0.08;
+    
+    // Set grain effect - artistic grain
+    this.app.params.enableGrain = true;
+    this.app.params.grainIntensity = 0.2;
+    this.app.params.grainScale = 4.0;
+    this.app.params.grainSpeed = 0.1;
 
     // Set gradient shift
     this.app.params.gradientShiftX = 0.4;
@@ -262,7 +286,7 @@ export class PresetManager {
 
     // Set colors - vibrant colors
     this.app.params.gradientMode = 3; // Smooth step function
-    this.app.params.color1 = "#fffd82";
+    this.app.params.color1 = "#fdfdf7";
     this.app.params.color2 = "#e84855";
     this.app.params.color3 = "#2b3a67";
     this.app.params.color4 = "#20ffe8";

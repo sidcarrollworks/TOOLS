@@ -76,27 +76,28 @@
     - ✅ Fixed layout and container issues affecting the application
 28. ✅ Code cleanup and optimization:
     - ✅ Removed unused CodePanel component and related exports
-    - ✅ Replaced legacy stores with modern initializers
+    - ✅ Replaced legacy stores with initializers
     - ✅ Fixed geometry panel to display proper dimension controls for each shape type
     - ✅ Improved initialization sequence to prevent race conditions
 29. ✅ Added preset images to the preset selection buttons:
     - ✅ Implemented image display in CardButton component
     - ✅ Created mapping between preset IDs and image files
     - ✅ Added type declarations for image assets
+30. ✅ Cleanup and optimization:
+    - ✅ Replace legacy stores with initializers
+    - ✅ Clean up remaining legacy code in /lib/stores folder
+    - ✅ Remove dead code from color and distortion initializer
+    - ✅ Refactor FigmaInput into ScrubInput
+    - ✅ Clean up debug code in initApp.ts
 
 ## In Progress
 
-1. 🔄 Cleanup and optimization:
-   - 🔄 Continue replacing legacy stores with initializers when safe
-   - 🔄 Remove deprecated backward compatibility methods
-   - 🔄 Clean up commented-out debug code
-   - 🔄 Remove or complete half-implemented features
-2. 🔄 Performance optimization:
+1. 🔄 Performance optimization:
    - 🔄 UI component rendering optimization
    - 🔄 Implement memoization for expensive calculations
    - 🔄 Create optimized render patterns for components
    - 🔄 Shader code optimization where possible
-3. 🔄 Documentation and architecture standardization:
+2. 🔄 Documentation and architecture standardization:
    - 🔄 Document the new architecture and standard patterns
    - 🔄 Create consistent API documentation
    - 🔄 Add component usage examples
@@ -152,29 +153,36 @@
    - 🔮 Bloom, vignette, chromatic aberration
    - 🔮 Customizable post-processing stack
 10. 🔮 Multiple objects with different shader parameters
-11. 🔮 Animation presets:
+11. 🔮 Enhanced tooltip animations:
+    - 🔮 Distortion: 3D wave effect using existing shader
+    - 🔮 Color: Masked gradient flash across icon
+    - 🔮 Lighting: Bottom light shine with inset shadow and blurred oval
+    - 🔮 Camera: Focus animation with blur and x-scale effects
+    - 🔮 Geometry, Save, Export: Animations TBD
+    - 🔮 Implement 1-2 second animation duration with static state for readability
+12. 🔮 Animation presets:
     - 🔮 Predefined animation sequences
     - 🔮 Keyframe animation system
-12. 🔮 Audio reactivity:
+13. 🔮 Audio reactivity:
     - 🔮 React to music or audio input
     - 🔮 Frequency analysis visualization
     - 🔮 Beat detection for animation sync
-13. 🔮 WebGL 2.0 features:
+14. 🔮 WebGL 2.0 features:
     - 🔮 Utilize advanced features when available
     - 🔮 Fallback gracefully to WebGL 1.0
-14. 🔮 Worker thread support:
+15. 🔮 Worker thread support:
     - 🔮 Move heavy computations off the main thread
     - 🔮 Improve responsiveness during complex operations
-15. 🔮 Integration with other tools:
+16. 🔮 Integration with other tools:
     - 🔮 Export to CodePen/CodeSandbox
     - 🔮 Integration with popular frameworks
-16. 🔮 Gallery of examples:
+17. 🔮 Gallery of examples:
     - 🔮 Showcase of different possible effects
     - 🔮 Community submissions
-17. 🔮 Plugin system:
+18. 🔮 Plugin system:
     - 🔮 Allow third-party extensions
     - 🔮 Custom shader modules
-18. 🔮 Monetization options:
+19. 🔮 Monetization options:
     - 🔮 One-time payment to remove ads
     - 🔮 Premium presets or features
     - 🔮 Licensing options for commercial use

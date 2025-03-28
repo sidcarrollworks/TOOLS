@@ -56,6 +56,14 @@ export interface ShaderParams {
   colorNoiseScale: number;
   colorNoiseSpeed: number;
 
+  // Grain effect
+  enableGrain: boolean;
+  grainIntensity: number;
+  grainScale: number;
+  grainDensity: number;
+  grainSpeed: number;
+  grainThreshold: number;
+
   // Gradient shift
   gradientShiftX: number;
   gradientShiftY: number;
@@ -92,6 +100,8 @@ export interface ShaderParams {
 
   // Performance options
   useAdaptiveResolution: boolean;
+
+  // Anti-aliasing
 }
 
 export interface ShaderPresets {
@@ -144,6 +154,11 @@ export class ShaderApp {
 
   // Reference to parent element
   parentElement: HTMLElement | null;
+
+  // Post-processing
+  private composer: null | undefined = null;
+  private renderPass: null | undefined = null;
+  private smaaPass: null | undefined = null;
 
   constructor() {
     // Initialize properties
@@ -222,6 +237,14 @@ export class ShaderApp {
       colorNoiseScale: 2.0,
       colorNoiseSpeed: 0.3,
 
+      // Grain effect
+      enableGrain: false,
+      grainIntensity: 0.1,
+      grainScale: 1.0,
+      grainDensity: 0.5,
+      grainSpeed: 0.1,
+      grainThreshold: 0.1,
+
       // Gradient shift
       gradientShiftX: 0.2,
       gradientShiftY: 0.1,
@@ -289,6 +312,14 @@ export class ShaderApp {
             : 0.0,
       },
 
+      // Grain effect uniforms
+      uEnableGrain: { value: this.params.enableGrain },
+      uGrainIntensity: { value: this.params.grainIntensity },
+      uGrainScale: { value: this.params.grainScale },
+      uGrainDensity: { value: this.params.grainDensity },
+      uGrainSpeed: { value: this.params.grainSpeed },
+      uGrainThreshold: { value: this.params.grainThreshold },
+
       // Gradient shift uniforms
       uGradientShiftX: { value: this.params.gradientShiftX },
       uGradientShiftY: { value: this.params.gradientShiftY },
@@ -332,6 +363,12 @@ export class ShaderApp {
    * Initialize the application
    */
   async init(parentElement: HTMLElement): Promise<boolean> {
+    console.log('ShaderApp.init called');
+    
+    // Expose ShaderApp instance globally for debugging
+    (window as any).shaderApp = this;
+    console.log('ShaderApp instance exposed as window.shaderApp for debugging');
+    
     this.parentElement = parentElement;
 
     try {
@@ -358,6 +395,10 @@ export class ShaderApp {
       // Start animation loop
       this.animate();
 
+      // Force the grain effect to be disabled on startup
+      this.params.enableGrain = false;
+      this.uniforms.uEnableGrain.value = false;
+
       return true; // Initialization successful
     } catch (error) {
       console.error("Initialization failed:", error);
@@ -369,9 +410,149 @@ export class ShaderApp {
   }
 
   /**
+   * Initialize the renderer
+   */
+  initRenderer(canvas: HTMLCanvasElement): void {
+    // Create renderer
+    this.renderer = new THREE.WebGLRenderer({
+      canvas,
+      antialias: true, // Use built-in antialias instead of SMAA
+      alpha: true,
+      preserveDrawingBuffer: true,
+
+    });
+    this.renderer.setSize(window.innerWidth, window.innerHeight);
+    this.renderer.setPixelRatio(window.devicePixelRatio);
+    
+    // Store parent element reference
+    this.parentElement = canvas.parentElement;
+    
+    // Initialize post-processing
+    this.initPostProcessing();
+  }
+
+  /**
+   * Initialize post-processing
+   */
+  initPostProcessing(): void {
+    // We're not using post-processing anymore
+    console.log('Post-processing disabled, using built-in antialiasing');
+  }
+
+  /**
+   * Update SMAA pass based on current settings
+   */
+  updateSMAA(): void {
+    // We're not using SMAA anymore
+    console.log('SMAA disabled, using built-in antialiasing');
+  }
+
+  /**
+   * Initialize the scene
+   */
+  initScene(): void {
+    // Create scene
+    this.scene = new THREE.Scene();
+    
+    // Create camera
+    this.camera = new THREE.PerspectiveCamera(
+      this.params.cameraFov,
+      window.innerWidth / window.innerHeight,
+      0.1,
+      1000
+    );
+    
+    // Set camera position
+    this.camera.position.set(
+      this.params.cameraPosX,
+      this.params.cameraPosY,
+      this.params.cameraPosZ
+    );
+    
+    // Look at target
+    this.camera.lookAt(
+      this.params.cameraTargetX,
+      this.params.cameraTargetY,
+      this.params.cameraTargetZ
+    );
+    
+    // Create a plane geometry for the shader
+    const geometry = new THREE.PlaneGeometry(2, 2);
+    
+    // Create shader material with imported shaders
+    this.material = new THREE.ShaderMaterial({
+      vertexShader: this.shaders.vertex,
+      fragmentShader: this.shaders.fragment,
+      uniforms: this.uniforms,
+    });
+    
+    // Create mesh and add to scene
+    const mesh = new THREE.Mesh(geometry, this.material);
+    this.scene.add(mesh);
+  }
+
+  /**
    * Update parameters
    */
   updateParams(updateCamera = false): void {
+    // Update camera if requested
+    if (updateCamera && this.camera) {
+      // Update camera position and target
+      this.camera.position.set(
+        this.params.cameraPosX,
+        this.params.cameraPosY,
+        this.params.cameraPosZ
+      );
+      this.camera.lookAt(
+        this.params.cameraTargetX,
+        this.params.cameraTargetY,
+        this.params.cameraTargetZ
+      );
+      this.camera.fov = this.params.cameraFov;
+      this.camera.updateProjectionMatrix();
+      
+      if (this.controls) {
+        this.controls.target.set(
+          this.params.cameraTargetX,
+          this.params.cameraTargetY,
+          this.params.cameraTargetZ
+        );
+        this.controls.update();
+      }
+    }
+    
+    // Update uniforms based on current parameters
+    if (this.uniforms) {
+      // Update normal noise parameters
+      this.uniforms.uNoiseScaleX.value = this.params.normalNoiseScaleX;
+      this.uniforms.uNoiseScaleY.value = this.params.normalNoiseScaleY;
+      this.uniforms.uNoiseSpeed.value = this.params.normalNoiseSpeed;
+      this.uniforms.uNoiseStrength.value = this.params.normalNoiseStrength;
+      this.uniforms.uNoiseShiftX.value = this.params.normalNoiseShiftX;
+      this.uniforms.uNoiseShiftY.value = this.params.normalNoiseShiftY;
+      this.uniforms.uNoiseShiftSpeed.value = this.params.normalNoiseShiftSpeed;
+
+      // Update color noise parameters
+      this.uniforms.uColorNoiseScale.value = this.params.colorNoiseScale;
+      this.uniforms.uColorNoiseSpeed.value = this.params.colorNoiseSpeed;
+
+      // Update grain effect parameters
+      this.uniforms.uEnableGrain.value = this.params.enableGrain;
+      this.uniforms.uGrainIntensity.value = this.params.grainIntensity;
+      this.uniforms.uGrainScale.value = this.params.grainScale;
+      this.uniforms.uGrainDensity.value = this.params.grainDensity;
+      this.uniforms.uGrainSpeed.value = this.params.grainSpeed;
+      this.uniforms.uGrainThreshold.value = this.params.grainThreshold;
+
+      // Update gradient shift parameters
+      this.uniforms.uGradientShiftX.value = this.params.gradientShiftX;
+      this.uniforms.uGradientShiftY.value = this.params.gradientShiftY;
+      this.uniforms.uGradientShiftSpeed.value = this.params.gradientShiftSpeed;
+
+      // Update gradient mode
+      this.uniforms.uGradientMode.value = this.params.gradientMode;
+    }
+
     // Call the update method in SceneManager
     this.sceneManager.updateParams(updateCamera);
 
@@ -384,6 +565,12 @@ export class ShaderApp {
     if ("updateGUI" in this) {
       (this as any).updateGUI();
     }
+    
+    // Update test pattern visibility
+    this.updateTestPatternVisibility();
+    
+    // Update debug overlay
+    this.updateDebugOverlay();
   }
 
   /**
@@ -405,34 +592,61 @@ export class ShaderApp {
   }
 
   /**
+   * Render the scene
+   */
+  render(): void {
+    // Start stats measurement
+    if (this.stats) {
+      this.stats.begin();
+    }
+
+    // Update time uniform
+    if (this.uniforms && this._clock) {
+      this.uniforms.uTime.value = this._clock.getElapsedTime();
+    }
+
+    if (this.renderer && this.scene && this.camera) {
+      this.renderer.render(this.scene, this.camera);
+    }
+
+    // End stats measurement
+    if (this.stats) {
+      this.stats.end();
+    }
+
+    // Request next frame
+    requestAnimationFrame(this.render.bind(this));
+  }
+
+  /**
    * Animation loop
    */
   animate(): void {
-    this._animationFrameId = requestAnimationFrame(this.animate.bind(this));
+    // Request next frame
+    requestAnimationFrame(this.animate.bind(this));
 
-    // Begin stats measurement
-    if (this.stats) this.stats.begin();
-
-    // Get delta time (time elapsed since last frame)
-    const delta = this._clock.getDelta();
-    // Apply a maximum delta to prevent huge jumps if the tab loses focus
-    const maxDelta = 1 / 30; // Max 1/30th of a second
-    const cappedDelta = Math.min(delta, maxDelta);
-
-    if (!this.params.pauseAnimation) {
-      // Update time based on delta and animation speed
-      // This makes the animation frame-rate independent
-      this.time += this.params.animationSpeed * cappedDelta * 60.0; // Scale by 60 to maintain similar speed to previous implementation
+    // Start stats measurement
+    if (this.stats) {
+      this.stats.begin();
     }
 
-    // Always update the time uniform
-    this.uniforms.uTime.value = this.time;
+    // Get current time
+    const time = this._clock.getElapsedTime();
+    
+    // Update time uniform
+    if (this.uniforms) {
+      this.uniforms.uTime.value = time;
+    }
+    
+    // Update test pattern animation
+    this.updateTestPattern(time);
 
-    // Update OrbitControls
+    // Update controls
     if (this.controls) {
       this.controls.update();
     }
 
+    // Render the scene
     if (this.renderer && this.scene && this.camera) {
       this.renderer.render(this.scene, this.camera);
     }
@@ -483,5 +697,72 @@ export class ShaderApp {
     if (this.sceneManager) {
       this.sceneManager.setAdaptiveResolution(enabled);
     }
+  }
+
+  /**
+   * Handle window resize
+   */
+  handleResize(): void {
+    if (!this.renderer || !this.camera || !this.parentElement) {
+      return;
+    }
+
+    // Get parent element dimensions
+    const width = this.parentElement.clientWidth;
+    const height = this.parentElement.clientHeight;
+
+    // Update camera aspect ratio
+    this.camera.aspect = width / height;
+    this.camera.updateProjectionMatrix();
+
+    // Update renderer size
+    this.renderer.setSize(width, height);
+  }
+
+  /**
+   * Create a test pattern to demonstrate anti-aliasing
+   */
+  createAntiAliasingTestPattern(): void {
+    // Not needed anymore since we're using built-in antialiasing
+    console.log('Test pattern disabled, using built-in antialiasing');
+  }
+  
+  /**
+   * Update the anti-aliasing test pattern
+   */
+  updateTestPattern(time: number): void {
+    // Not needed anymore
+  }
+
+  /**
+   * Update the visibility of the anti-aliasing test pattern
+   */
+  updateTestPatternVisibility(): void {
+    // Not needed anymore
+  }
+
+  /**
+   * Toggle test pattern visibility
+   */
+  toggleTestPattern(visible: boolean): void {
+    console.log('Test pattern disabled, using built-in antialiasing');
+  }
+
+  /**
+   * Create a debug overlay to show SMAA status
+   */
+  createDebugOverlay(): void {
+    // Remove existing overlay if it exists
+    const existingOverlay = document.getElementById('smaa-debug-overlay');
+    if (existingOverlay) {
+      existingOverlay.remove();
+    }
+  }
+  
+  /**
+   * Update the debug overlay with current SMAA status
+   */
+  updateDebugOverlay(): void {
+    // Not needed anymore
   }
 }

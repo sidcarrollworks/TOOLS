@@ -453,6 +453,13 @@ export class SceneManager {
     this.app.uniforms.uColorNoiseScale.value = this.app.params.colorNoiseScale;
     this.app.uniforms.uColorNoiseSpeed.value = this.app.params.colorNoiseSpeed;
 
+    // Update grain effect parameters
+    this.app.uniforms.uEnableGrain.value = this.app.params.enableGrain;
+    this.app.uniforms.uGrainIntensity.value = this.app.params.grainIntensity;
+    this.app.uniforms.uGrainScale.value = this.app.params.grainScale;
+    this.app.uniforms.uGrainDensity.value = this.app.params.grainDensity;
+    this.app.uniforms.uGrainSpeed.value = this.app.params.grainSpeed;
+
     // Update gradient shift parameters
     this.app.uniforms.uGradientShiftX.value = this.app.params.gradientShiftX;
     this.app.uniforms.uGradientShiftY.value = this.app.params.gradientShiftY;

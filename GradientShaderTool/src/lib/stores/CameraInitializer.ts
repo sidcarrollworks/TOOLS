@@ -23,6 +23,14 @@ export interface CameraParameters {
 
   // FOV parameter
   cameraFov: number;
+  
+  // Grain effect parameters
+  enableGrain: boolean;
+  grainIntensity: number;
+  grainScale: number;
+  grainDensity: number;
+  grainSpeed: number;
+  grainThreshold: number;
 }
 
 /**
@@ -41,26 +49,34 @@ export const DEFAULT_CAMERA_PARAMETERS: CameraParameters = {
 
   // Default FOV
   cameraFov: 75,
+  
+  // Default grain effect
+  enableGrain: false,
+  grainIntensity: 0.5,
+  grainScale: 1.0,
+  grainDensity: 0.5,
+  grainSpeed: 1.0,
+  grainThreshold: 0.1,
 };
 
 /**
- * Camera parameter definitions
+ * Parameter definitions for camera initializer
  */
 const PARAMETER_DEFINITIONS: Record<
   keyof CameraParameters,
-  ParameterDefinition<number>
+  ParameterDefinition<number | boolean>
 > = {
   cameraPositionX: {
     defaultValue: DEFAULT_CAMERA_PARAMETERS.cameraPositionX,
-    facadeParam: "cameraPositionX",
+    facadeParam: "cameraPosX",
   },
   cameraPositionY: {
     defaultValue: DEFAULT_CAMERA_PARAMETERS.cameraPositionY,
-    facadeParam: "cameraPositionY",
+    facadeParam: "cameraPosY",
   },
   cameraPositionZ: {
     defaultValue: DEFAULT_CAMERA_PARAMETERS.cameraPositionZ,
-    facadeParam: "cameraPositionZ",
+    facadeParam: "cameraPosZ",
   },
   cameraTargetX: {
     defaultValue: DEFAULT_CAMERA_PARAMETERS.cameraTargetX,
@@ -78,6 +94,30 @@ const PARAMETER_DEFINITIONS: Record<
     defaultValue: DEFAULT_CAMERA_PARAMETERS.cameraFov,
     facadeParam: "cameraFov",
   },
+  enableGrain: {
+    defaultValue: DEFAULT_CAMERA_PARAMETERS.enableGrain,
+    facadeParam: "enableGrain",
+  },
+  grainIntensity: {
+    defaultValue: DEFAULT_CAMERA_PARAMETERS.grainIntensity,
+    facadeParam: "grainIntensity",
+  },
+  grainScale: {
+    defaultValue: DEFAULT_CAMERA_PARAMETERS.grainScale,
+    facadeParam: "grainScale",
+  },
+  grainDensity: {
+    defaultValue: DEFAULT_CAMERA_PARAMETERS.grainDensity,
+    facadeParam: "grainDensity",
+  },
+  grainSpeed: {
+    defaultValue: DEFAULT_CAMERA_PARAMETERS.grainSpeed,
+    facadeParam: "grainSpeed",
+  },
+  grainThreshold: {
+    defaultValue: DEFAULT_CAMERA_PARAMETERS.grainThreshold,
+    facadeParam: "grainThreshold",
+  },
 };
 
 /**
@@ -94,6 +134,13 @@ export class CameraInitializer extends InitializerBase<CameraParameters> {
   public readonly cameraTargetZ: Signal<number>;
 
   public readonly cameraFov: Signal<number>;
+  
+  public readonly enableGrain: Signal<boolean>;
+  public readonly grainIntensity: Signal<number>;
+  public readonly grainScale: Signal<number>;
+  public readonly grainDensity: Signal<number>;
+  public readonly grainSpeed: Signal<number>;
+  public readonly grainThreshold: Signal<number>;
 
   // Singleton instance
   private static _instance: CameraInitializer | null = null;
@@ -125,6 +172,16 @@ export class CameraInitializer extends InitializerBase<CameraParameters> {
     this.cameraTargetZ = this.getWritableSignal("cameraTargetZ");
 
     this.cameraFov = this.getWritableSignal("cameraFov");
+    
+    this.enableGrain = this.getWritableSignal("enableGrain");
+    this.grainIntensity = this.getWritableSignal("grainIntensity");
+    this.grainScale = this.getWritableSignal("grainScale");
+    this.grainDensity = this.getWritableSignal("grainDensity");
+    this.grainSpeed = this.getWritableSignal("grainSpeed");
+    this.grainThreshold = this.getWritableSignal("grainThreshold");
+
+    // Ensure grain effect is disabled on initialization
+    this.enableGrain.value = false;
 
     // Sync with facade
     this.syncWithFacade();
@@ -258,6 +315,198 @@ export class CameraInitializer extends InitializerBase<CameraParameters> {
   }
 
   /**
+   * Update grain effect
+   */
+  public updateGrain(value: boolean): void {
+    const facade = facadeSignal.value;
+    if (!facade) {
+      console.error("Cannot update grain effect: Facade not available");
+      return;
+    }
+
+    // Get current value for history
+    const prevGrain = this.enableGrain.value;
+
+    // Update signal directly for immediate UI feedback
+    this.enableGrain.value = value;
+
+    // Update facade
+    try {
+      facade.updateParam("enableGrain", value, {
+        skipValidation: false,
+        deferUpdate: false,
+        source: "user",
+      });
+
+      // Record history
+      this.recordGrainHistory(prevGrain, value);
+    } catch (error) {
+      console.error("Failed to update grain effect:", error);
+      getUIStore().showToast("Failed to update grain effect", "error");
+    }
+  }
+
+  /**
+   * Update grain intensity
+   */
+  public updateGrainIntensity(value: number): void {
+    const facade = facadeSignal.value;
+    if (!facade) {
+      console.error("Cannot update grain intensity: Facade not available");
+      return;
+    }
+
+    // Get current value for history
+    const prevIntensity = this.grainIntensity.value;
+
+    // Update signal directly for immediate UI feedback
+    this.grainIntensity.value = value;
+
+    // Update facade
+    try {
+      facade.updateParam("grainIntensity", value, {
+        skipValidation: false,
+        deferUpdate: false,
+        source: "user",
+      });
+
+      // Record history
+      this.recordGrainIntensityHistory(prevIntensity, value);
+    } catch (error) {
+      console.error("Failed to update grain intensity:", error);
+      getUIStore().showToast("Failed to update grain intensity", "error");
+    }
+  }
+
+  /**
+   * Update grain scale
+   */
+  public updateGrainScale(value: number): void {
+    const facade = facadeSignal.value;
+    if (!facade) {
+      console.error("Cannot update grain scale: Facade not available");
+      return;
+    }
+
+    // Get current value for history
+    const prevScale = this.grainScale.value;
+
+    // Update signal directly for immediate UI feedback
+    this.grainScale.value = value;
+
+    // Update facade
+    try {
+      facade.updateParam("grainScale", value, {
+        skipValidation: false,
+        deferUpdate: false,
+        source: "user",
+      });
+
+      // Record history
+      this.recordGrainScaleHistory(prevScale, value);
+    } catch (error) {
+      console.error("Failed to update grain scale:", error);
+      getUIStore().showToast("Failed to update grain scale", "error");
+    }
+  }
+
+  /**
+   * Update grain density
+   */
+  public updateGrainDensity(value: number): void {
+    const facade = facadeSignal.value;
+    if (!facade) {
+      console.error("Cannot update grain density: Facade not available");
+      return;
+    }
+
+    // Get current value for history
+    const prevDensity = this.grainDensity.value;
+
+    // Update signal directly for immediate UI feedback
+    this.grainDensity.value = value;
+
+    // Update facade
+    try {
+      facade.updateParam("grainDensity", value, {
+        skipValidation: false,
+        deferUpdate: false,
+        source: "user",
+      });
+
+      // Record history
+      this.recordGrainDensityHistory(prevDensity, value);
+    } catch (error) {
+      console.error("Failed to update grain density:", error);
+      getUIStore().showToast("Failed to update grain density", "error");
+    }
+  }
+
+  /**
+   * Update grain speed
+   */
+  public updateGrainSpeed(value: number): void {
+    const facade = facadeSignal.value;
+    if (!facade) {
+      console.error("Cannot update grain speed: Facade not available");
+      return;
+    }
+
+    // Get current value for history
+    const prevSpeed = this.grainSpeed.value;
+
+    // Update signal directly for immediate UI feedback
+    this.grainSpeed.value = value;
+
+    // Update facade
+    try {
+      facade.updateParam("grainSpeed", value, {
+        skipValidation: false,
+        deferUpdate: false,
+        source: "user",
+      });
+
+      // Record history
+      this.recordGrainSpeedHistory(prevSpeed, value);
+    } catch (error) {
+      console.error("Failed to update grain speed:", error);
+      getUIStore().showToast("Failed to update grain speed", "error");
+    }
+  }
+
+  /**
+   * Update grain threshold
+   */
+  public updateGrainThreshold(value: number): void {
+    const facade = facadeSignal.value;
+    if (!facade) {
+      console.error("Cannot update grain threshold: Facade not available");
+      return;
+    }
+
+    // Get current value for history
+    const prevThreshold = this.grainThreshold.value;
+
+    // Update signal directly for immediate UI feedback
+    this.grainThreshold.value = value;
+
+    // Update facade
+    try {
+      facade.updateParam("grainThreshold", value, {
+        skipValidation: false,
+        deferUpdate: false,
+        source: "user",
+      });
+
+      // Record history
+      this.recordGrainThresholdHistory(prevThreshold, value);
+    } catch (error) {
+      console.error("Failed to update grain threshold:", error);
+      getUIStore().showToast("Failed to update grain threshold", "error");
+    }
+  }
+
+  /**
    * Reset camera to default values
    */
   public resetCamera(): void {
@@ -281,10 +530,50 @@ export class CameraInitializer extends InitializerBase<CameraParameters> {
     };
 
     const prevFov = this.cameraFov.value;
+    const prevGrain = this.enableGrain.value;
+    const prevIntensity = this.grainIntensity.value;
+    const prevScale = this.grainScale.value;
+    const prevDensity = this.grainDensity.value;
+    const prevSpeed = this.grainSpeed.value;
+    const prevThreshold = this.grainThreshold.value;
 
     try {
       // Reset in facade
-      facade.resetCamera();
+      facade.updateParam("cameraPosX", DEFAULT_CAMERA_PARAMETERS.cameraPositionX, {
+        skipValidation: false,
+        deferUpdate: true,
+        source: "user",
+      });
+
+      facade.updateParam("cameraPosY", DEFAULT_CAMERA_PARAMETERS.cameraPositionY, {
+        skipValidation: false,
+        deferUpdate: true,
+        source: "user",
+      });
+
+      facade.updateParam("cameraPosZ", DEFAULT_CAMERA_PARAMETERS.cameraPositionZ, {
+        skipValidation: false,
+        deferUpdate: true,
+        source: "user",
+      });
+
+      facade.updateParam("cameraTargetX", DEFAULT_CAMERA_PARAMETERS.cameraTargetX, {
+        skipValidation: false,
+        deferUpdate: true,
+        source: "user",
+      });
+
+      facade.updateParam("cameraTargetY", DEFAULT_CAMERA_PARAMETERS.cameraTargetY, {
+        skipValidation: false,
+        deferUpdate: true,
+        source: "user",
+      });
+
+      facade.updateParam("cameraTargetZ", DEFAULT_CAMERA_PARAMETERS.cameraTargetZ, {
+        skipValidation: false,
+        deferUpdate: false, // Last camera param, trigger update
+        source: "user",
+      });
 
       // Reset position signals
       this.updateParameter(
@@ -301,24 +590,23 @@ export class CameraInitializer extends InitializerBase<CameraParameters> {
       );
 
       // Reset target signals
-      this.updateParameter(
-        "cameraTargetX",
-        DEFAULT_CAMERA_PARAMETERS.cameraTargetX
-      );
-      this.updateParameter(
-        "cameraTargetY",
-        DEFAULT_CAMERA_PARAMETERS.cameraTargetY
-      );
-      this.updateParameter(
-        "cameraTargetZ",
-        DEFAULT_CAMERA_PARAMETERS.cameraTargetZ
-      );
+      this.updateParameter("cameraTargetX", DEFAULT_CAMERA_PARAMETERS.cameraTargetX);
+      this.updateParameter("cameraTargetY", DEFAULT_CAMERA_PARAMETERS.cameraTargetY);
+      this.updateParameter("cameraTargetZ", DEFAULT_CAMERA_PARAMETERS.cameraTargetZ);
 
       // Reset FOV signal
       this.updateParameter("cameraFov", DEFAULT_CAMERA_PARAMETERS.cameraFov);
 
+      // Reset grain signals
+      this.updateParameter("enableGrain", DEFAULT_CAMERA_PARAMETERS.enableGrain);
+      this.updateParameter("grainIntensity", DEFAULT_CAMERA_PARAMETERS.grainIntensity);
+      this.updateParameter("grainScale", DEFAULT_CAMERA_PARAMETERS.grainScale);
+      this.updateParameter("grainDensity", DEFAULT_CAMERA_PARAMETERS.grainDensity);
+      this.updateParameter("grainSpeed", DEFAULT_CAMERA_PARAMETERS.grainSpeed);
+      this.updateParameter("grainThreshold", DEFAULT_CAMERA_PARAMETERS.grainThreshold);
+
       // Record history
-      this.recordResetHistory(prevPosition, prevTarget, prevFov);
+      this.recordResetHistory(prevPosition, prevTarget, prevFov, prevGrain, prevIntensity, prevScale, prevDensity, prevSpeed, prevThreshold);
 
       getUIStore().showToast("Camera reset to default", "info");
     } catch (error) {
@@ -337,7 +625,13 @@ export class CameraInitializer extends InitializerBase<CameraParameters> {
     targetX: number,
     targetY: number,
     targetZ: number,
-    fovValue?: number
+    fovValue?: number,
+    grainValue?: boolean,
+    grainIntensityValue?: number,
+    grainScaleValue?: number,
+    grainDensityValue?: number,
+    grainSpeedValue?: number,
+    grainThresholdValue?: number
   ): void {
     // Get current values for history
     const prevPosition = {
@@ -388,6 +682,60 @@ export class CameraInitializer extends InitializerBase<CameraParameters> {
         const prevFov = this.cameraFov.value;
         if (Math.abs(prevFov - fovValue) > 0.0001) {
           this.cameraFov.value = fovValue;
+          changed = true;
+        }
+      }
+
+      // Update grain if provided
+      if (grainValue !== undefined) {
+        const prevGrain = this.enableGrain.value;
+        if (prevGrain !== grainValue) {
+          this.enableGrain.value = grainValue;
+          changed = true;
+        }
+      }
+
+      // Update grain intensity if provided
+      if (grainIntensityValue !== undefined) {
+        const prevIntensity = this.grainIntensity.value;
+        if (Math.abs(prevIntensity - grainIntensityValue) > 0.0001) {
+          this.grainIntensity.value = grainIntensityValue;
+          changed = true;
+        }
+      }
+
+      // Update grain scale if provided
+      if (grainScaleValue !== undefined) {
+        const prevScale = this.grainScale.value;
+        if (Math.abs(prevScale - grainScaleValue) > 0.0001) {
+          this.grainScale.value = grainScaleValue;
+          changed = true;
+        }
+      }
+
+      // Update grain density if provided
+      if (grainDensityValue !== undefined) {
+        const prevDensity = this.grainDensity.value;
+        if (Math.abs(prevDensity - grainDensityValue) > 0.0001) {
+          this.grainDensity.value = grainDensityValue;
+          changed = true;
+        }
+      }
+
+      // Update grain speed if provided
+      if (grainSpeedValue !== undefined) {
+        const prevSpeed = this.grainSpeed.value;
+        if (Math.abs(prevSpeed - grainSpeedValue) > 0.0001) {
+          this.grainSpeed.value = grainSpeedValue;
+          changed = true;
+        }
+      }
+
+      // Update grain threshold if provided
+      if (grainThresholdValue !== undefined) {
+        const prevThreshold = this.grainThreshold.value;
+        if (Math.abs(prevThreshold - grainThresholdValue) > 0.0001) {
+          this.grainThreshold.value = grainThresholdValue;
           changed = true;
         }
       }
@@ -458,12 +806,108 @@ export class CameraInitializer extends InitializerBase<CameraParameters> {
   }
 
   /**
+   * Record grain history
+   */
+  private recordGrainHistory(prevGrain: boolean, newGrain: boolean): void {
+    const historyStore = getHistoryStore();
+    if (historyStore) {
+      historyStore.recordAction(
+        "Changed grain effect",
+        { enableGrain: prevGrain },
+        { enableGrain: newGrain },
+        "camera-change"
+      );
+    }
+  }
+
+  /**
+   * Record grain intensity history
+   */
+  private recordGrainIntensityHistory(prevIntensity: number, newIntensity: number): void {
+    const historyStore = getHistoryStore();
+    if (historyStore) {
+      historyStore.recordAction(
+        "Changed grain intensity",
+        { grainIntensity: prevIntensity },
+        { grainIntensity: newIntensity },
+        "camera-change"
+      );
+    }
+  }
+
+  /**
+   * Record grain scale history
+   */
+  private recordGrainScaleHistory(prevScale: number, newScale: number): void {
+    const historyStore = getHistoryStore();
+    if (historyStore) {
+      historyStore.recordAction(
+        "Changed grain scale",
+        { grainScale: prevScale },
+        { grainScale: newScale },
+        "camera-change"
+      );
+    }
+  }
+
+  /**
+   * Record grain density history
+   */
+  private recordGrainDensityHistory(prevDensity: number, newDensity: number): void {
+    const historyStore = getHistoryStore();
+    if (historyStore) {
+      historyStore.recordAction(
+        "Changed grain density",
+        { grainDensity: prevDensity },
+        { grainDensity: newDensity },
+        "camera-change"
+      );
+    }
+  }
+
+  /**
+   * Record grain speed history
+   */
+  private recordGrainSpeedHistory(prevSpeed: number, newSpeed: number): void {
+    const historyStore = getHistoryStore();
+    if (historyStore) {
+      historyStore.recordAction(
+        "Changed grain speed",
+        { grainSpeed: prevSpeed },
+        { grainSpeed: newSpeed },
+        "camera-change"
+      );
+    }
+  }
+
+  /**
+   * Record grain threshold history
+   */
+  private recordGrainThresholdHistory(prevThreshold: number, newThreshold: number): void {
+    const historyStore = getHistoryStore();
+    if (historyStore) {
+      historyStore.recordAction(
+        "Changed grain threshold",
+        { grainThreshold: prevThreshold },
+        { grainThreshold: newThreshold },
+        "camera-change"
+      );
+    }
+  }
+
+  /**
    * Record reset history
    */
   private recordResetHistory(
     prevPosition: { x: number; y: number; z: number },
     prevTarget: { x: number; y: number; z: number },
-    prevFov: number
+    prevFov: number,
+    prevGrain: boolean,
+    prevIntensity: number,
+    prevScale: number,
+    prevDensity: number,
+    prevSpeed: number,
+    prevThreshold: number
   ): void {
     const historyStore = getHistoryStore();
     if (historyStore) {
@@ -473,6 +917,12 @@ export class CameraInitializer extends InitializerBase<CameraParameters> {
           cameraPosition: prevPosition,
           cameraTarget: prevTarget,
           cameraFov: prevFov,
+          enableGrain: prevGrain,
+          grainIntensity: prevIntensity,
+          grainScale: prevScale,
+          grainDensity: prevDensity,
+          grainSpeed: prevSpeed,
+          grainThreshold: prevThreshold,
         },
         {
           cameraPosition: {
@@ -486,6 +936,12 @@ export class CameraInitializer extends InitializerBase<CameraParameters> {
             z: DEFAULT_CAMERA_PARAMETERS.cameraTargetZ,
           },
           cameraFov: DEFAULT_CAMERA_PARAMETERS.cameraFov,
+          enableGrain: DEFAULT_CAMERA_PARAMETERS.enableGrain,
+          grainIntensity: DEFAULT_CAMERA_PARAMETERS.grainIntensity,
+          grainScale: DEFAULT_CAMERA_PARAMETERS.grainScale,
+          grainDensity: DEFAULT_CAMERA_PARAMETERS.grainDensity,
+          grainSpeed: DEFAULT_CAMERA_PARAMETERS.grainSpeed,
+          grainThreshold: DEFAULT_CAMERA_PARAMETERS.grainThreshold,
         },
         "camera-reset"
       );

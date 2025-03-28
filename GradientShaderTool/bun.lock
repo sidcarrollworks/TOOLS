@@ -11,6 +11,7 @@
         "@types/stats.js": "^0.17.3",
         "@types/three": "^0.174.0",
         "dat.gui": "^0.7.9",
+        "postprocessing": "^6.37.1",
         "preact": "10",
         "preact-render-to-string": "^6.2.1",
         "preact-router": "^4.1.2",
@@ -254,6 +255,8 @@
     "picomatch": ["picomatch@2.3.1", "", {}, "sha512-JU3teHTNjmE2VCGFzuY8EXzCDVwEqB2a8fsIvwaStHhAWJEeVd1o1QD80CU6+ZdEXXSLbSsuLwJjkCBWqRQUVA=="],
 
     "postcss": ["postcss@8.5.3", "", { "dependencies": { "nanoid": "^3.3.8", "picocolors": "^1.1.1", "source-map-js": "^1.2.1" } }, "sha512-dle9A3yYxlBSrt8Fu+IpjGT8SY8hN0mlaA6GY8t0P5PjIOZemULz/E2Bnm/2dcUOena75OTNkHI76uZBNUUq3A=="],
+
+    "postprocessing": ["postprocessing@6.37.1", "", { "peerDependencies": { "three": ">= 0.157.0 < 0.175.0" } }, "sha512-fZszlSB8j+PaxtS8g4qMxdj+ifzvoCPnbHSOjclTlr4mbhd6/huQqOViM6lhhPIrW2fiZc+IRcnReoKYvyMwNg=="],
 
     "preact": ["preact@10.26.4", "", {}, "sha512-KJhO7LBFTjP71d83trW+Ilnjbo+ySsaAgCfXOXUlmGzJ4ygYPWmysm77yg4emwfmoz3b22yvH5IsVFHbhUaH5w=="],
 
