@@ -135,10 +135,6 @@ const LightingPanel: FunctionComponent<LightingPanelProps> = () => {
           />
         </SettingsField>
       </SettingsGroup>
-
-      <Button variant="primary" size="small" onClick={handleResetLighting}>
-        Reset Lighting
-      </Button>
     </>
   );
 };

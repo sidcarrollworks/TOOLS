@@ -30,13 +30,10 @@ export const KeyboardHints: FunctionComponent<KeyboardHintsProps> = ({
         <kbd>H</kbd> Hide UI
       </span>
       <span className={styles.keyboardHint}>
-        <kbd>S</kbd> Show Stats
+        <kbd>F</kbd> {isFullscreen ? "Exit" : "Enter"} Fullscreen
       </span>
       <span className={styles.keyboardHint}>
         <kbd>Space</kbd> Pause/Play
-      </span>
-      <span className={styles.keyboardHint}>
-        <kbd>F</kbd> {isFullscreen ? "Exit" : "Enter"} Fullscreen
       </span>
       <span className={styles.keyboardHint}>
         <kbd>Ctrl</kbd>+<kbd>D</kbd> Dev Panel
