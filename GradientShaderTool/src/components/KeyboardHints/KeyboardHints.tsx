@@ -41,15 +41,25 @@ export const KeyboardHints: FunctionComponent<KeyboardHintsProps> = ({
       <span className={styles.keyboardHint}>
         <kbd>Ctrl</kbd>+<kbd>D</kbd> Dev Panel
       </span>
-      <Button size="small" variant="primary" style={{ marginTop: "6px" }}>
-        <a
-          className={styles.link}
-          href="https://donate.stripe.com/5kA3esds16hj4O4144"
-          target="_blank"
-        >
-          Support This Tool!
-        </a>
-      </Button>
+      <span className={styles.divider}> </span>
+      <a
+        className={styles.link}
+        href="https://discord.gg/Trvu6JvM6J"
+        target="_blank"
+      >
+        <Button size="small" variant="primary" style={{ width: "100%" }}>
+          Leave feedback
+        </Button>
+      </a>
+      <a
+        className={styles.link}
+        href="https://donate.stripe.com/5kA3esds16hj4O4144"
+        target="_blank"
+      >
+        <Button size="small" variant="primary" style={{ width: "100%" }}>
+          Support this tool!
+        </Button>
+      </a>
     </div>
   );
 };

@@ -98,6 +98,8 @@
 .link {
   color: var(--gray-a11);
   text-decoration: none;
+  width: 100%;
+  display: flex;
 }
 
 .link:hover {
@@ -110,4 +112,11 @@
 
 .link a:visited:hover {
   color: var(--gray-a12);
+}
+
+.divider {
+  height: 1px;
+  width: 100%;
+  background-color: var(--gray-a6);
+  margin: 2px 0;
 }
