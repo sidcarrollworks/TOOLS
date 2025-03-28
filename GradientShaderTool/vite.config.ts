@@ -4,7 +4,6 @@ import prism from "vite-plugin-prismjs";
 import { resolve } from "path";
 
 export default defineConfig({
-  base: "/gradient-shader-tool/",
   plugins: [
     preact(),
     prism({

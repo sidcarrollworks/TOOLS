@@ -1,9 +1,0 @@
-{
-  "redirects": [
-    {
-      "source": "/",
-      "destination": "/gradient-shader-tool",
-      "permanent": true
-    }
-  ]
-}
