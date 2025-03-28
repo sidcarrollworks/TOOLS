@@ -8,6 +8,8 @@ import {
   SidePanel,
   sidePanelVisibleSignal,
 } from "./components/SidebarPanel/SidePanel";
+// Import splash screen component
+import { SplashScreen } from "./components/SplashScreen";
 // Import settings system
 import {
   initializeSettingsSystem,
@@ -74,10 +76,20 @@ const showDevPanelSignal = signal(false);
 const isFullscreenSignal = signal(false);
 const appInitializedSignal = signal(false);
 const initializationErrorSignal = signal<string | null>(null);
+// Add splash screen visibility signal
+export const splashScreenVisibleSignal = signal(true);
 // Add a signal to track initialization attempts
 const initAttemptSignal = signal(0);
 // Add a signal to control when to trigger initialization
 const triggerInitSignal = signal(0);
+
+// Initialize the splash screen visibility from localStorage
+if (typeof window !== "undefined") {
+  const hasSeenSplashScreen = localStorage.getItem("hasSeenSplashScreen");
+  if (hasSeenSplashScreen === "true") {
+    splashScreenVisibleSignal.value = false;
+  }
+}
 
 // Computed value for whether animation is paused
 const isPausedSignal = computed(() => {
@@ -379,6 +391,12 @@ export const App: ComponentType = () => {
                 )}
               </>
             )}
+
+            {/* Splash screen */}
+            <SplashScreen
+              visible={splashScreenVisibleSignal.value}
+              onClose={() => (splashScreenVisibleSignal.value = false)}
+            />
           </div>
         </FacadeProvider>
       </FacadeErrorBoundary>

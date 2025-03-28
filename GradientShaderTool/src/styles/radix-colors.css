@@ -77,7 +77,7 @@
   /* Dark theme overrides */
   .dark {
     /* Dark theme semantic colors */
-    --app-bg: var(--gray-1);
+    --app-bg: var(--gray-2);
     --panel-bg: var(--gray-2);
     --component-bg: var(--gray-3);
     --border-color: var(--gray-a5);

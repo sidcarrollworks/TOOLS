@@ -27,6 +27,7 @@ body {
   width: 100%;
   height: 100%;
   padding: 4px;
+  background-color: var(--app-bg);
 }
 
 /* Custom scrollbar for a modern look */
