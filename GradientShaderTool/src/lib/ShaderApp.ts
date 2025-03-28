@@ -363,12 +363,12 @@ export class ShaderApp {
    * Initialize the application
    */
   async init(parentElement: HTMLElement): Promise<boolean> {
-    console.log('ShaderApp.init called');
-    
+    console.log("ShaderApp.init called");
+
     // Expose ShaderApp instance globally for debugging
     (window as any).shaderApp = this;
-    console.log('ShaderApp instance exposed as window.shaderApp for debugging');
-    
+    console.log("ShaderApp instance exposed as window.shaderApp for debugging");
+
     this.parentElement = parentElement;
 
     try {
@@ -419,14 +419,13 @@ export class ShaderApp {
       antialias: true, // Use built-in antialias instead of SMAA
       alpha: true,
       preserveDrawingBuffer: true,
-
     });
     this.renderer.setSize(window.innerWidth, window.innerHeight);
     this.renderer.setPixelRatio(window.devicePixelRatio);
-    
+
     // Store parent element reference
     this.parentElement = canvas.parentElement;
-    
+
     // Initialize post-processing
     this.initPostProcessing();
   }
@@ -436,7 +435,7 @@ export class ShaderApp {
    */
   initPostProcessing(): void {
     // We're not using post-processing anymore
-    console.log('Post-processing disabled, using built-in antialiasing');
+    console.log("Post-processing disabled, using built-in antialiasing");
   }
 
   /**
@@ -444,7 +443,7 @@ export class ShaderApp {
    */
   updateSMAA(): void {
     // We're not using SMAA anymore
-    console.log('SMAA disabled, using built-in antialiasing');
+    console.log("SMAA disabled, using built-in antialiasing");
   }
 
   /**
@@ -453,7 +452,7 @@ export class ShaderApp {
   initScene(): void {
     // Create scene
     this.scene = new THREE.Scene();
-    
+
     // Create camera
     this.camera = new THREE.PerspectiveCamera(
       this.params.cameraFov,
@@ -461,31 +460,31 @@ export class ShaderApp {
       0.1,
       1000
     );
-    
+
     // Set camera position
     this.camera.position.set(
       this.params.cameraPosX,
       this.params.cameraPosY,
       this.params.cameraPosZ
     );
-    
+
     // Look at target
     this.camera.lookAt(
       this.params.cameraTargetX,
       this.params.cameraTargetY,
       this.params.cameraTargetZ
     );
-    
+
     // Create a plane geometry for the shader
     const geometry = new THREE.PlaneGeometry(2, 2);
-    
+
     // Create shader material with imported shaders
     this.material = new THREE.ShaderMaterial({
       vertexShader: this.shaders.vertex,
       fragmentShader: this.shaders.fragment,
       uniforms: this.uniforms,
     });
-    
+
     // Create mesh and add to scene
     const mesh = new THREE.Mesh(geometry, this.material);
     this.scene.add(mesh);
@@ -510,7 +509,7 @@ export class ShaderApp {
       );
       this.camera.fov = this.params.cameraFov;
       this.camera.updateProjectionMatrix();
-      
+
       if (this.controls) {
         this.controls.target.set(
           this.params.cameraTargetX,
@@ -520,7 +519,7 @@ export class ShaderApp {
         this.controls.update();
       }
     }
-    
+
     // Update uniforms based on current parameters
     if (this.uniforms) {
       // Update normal noise parameters
@@ -565,10 +564,10 @@ export class ShaderApp {
     if ("updateGUI" in this) {
       (this as any).updateGUI();
     }
-    
+
     // Update test pattern visibility
     this.updateTestPatternVisibility();
-    
+
     // Update debug overlay
     this.updateDebugOverlay();
   }
@@ -630,23 +629,26 @@ export class ShaderApp {
       this.stats.begin();
     }
 
-    // Get current time
+    // Get current time and update time uniform only if not paused
     const time = this._clock.getElapsedTime();
-    
-    // Update time uniform
     if (this.uniforms) {
-      this.uniforms.uTime.value = time;
-    }
-    
-    // Update test pattern animation
-    this.updateTestPattern(time);
+      if (!this.params.pauseAnimation) {
+        // Only update the time when animation is not paused
+        this.uniforms.uTime.value = time;
+        this.time = time; // Update the stored time value
 
-    // Update controls
+        // Update test pattern animation
+        this.updateTestPattern(time);
+      }
+      // When paused, we keep the existing time value
+    }
+
+    // Update controls - always do this regardless of animation state
     if (this.controls) {
       this.controls.update();
     }
 
-    // Render the scene
+    // Render the scene - always do this to keep the UI responsive
     if (this.renderer && this.scene && this.camera) {
       this.renderer.render(this.scene, this.camera);
     }
@@ -724,9 +726,9 @@ export class ShaderApp {
    */
   createAntiAliasingTestPattern(): void {
     // Not needed anymore since we're using built-in antialiasing
-    console.log('Test pattern disabled, using built-in antialiasing');
+    console.log("Test pattern disabled, using built-in antialiasing");
   }
-  
+
   /**
    * Update the anti-aliasing test pattern
    */
@@ -745,7 +747,7 @@ export class ShaderApp {
    * Toggle test pattern visibility
    */
   toggleTestPattern(visible: boolean): void {
-    console.log('Test pattern disabled, using built-in antialiasing');
+    console.log("Test pattern disabled, using built-in antialiasing");
   }
 
   /**
@@ -753,12 +755,12 @@ export class ShaderApp {
    */
   createDebugOverlay(): void {
     // Remove existing overlay if it exists
-    const existingOverlay = document.getElementById('smaa-debug-overlay');
+    const existingOverlay = document.getElementById("smaa-debug-overlay");
     if (existingOverlay) {
       existingOverlay.remove();
     }
   }
-  
+
   /**
    * Update the debug overlay with current SMAA status
    */
