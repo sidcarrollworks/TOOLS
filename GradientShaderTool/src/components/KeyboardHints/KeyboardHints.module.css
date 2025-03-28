@@ -94,3 +94,20 @@
   font-family: monospace;
   font-size: 11px;
 }
+
+.link {
+  color: var(--gray-a11);
+  text-decoration: none;
+}
+
+.link:hover {
+  color: var(--gray-a12);
+}
+
+.link a:visited {
+  color: var(--gray-a11);
+}
+
+.link a:visited:hover {
+  color: var(--gray-a12);
+}
