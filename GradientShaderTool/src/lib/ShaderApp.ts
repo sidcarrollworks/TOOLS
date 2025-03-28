@@ -6,6 +6,7 @@ import { PresetManager } from "./modules/PresetManager";
 import { Utils } from "./modules/Utils";
 import { ExportManager } from "./modules/ExportManager";
 import Stats from "stats.js";
+import { getCameraInitializer } from "./stores/CameraInitializer";
 
 // Define types
 export interface ShaderParams {

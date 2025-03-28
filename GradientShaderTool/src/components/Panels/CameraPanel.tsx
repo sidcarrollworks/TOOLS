@@ -1,9 +1,10 @@
 import type { FunctionComponent } from "preact";
 import { useEffect, useState } from "preact/hooks";
-import { ScrubInput } from "../ScrubInput";
+import { ScrubInput } from "../ScrubInput/ScrubInput";
 import { SettingsGroup, SettingsField } from "../UI/SettingsGroup";
 import { getCameraInitializer } from "../../lib/stores/CameraInitializer";
 import { Checkbox } from "../UI";
+import { facadeSignal } from "../../app";
 
 interface CameraPanelProps {
   // No props needed for now
@@ -15,12 +16,24 @@ export const CameraPanel: FunctionComponent<CameraPanelProps> = () => {
 
   // Local state for FOV and grain effect
   const [fov, setFov] = useState(cameraInitializer.cameraFov.value);
-  const [enableGrain, setEnableGrain] = useState(cameraInitializer.enableGrain.value);
-  const [grainIntensity, setGrainIntensity] = useState(cameraInitializer.grainIntensity.value);
-  const [grainScale, setGrainScale] = useState(cameraInitializer.grainScale.value);
-  const [grainDensity, setGrainDensity] = useState(cameraInitializer.grainDensity.value);
-  const [grainSpeed, setGrainSpeed] = useState(cameraInitializer.grainSpeed.value);
-  const [grainThreshold, setGrainThreshold] = useState(cameraInitializer.grainThreshold.value);
+  const [enableGrain, setEnableGrain] = useState(
+    cameraInitializer.enableGrain.value
+  );
+  const [grainIntensity, setGrainIntensity] = useState(
+    cameraInitializer.grainIntensity.value
+  );
+  const [grainScale, setGrainScale] = useState(
+    cameraInitializer.grainScale.value
+  );
+  const [grainDensity, setGrainDensity] = useState(
+    cameraInitializer.grainDensity.value
+  );
+  const [grainSpeed, setGrainSpeed] = useState(
+    cameraInitializer.grainSpeed.value
+  );
+  const [grainThreshold, setGrainThreshold] = useState(
+    cameraInitializer.grainThreshold.value
+  );
 
   // Subscribe to FOV and grain effect signals
   useEffect(() => {
@@ -39,34 +52,44 @@ export const CameraPanel: FunctionComponent<CameraPanelProps> = () => {
     });
 
     // Subscribe to grain effect changes
-    const unsubscribeGrain = cameraInitializer.enableGrain.subscribe((newValue) => {
-      setEnableGrain(newValue);
-    });
+    const unsubscribeGrain = cameraInitializer.enableGrain.subscribe(
+      (newValue) => {
+        setEnableGrain(newValue);
+      }
+    );
 
     // Subscribe to grain intensity changes
-    const unsubscribeGrainIntensity = cameraInitializer.grainIntensity.subscribe((newValue) => {
-      setGrainIntensity(newValue);
-    });
+    const unsubscribeGrainIntensity =
+      cameraInitializer.grainIntensity.subscribe((newValue) => {
+        setGrainIntensity(newValue);
+      });
 
     // Subscribe to grain scale changes
-    const unsubscribeGrainScale = cameraInitializer.grainScale.subscribe((newValue) => {
-      setGrainScale(newValue);
-    });
+    const unsubscribeGrainScale = cameraInitializer.grainScale.subscribe(
+      (newValue) => {
+        setGrainScale(newValue);
+      }
+    );
 
     // Subscribe to grain density changes
-    const unsubscribeGrainDensity = cameraInitializer.grainDensity.subscribe((newValue) => {
-      setGrainDensity(newValue);
-    });
+    const unsubscribeGrainDensity = cameraInitializer.grainDensity.subscribe(
+      (newValue) => {
+        setGrainDensity(newValue);
+      }
+    );
 
     // Subscribe to grain speed changes
-    const unsubscribeGrainSpeed = cameraInitializer.grainSpeed.subscribe((newValue) => {
-      setGrainSpeed(newValue);
-    });
+    const unsubscribeGrainSpeed = cameraInitializer.grainSpeed.subscribe(
+      (newValue) => {
+        setGrainSpeed(newValue);
+      }
+    );
 
     // Subscribe to grain threshold changes
-    const unsubscribeGrainThreshold = cameraInitializer.grainThreshold.subscribe((newValue) => {
-      setGrainThreshold(newValue);
-    });
+    const unsubscribeGrainThreshold =
+      cameraInitializer.grainThreshold.subscribe((newValue) => {
+        setGrainThreshold(newValue);
+      });
 
     // Clean up subscriptions when component unmounts
     return () => {
@@ -77,6 +100,29 @@ export const CameraPanel: FunctionComponent<CameraPanelProps> = () => {
       unsubscribeGrainDensity();
       unsubscribeGrainSpeed();
       unsubscribeGrainThreshold();
+    };
+  }, []);
+
+  // Listen for preset-applied events to ensure UI updates properly
+  useEffect(() => {
+    const facade = facadeSignal.value;
+    if (!facade) return;
+
+    const handlePresetApplied = () => {
+      // Ensure our local state matches the initializer after preset changes
+      setFov(cameraInitializer.cameraFov.value);
+      setEnableGrain(cameraInitializer.enableGrain.value);
+      setGrainIntensity(cameraInitializer.grainIntensity.value);
+      setGrainScale(cameraInitializer.grainScale.value);
+      setGrainDensity(cameraInitializer.grainDensity.value);
+      setGrainSpeed(cameraInitializer.grainSpeed.value);
+      setGrainThreshold(cameraInitializer.grainThreshold.value);
+    };
+
+    facade.on("preset-applied", handlePresetApplied);
+
+    return () => {
+      facade.off("preset-applied", handlePresetApplied);
     };
   }, []);
 
@@ -135,12 +181,9 @@ export const CameraPanel: FunctionComponent<CameraPanelProps> = () => {
       {/* Grain Effect */}
       <SettingsGroup title="Effects" collapsible={false} header={false}>
         <SettingsField label="Grain">
-          <Checkbox
-            checked={enableGrain}
-            onChange={handleGrainChange}
-          />
+          <Checkbox checked={enableGrain} onChange={handleGrainChange} />
         </SettingsField>
-        
+
         {/* Only show grain controls when grain effect is enabled */}
         {enableGrain && (
           <>

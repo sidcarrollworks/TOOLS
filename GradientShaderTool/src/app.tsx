@@ -31,6 +31,41 @@ import { getColorInitializer } from "./lib/stores/ColorInitializer";
 import { getLightingInitializer } from "./lib/stores/LightingInitializer";
 import { getExportInitializer } from "./lib/stores/ExportInitializer";
 
+// Enable debug mode for diagnostics
+if (typeof window !== "undefined") {
+  // Set global debug flag for diagnostic logging
+  (window as any).__SHADER_DEBUG__ = true;
+
+  // Monitor for the specific error we're troubleshooting
+  const originalConsoleError = console.error;
+  console.error = function (...args) {
+    // Call original console.error
+    originalConsoleError.apply(console, args);
+
+    // Look for our specific error message
+    const errorMessage = args[0]?.message || args[0] || "";
+    if (
+      typeof errorMessage === "string" &&
+      errorMessage.includes(
+        "message channel closed before a response was received"
+      )
+    ) {
+      console.warn("[DIAGNOSTIC] Message channel closed error detected:", {
+        timestamp: new Date().toISOString(),
+        stack: new Error().stack,
+        context: {
+          // Capture information about the current state that might help debug
+          activeElement: document.activeElement?.tagName,
+          windowWidth: window.innerWidth,
+          windowHeight: window.innerHeight,
+          documentState: document.readyState,
+          visibilityState: document.visibilityState,
+        },
+      });
+    }
+  };
+}
+
 // Create signals for app state
 export const facadeSignal = signal<IShaderAppFacade | null>(null);
 const showSettingsSignal = signal(true);

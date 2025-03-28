@@ -10,6 +10,7 @@ import { facadeSignal } from "../../app";
 import { initializeSettingsFromShaderApp } from "../../lib/settings/initApp";
 import { getColorInitializer } from "../../lib/stores/ColorInitializer";
 import { getDistortionInitializer } from "../../lib/stores/DistortionInitializer";
+import { getCameraInitializer } from "../../lib/stores/CameraInitializer";
 
 // Import preset images
 import abstractImage from "../../assets/presetImages/abstract.png";
@@ -160,6 +161,10 @@ export const PresetPanel: FunctionComponent<PresetPanelProps> = () => {
         // Sync DistortionInitializer explicitly
         const distortionInitializer = getDistortionInitializer();
         distortionInitializer.syncWithFacade();
+
+        // Sync CameraInitializer explicitly
+        const cameraInitializer = getCameraInitializer();
+        cameraInitializer.syncWithFacade();
 
         // Re-emit the preset-applied event in case any components missed it
         facade.emit("preset-applied", {
