@@ -1,4 +1,4 @@
-// Simple manager for tracking the active FigmaInput instance
+// Simple manager for tracking the active ScrubInput instance
 // This prevents direct mutation of imported variables
 
 let activeInstance: symbol | null = null;
@@ -9,4 +9,4 @@ export const setActiveInstance = (instance: symbol | null) => {
 
 export const getActiveInstance = (): symbol | null => {
   return activeInstance;
-}; 
+};

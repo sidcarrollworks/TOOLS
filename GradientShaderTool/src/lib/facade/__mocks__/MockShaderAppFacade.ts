@@ -61,7 +61,7 @@ export const DEFAULT_MOCK_PARAMS: Partial<ShaderParams> = {
  * Mock preset data
  */
 export const MOCK_PRESETS: Record<string, () => void> = {
-  Default: () => {},
+  "Source Milk": () => {},
   "Ocean Waves": () => {},
   "Lava Flow": () => {},
   "Abstract Art": () => {},

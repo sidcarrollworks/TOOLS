@@ -12,7 +12,7 @@ export const parameterMappings: MappingConfig = {
     presets: {
       panelId: "presets",
       mappings: [
-        { settingId: "presetDefault", paramName: "Default" },
+        { settingId: "presetDefault", paramName: "Source Milk" },
         { settingId: "presetOceanWaves", paramName: "Ocean Waves" },
         { settingId: "presetLavaFlow", paramName: "Lava Flow" },
         { settingId: "presetAbstractArt", paramName: "Abstract Art" },

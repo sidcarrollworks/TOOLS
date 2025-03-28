@@ -2,7 +2,7 @@ import type { FunctionComponent } from "preact";
 import { useComputed } from "@preact/signals";
 import { useEffect } from "preact/hooks";
 
-import { FigmaInput } from "../FigmaInput";
+import { ScrubInput } from "../ScrubInput";
 import { Button } from "../UI/Button";
 import { SettingsField, SettingsGroup } from "../UI/SettingsGroup";
 import { getLightingInitializer } from "../../lib/stores/LightingInitializer";
@@ -75,7 +75,7 @@ const LightingPanel: FunctionComponent<LightingPanelProps> = () => {
 
       <SettingsGroup title="Position" collapsible={false} header={false}>
         <SettingsField label="X" labelDir="row">
-          <FigmaInput
+          <ScrubInput
             value={lightDirX.value}
             min={-1}
             max={1}
@@ -85,7 +85,7 @@ const LightingPanel: FunctionComponent<LightingPanelProps> = () => {
         </SettingsField>
 
         <SettingsField label="Y" labelDir="row">
-          <FigmaInput
+          <ScrubInput
             value={lightDirY.value}
             min={-1}
             max={1}
@@ -95,7 +95,7 @@ const LightingPanel: FunctionComponent<LightingPanelProps> = () => {
         </SettingsField>
 
         <SettingsField label="Z" labelDir="row">
-          <FigmaInput
+          <ScrubInput
             value={lightDirZ.value}
             min={-1}
             max={1}
@@ -108,7 +108,7 @@ const LightingPanel: FunctionComponent<LightingPanelProps> = () => {
       {/* Lighting Intensity */}
       <SettingsGroup title="Intensity" collapsible={false} header={false}>
         <SettingsField label="Diffuse" labelDir="row">
-          <FigmaInput
+          <ScrubInput
             value={diffuseIntensity.value}
             min={0}
             max={1}
@@ -117,7 +117,7 @@ const LightingPanel: FunctionComponent<LightingPanelProps> = () => {
           />
         </SettingsField>
         <SettingsField label="Ambient" labelDir="row">
-          <FigmaInput
+          <ScrubInput
             value={ambientIntensity.value}
             min={0}
             max={1}
@@ -126,7 +126,7 @@ const LightingPanel: FunctionComponent<LightingPanelProps> = () => {
           />
         </SettingsField>
         <SettingsField label="Rim" labelDir="row">
-          <FigmaInput
+          <ScrubInput
             value={rimLightIntensity.value}
             min={0}
             max={1}

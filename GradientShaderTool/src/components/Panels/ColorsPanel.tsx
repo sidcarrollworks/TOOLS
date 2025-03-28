@@ -2,7 +2,7 @@ import type { FunctionComponent } from "preact";
 import { useEffect, useState } from "preact/hooks";
 
 import Select from "../UI/Select";
-import { FigmaInput } from "../FigmaInput";
+import { ScrubInput } from "../ScrubInput";
 import { DirectionControl } from "../DirectionControl";
 import { Checkbox, ColorInput } from "../UI";
 import { SettingsField, SettingsGroup } from "../UI/SettingsGroup";
@@ -405,7 +405,7 @@ export const ColorsPanel: FunctionComponent<ColorsPanelProps> = () => {
       {/* Color Noise Settings */}
       <SettingsGroup title="Color Noise" collapsible={false} header={false}>
         <SettingsField label="Scale" labelDir="row">
-          <FigmaInput
+          <ScrubInput
             value={colorState.colorNoiseScale}
             min={0}
             max={10}
@@ -415,7 +415,7 @@ export const ColorsPanel: FunctionComponent<ColorsPanelProps> = () => {
         </SettingsField>
 
         <SettingsField label="Speed" labelDir="row">
-          <FigmaInput
+          <ScrubInput
             value={colorState.colorNoiseSpeed}
             min={0}
             max={1}

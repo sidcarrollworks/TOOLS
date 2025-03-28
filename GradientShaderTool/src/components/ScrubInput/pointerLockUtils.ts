@@ -1,4 +1,4 @@
-// Cursor and pointer lock utilities for FigmaInput component
+// Cursor and pointer lock utilities for ScrubInput component
 import { getActiveInstance } from "./instanceManager";
 
 // Custom cursor SVG as a data URL
@@ -10,21 +10,21 @@ let virtualCursor: HTMLDivElement | null = null;
 
 // Create a direct style tag for ensuring consistent cursor
 export const ensureCursorStyle = () => {
-  const styleId = "figma-input-drag-style";
+  const styleId = "scrub-input-drag-style";
   if (document.getElementById(styleId)) return;
 
   const styleTag = document.createElement("style");
   styleTag.id = styleId;
   styleTag.textContent = `
-    html.figma-input-dragging-active,
-    html.figma-input-dragging-active *,
-    body.figma-input-dragging-active,
-    body.figma-input-dragging-active * {
+    html.scrub-input-dragging-active,
+    html.scrub-input-dragging-active *,
+    body.scrub-input-dragging-active,
+    body.scrub-input-dragging-active * {
       cursor: none !important;
       user-select: none !important;
     }
     
-    .figma-input-drag-overlay {
+    .scrub-input-drag-overlay {
       position: fixed !important;
       top: 0 !important;
       left: 0 !important;
@@ -38,7 +38,7 @@ export const ensureCursorStyle = () => {
       touch-action: none !important;
     }
     
-    .figma-input-virtual-cursor {
+    .scrub-input-virtual-cursor {
       position: fixed !important;
       width: 19px !important;
       height: 11px !important;
@@ -53,8 +53,8 @@ export const ensureCursorStyle = () => {
     }
     
     /* Add cursor hiding style for entire document during pointer lock */
-    html.figma-input-pointer-lock-active,
-    html.figma-input-pointer-lock-active * {
+    html.scrub-input-pointer-lock-active,
+    html.scrub-input-pointer-lock-active * {
       cursor: none !important;
     }
   `;
@@ -70,7 +70,7 @@ export const initDragOverlay = () => {
   ensureCursorStyle();
 
   dragOverlay = document.createElement("div");
-  dragOverlay.className = "figma-input-drag-overlay";
+  dragOverlay.className = "scrub-input-drag-overlay";
 
   // Apply all styles directly to the element
   Object.assign(dragOverlay.style, {
@@ -113,7 +113,7 @@ export const initVirtualCursor = () => {
 
   // Create a new cursor element
   virtualCursor = document.createElement("div");
-  virtualCursor.className = "figma-input-virtual-cursor";
+  virtualCursor.className = "scrub-input-virtual-cursor";
 
   // Style the virtual cursor
   Object.assign(virtualCursor.style, {
@@ -210,9 +210,9 @@ export const requestPointerLock = (element: Element) => {
 
 // Force cursor to be visible
 export const forceCursorVisible = () => {
-  document.documentElement.classList.remove("figma-input-pointer-lock-active");
-  document.documentElement.classList.remove("figma-input-dragging-active");
-  document.body.classList.remove("figma-input-dragging-active");
+  document.documentElement.classList.remove("scrub-input-pointer-lock-active");
+  document.documentElement.classList.remove("scrub-input-dragging-active");
+  document.body.classList.remove("scrub-input-dragging-active");
 
   // Force cursor to be visible with a temporary style
   const styleElement = document.createElement("style");
@@ -230,10 +230,10 @@ export const forceCursorVisible = () => {
 // Set pointer lock active state
 export const setPointerLockActiveState = (active: boolean) => {
   if (active) {
-    document.documentElement.classList.add("figma-input-pointer-lock-active");
+    document.documentElement.classList.add("scrub-input-pointer-lock-active");
   } else {
     document.documentElement.classList.remove(
-      "figma-input-pointer-lock-active"
+      "scrub-input-pointer-lock-active"
     );
   }
 };
