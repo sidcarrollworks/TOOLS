@@ -570,9 +570,9 @@ export const defaultSettings: SettingsConfig = {
           settings: [
             {
               id: "presetDefault",
-              label: "Default",
+              label: "Source Milk",
               type: "button",
-              buttonText: "Default",
+              buttonText: "Source Milk",
               description: "Reset to default settings",
             },
             {

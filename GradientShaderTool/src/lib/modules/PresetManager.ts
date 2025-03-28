@@ -26,7 +26,7 @@ export class PresetManager {
   }
 
   /**
-   * Default preset
+   * Source Milk preset
    */
   presetDefault(): void {
     // Reset plane dimensions

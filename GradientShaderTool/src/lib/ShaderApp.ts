@@ -317,7 +317,7 @@ export class ShaderApp {
 
     // Preset functions
     this.presets = {
-      Default: this.presetManager.presetDefault.bind(this.presetManager),
+      "Source Milk": this.presetManager.presetDefault.bind(this.presetManager),
       "Ocean Waves": this.presetManager.presetOceanWaves.bind(
         this.presetManager
       ),
@@ -350,7 +350,7 @@ export class ShaderApp {
       this.utils.setupStats(this, false);
 
       // Load default preset
-      this.presetManager.presetDefault();
+      this.presetManager.presetAbstractArt();
 
       // Ensure parameters are properly applied on initial load
       this.updateParams(true);

@@ -18,8 +18,8 @@ export function initializePresetStore(): void {
   // Default presets from our application
   const defaultPresets: Preset[] = [
     {
-      id: "preset-default",
-      name: "Milky",
+      id: "preset-source-milk",
+      name: "Source Milk",
       description: "Reset to default settings",
       isBuiltIn: true,
       parameters: {},

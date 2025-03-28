@@ -19,7 +19,7 @@ import sourcemilkImage from "../../assets/presetImages/sourcemilk.png";
 
 // Mapping from preset ID to facade preset name
 const presetIdToFacadeName = new Map<string, string>([
-  ["preset-default", "Default"],
+  ["preset-source-milk", "Source Milk"],
   ["preset-ocean-waves", "Ocean Waves"],
   ["preset-lava-flow", "Lava Flow"],
   ["preset-abstract-art", "Abstract Art"],
@@ -30,7 +30,7 @@ const presetIdToImage = new Map<string, string>([
   ["preset-ocean-waves", oceanwavesImage],
   ["preset-lava-flow", lavaImage],
   ["preset-abstract-art", abstractImage],
-  ["preset-default", sourcemilkImage],
+  ["preset-source-milk", sourcemilkImage],
 ]);
 
 // Function to get preset name for a given ID
