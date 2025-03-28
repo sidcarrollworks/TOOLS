@@ -24,8 +24,8 @@ interface DirectionControlProps {
   valueX: number; // Current X value (-1 to 1)
   valueY: number; // Current Y value (-1 to 1)
   speed: number; // Current speed value
-  min: number; // Min value for X/Y
-  max: number; // Max value for X/Y
+  min?: number; // Min value for X/Y
+  max?: number; // Max value for X/Y
   minSpeed: number; // Min value for speed
   maxSpeed: number; // Max value for speed
   step: number; // Step increment for values

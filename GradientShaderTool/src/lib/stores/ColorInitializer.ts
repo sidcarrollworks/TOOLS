@@ -117,52 +117,6 @@ export class ColorInitializer extends InitializerBase<ColorParameters> {
       updateFacade: true,
       registerEventListeners: true,
     });
-
-    // Force correct values for animation speeds to fix export issue
-    this.forceCorrectAnimationSpeeds();
-  }
-
-  /**
-   * Fix animation speeds that might be incorrect
-   */
-  private forceCorrectAnimationSpeeds(): void {
-    const facade = facadeSignal.value;
-
-    if (!facade || !facade.isInitialized()) {
-      // Cannot force animation speeds - facade not available
-      return;
-    }
-
-    // Get current values
-    const currentColorNoiseSpeed = facade.getParam("colorNoiseSpeed");
-    const currentGradientShiftSpeed = facade.getParam("gradientShiftSpeed");
-
-    // Check if they don't match defaults and force update if needed
-    if (currentColorNoiseSpeed !== DEFAULT_COLOR_PARAMETERS.colorNoiseSpeed) {
-      // Fixing colorNoiseSpeed
-      facade.updateParam(
-        "colorNoiseSpeed",
-        DEFAULT_COLOR_PARAMETERS.colorNoiseSpeed
-      );
-      this.updateParameter(
-        "colorNoiseSpeed",
-        DEFAULT_COLOR_PARAMETERS.colorNoiseSpeed
-      );
-    }
-
-    if (
-      currentGradientShiftSpeed !== DEFAULT_COLOR_PARAMETERS.gradientShiftSpeed
-    ) {
-      // Fixing gradientShiftSpeed
-      facade.updateParam(
-        "gradientShiftSpeed",
-        DEFAULT_COLOR_PARAMETERS.gradientShiftSpeed
-      );
-      this.updateParameter(
-        "gradientShiftSpeed",
-        DEFAULT_COLOR_PARAMETERS.gradientShiftSpeed
-      );
-    }
   }
 
   /**
@@ -194,21 +148,6 @@ export class ColorInitializer extends InitializerBase<ColorParameters> {
 
     // Call the base implementation
     super.syncWithFacade();
-
-    // Get current signal values after sync
-    const afterValues = {
-      color1: this.getSignal("color1").value,
-      color2: this.getSignal("color2").value,
-      color3: this.getSignal("color3").value,
-      color4: this.getSignal("color4").value,
-      gradientMode: this.getSignal("gradientMode").value,
-      gradientShiftX: this.getSignal("gradientShiftX").value,
-      gradientShiftY: this.getSignal("gradientShiftY").value,
-      gradientShiftSpeed: this.getSignal("gradientShiftSpeed").value,
-      colorNoiseScale: this.getSignal("colorNoiseScale").value,
-      colorNoiseSpeed: this.getSignal("colorNoiseSpeed").value,
-      backgroundColor: this.getSignal("backgroundColor").value,
-    };
 
     // Verify sync was successful and force update any mismatched values
     Object.entries(beforeValues).forEach(([key, facadeValue]) => {
@@ -282,7 +221,10 @@ export class ColorInitializer extends InitializerBase<ColorParameters> {
       try {
         facade.updateParam("exportTransparentBg", value);
       } catch (error) {
-        // Error updating facade parameter
+        console.error(
+          "Error updating facade exportTransparentBg parameter:",
+          error
+        );
       }
     }
 
@@ -297,10 +239,13 @@ export class ColorInitializer extends InitializerBase<ColorParameters> {
             exportInitializer.updateParameter("transparent", value);
           })
           .catch((err) => {
-            // Error updating ExportInitializer
+            console.error(
+              "Error updating ExportInitializer transparent parameter:",
+              err
+            );
           });
       } catch (error) {
-        // Error syncing with export components
+        console.error("Error syncing with export components:", error);
       }
     }
 

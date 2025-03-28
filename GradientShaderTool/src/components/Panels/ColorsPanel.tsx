@@ -428,10 +428,8 @@ export const ColorsPanel: FunctionComponent<ColorsPanelProps> = () => {
           valueX={colorState.gradientShiftX}
           valueY={colorState.gradientShiftY}
           speed={colorState.gradientShiftSpeed}
-          min={-0.5}
-          max={0.5}
           minSpeed={0}
-          maxSpeed={1}
+          maxSpeed={0.5}
           step={0.01}
           onChangeX={handleGradientShiftXChange}
           onChangeY={handleGradientShiftYChange}
