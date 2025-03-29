@@ -1,6 +1,7 @@
 import type { ComponentType } from "preact";
 import { useEffect, useRef, useCallback } from "preact/hooks";
 import { signal, computed, batch } from "@preact/signals";
+import { Analytics } from "@vercel/analytics/react";
 import "./styles/index.css";
 import ShaderCanvas from "./components/ShaderCanvas/ShaderCanvas";
 import { DevPanel } from "./components/DevPanel";
@@ -400,6 +401,7 @@ export const App: ComponentType = () => {
           </div>
         </FacadeProvider>
       </FacadeErrorBoundary>
+      <Analytics />
     </div>
   );
 };
