@@ -11,12 +11,6 @@ import {
 } from "./components/SidebarPanel/SidePanel";
 // Import splash screen component
 import { SplashScreen } from "./components/SplashScreen";
-// Import settings system
-import {
-  initializeSettingsSystem,
-  connectSettingsToShaderApp,
-  initializeSettingsFromShaderApp,
-} from "./lib/settings/initApp";
 // Import facade components
 import {
   FacadeProvider,
@@ -33,6 +27,7 @@ import { getDistortionInitializer } from "./lib/stores/DistortionInitializer";
 import { getColorInitializer } from "./lib/stores/ColorInitializer";
 import { getLightingInitializer } from "./lib/stores/LightingInitializer";
 import { getExportInitializer } from "./lib/stores/ExportInitializer";
+import { getCameraInitializer } from "./lib/stores/CameraInitializer";
 
 // Enable debug mode for diagnostics
 if (typeof window !== "undefined") {
@@ -100,9 +95,6 @@ const isPausedSignal = computed(() => {
   // Get the pauseAnimation parameter from the facade
   return facade.getParam("pauseAnimation");
 });
-
-// Initialize the settings system
-initializeSettingsSystem();
 
 // Initialize the stores
 initializeStores();
@@ -292,12 +284,6 @@ export const App: ComponentType = () => {
       appInitializedSignal.value = true;
       initializationErrorSignal.value = null;
 
-      // Initialize settings from the facade
-      initializeSettingsFromShaderApp(facade);
-
-      // Connect settings to the facade
-      connectSettingsToShaderApp(facade);
-
       // Initialize stores
       initializeStores();
       // Initialize stores with facade
@@ -315,6 +301,8 @@ export const App: ComponentType = () => {
       getLightingInitializer().syncWithFacade();
       // Initialize our refactored export parameters
       getExportInitializer().syncWithFacade();
+      // Initialize camera parameters
+      getCameraInitializer().syncWithFacade();
 
       // Disable adaptive resolution for higher quality
       facade.updateParam("useAdaptiveResolution", false);

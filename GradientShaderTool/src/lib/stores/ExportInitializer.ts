@@ -389,15 +389,6 @@ export class ExportInitializer extends InitializerBase<ExportParameters> {
     // Only sync with ColorInitializer if this update didn't come from it
     if (source !== "color") {
       try {
-        // Update global settings
-        import("../../lib/settings/store")
-          .then(({ updateSettingValue }) => {
-            updateSettingValue("transparentBackground", transparent);
-          })
-          .catch((err) => {
-            // Error updating settings
-          });
-
         // Update ColorInitializer
         import("./ColorInitializer")
           .then(({ getColorInitializer }) => {

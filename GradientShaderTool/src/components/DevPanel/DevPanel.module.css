@@ -1,7 +1,7 @@
 .devPanel {
   position: fixed;
-  top: 20px;
-  left: 20px;
+  top: 10px;
+  left: 10px;
   background-color: color-mix(in srgb, var(--gray-2) 90%, transparent);
   border: 1px solid var(--gray-a4);
   border-radius: 6px;

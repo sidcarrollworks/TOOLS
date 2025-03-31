@@ -18,7 +18,7 @@ import { EventEmitter } from "./EventEmitter";
 import type { FacadeConfig } from "./FacadeConfig";
 import { createConfig } from "./FacadeConfig";
 import type { ShaderApp, ShaderParams } from "../ShaderApp";
-import { validateSetting } from "../settings/mappings/utils";
+import { validateSetting, validateParameter } from "./ValidationUtils";
 import * as THREE from "three";
 
 /**
@@ -411,30 +411,8 @@ export class ShaderAppFacade extends EventEmitter implements IShaderAppFacade {
   ): ValidationResult {
     // This doesn't require initialization since it doesn't access ShaderApp
 
-    // Default to valid
-    const result: ValidationResult = { valid: true };
-
-    try {
-      // Use setting validation from the mapping system
-      const valid = validateSetting(paramName as string, value);
-
-      if (!valid) {
-        result.valid = false;
-        result.message = `Value out of range or incorrect type for ${String(
-          paramName
-        )}`;
-      }
-
-      return result;
-    } catch (error) {
-      // Handle errors during validation
-      return {
-        valid: false,
-        message: `Error validating parameter ${String(paramName)}: ${
-          (error as Error).message
-        }`,
-      };
-    }
+    // Use our enhanced validation utility
+    return validateParameter(paramName, value);
   }
 
   // === Preset Management ===

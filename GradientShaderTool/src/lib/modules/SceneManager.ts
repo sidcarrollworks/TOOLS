@@ -4,6 +4,7 @@
 import * as THREE from "three";
 import { OrbitControls } from "three/examples/jsm/controls/OrbitControls.js";
 import { ShaderApp } from "../ShaderApp";
+import { getCameraInitializer } from "../stores/CameraInitializer";
 
 // Define the interface for camera settings updates
 interface CameraSettings {
@@ -15,13 +16,6 @@ interface CameraSettings {
   cameraTargetY?: number;
   cameraTargetZ?: number;
   cameraFov?: number;
-}
-
-// Type definition for the global function
-declare global {
-  interface Window {
-    __updateCameraSettings?: (settings: CameraSettings) => void;
-  }
 }
 
 export class SceneManager {
@@ -81,6 +75,9 @@ export class SceneManager {
       powerPreference: "high-performance",
       // THREE.js will use WebGL2 if available by default
     });
+
+    // Set the pixel ratio for proper rendering on high DPI displays
+    this.app.renderer.setPixelRatio(window.devicePixelRatio);
 
     if (webGL2Available) {
       console.info("Using WebGL2");
@@ -176,6 +173,9 @@ export class SceneManager {
     this.app.camera.aspect = width / height;
     this.app.camera.updateProjectionMatrix();
 
+    // Reset the pixel ratio in case the device pixel ratio has changed
+    this.app.renderer.setPixelRatio(window.devicePixelRatio);
+
     // Update renderer size
     this.app.renderer.setSize(width, height);
 
@@ -248,22 +248,22 @@ export class SceneManager {
       this.app.params.cameraTargetY = this.app.controls.target.y;
       this.app.params.cameraTargetZ = this.app.controls.target.z;
 
-      // Update the settings system with new camera values
+      // Update the CameraInitializer with new camera values
       try {
         // Create an update function that uses requestAnimationFrame
         const updateSettings = () => {
-          // Update camera position in settings
-          if (typeof window !== "undefined" && window.__updateCameraSettings) {
-            window.__updateCameraSettings({
-              cameraDistance: distance,
-              cameraPosX: this.app.camera?.position.x,
-              cameraPosY: this.app.camera?.position.y,
-              cameraPosZ: this.app.camera?.position.z,
-              cameraTargetX: this.app.controls?.target.x,
-              cameraTargetY: this.app.controls?.target.y,
-              cameraTargetZ: this.app.controls?.target.z,
-            });
-          }
+          // Get the camera initializer
+          const cameraInitializer = getCameraInitializer();
+
+          // Update camera position and target
+          cameraInitializer.updateFromFacade(
+            this.app.camera?.position.x || 0,
+            this.app.camera?.position.y || 0,
+            this.app.camera?.position.z || 0,
+            this.app.controls?.target.x || 0,
+            this.app.controls?.target.y || 0,
+            this.app.controls?.target.z || 0
+          );
         };
 
         // Cancel existing animation frame if there is one
