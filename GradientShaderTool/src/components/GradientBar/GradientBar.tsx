@@ -2,8 +2,13 @@ import type { FunctionComponent } from "preact";
 import { useRef, useState, useEffect } from "preact/hooks";
 import { MAX_COLOR_STOPS } from "../../lib/types/ColorStop";
 import type { ColorStop } from "../../lib/types/ColorStop";
+import { GradientMode } from "../../lib/types/ColorStop";
 import { ColorInput } from "../UI";
 import { X } from "../UI/Icons/X";
+import {
+  getCSSGradientStyle,
+  renderGradientToCanvas,
+} from "../../lib/modules/GradientRenderer";
 import styles from "./GradientBar.module.css";
 
 // Enhanced ColorStop that includes a unique ID for tracking
@@ -17,10 +22,16 @@ interface GradientBarProps {
   maxStops?: number;
   height?: number;
   className?: string;
+  gradientMode?: GradientMode;
 }
 
 // Helper to generate a unique ID
 const generateId = () => Math.random().toString(36).substring(2, 9);
+
+// Determine which modes need canvas rendering
+const needsCanvasRendering = (mode: GradientMode): boolean => {
+  return mode === GradientMode.BSpline || mode === GradientMode.SmoothStep;
+};
 
 const GradientBar: FunctionComponent<GradientBarProps> = ({
   colorStops,
@@ -28,6 +39,7 @@ const GradientBar: FunctionComponent<GradientBarProps> = ({
   maxStops = MAX_COLOR_STOPS,
   height = 24,
   className = "",
+  gradientMode = GradientMode.BSpline,
 }) => {
   // Convert incoming ColorStops to EnhancedColorStops with IDs
   const [enhancedStops, setEnhancedStops] = useState<EnhancedColorStop[]>([]);
@@ -39,6 +51,7 @@ const GradientBar: FunctionComponent<GradientBarProps> = ({
 
   // Refs for DOM elements and interaction tracking
   const barRef = useRef<HTMLDivElement>(null);
+  const canvasRef = useRef<HTMLCanvasElement>(null);
   const justFinishedDragging = useRef(false);
   const mouseMoveHandlerRef = useRef<((e: MouseEvent) => void) | null>(null);
   const mouseUpHandlerRef = useRef<((e: MouseEvent) => void) | null>(null);
@@ -78,10 +91,40 @@ const GradientBar: FunctionComponent<GradientBarProps> = ({
     ? enhancedStops.findIndex((stop) => stop.id === activeStop.id)
     : null;
 
-  // Generate CSS gradient string from color stops
-  const gradientStyle = `linear-gradient(to right, ${sortedStops
-    .map((stop) => `${stop.color} ${stop.position * 100}%`)
-    .join(", ")})`;
+  // Generate CSS gradient style from color stops
+  const gradientStyle = needsCanvasRendering(gradientMode)
+    ? "transparent" // Use transparent for canvas-rendered modes
+    : getCSSGradientStyle(sortedStops, gradientMode);
+
+  // Handle rendering the gradient in the canvas (when needed)
+  useEffect(() => {
+    // Only render to canvas for modes that need it
+    if (
+      !needsCanvasRendering(gradientMode) ||
+      !canvasRef.current ||
+      sortedStops.length === 0
+    ) {
+      return;
+    }
+
+    const canvas = canvasRef.current;
+
+    // Set canvas dimensions to match container
+    if (barRef.current) {
+      const containerRect = barRef.current.getBoundingClientRect();
+      // Use a higher resolution for sharper gradients
+      const scale = window.devicePixelRatio || 1;
+      canvas.width = containerRect.width * scale;
+      canvas.height = height * scale;
+
+      // Scale down with CSS to match container size
+      canvas.style.width = `${containerRect.width}px`;
+      canvas.style.height = `${height}px`;
+    }
+
+    // Render the gradient to the canvas
+    renderGradientToCanvas(canvas, sortedStops, gradientMode);
+  }, [sortedStops, gradientMode, height]);
 
   // Handle stop selection
   const handleStopClick = (stop: EnhancedColorStop, e: MouseEvent) => {
@@ -308,6 +351,11 @@ const GradientBar: FunctionComponent<GradientBarProps> = ({
         }}
         onClick={(e) => handleBarClick(e as MouseEvent)}
       >
+        {/* Canvas for gradient modes that need rendering */}
+        {needsCanvasRendering(gradientMode) && (
+          <canvas ref={canvasRef} className={styles.gradientCanvas} />
+        )}
+
         {/* Color stops */}
         {sortedStops.map((stop) => {
           const isActive = activeStopId === stop.id;

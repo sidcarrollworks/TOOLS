@@ -8,6 +8,16 @@ export interface ColorStop {
 }
 
 /**
+ * Enum for gradient interpolation modes
+ */
+export enum GradientMode {
+  BSpline = 0,
+  Linear = 1,
+  Step = 2,
+  SmoothStep = 3,
+}
+
+/**
  * Type guard to check if an object is a valid ColorStop
  */
 export function isColorStop(obj: any): obj is ColorStop {

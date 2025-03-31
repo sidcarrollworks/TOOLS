@@ -323,6 +323,7 @@ export const ColorsPanel: FunctionComponent<ColorsPanelProps> = () => {
           colorStops={colorState.colorStops}
           onChange={handleColorStopsChange}
           maxStops={MAX_COLOR_STOPS}
+          gradientMode={colorState.gradientMode}
         />
       </SettingsGroup>
 
