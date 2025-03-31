@@ -1,15 +1,6 @@
 # GradientBar Component - Remaining Tasks
 
-## 1. Update Presets for New Gradient Bar
-
-The current presets system needs to be updated to properly work with our enhanced GradientBar component:
-
-- Update the preset data structure to include color stops array rather than individual color properties
-- Ensure the preset loading/saving mechanism correctly handles the new format
-- Add migration logic to convert older presets with color1-4 format to the new colorStops array format
-- Test preset application to ensure color stops are correctly applied when loading a preset
-
-## 2. Create Color Picker Popover
+## 1. Create Color Picker Popover
 
 Implement a new color picker component that appears in a popover directly over the selected color stop, similar to this design:
 
@@ -45,7 +36,7 @@ interface ColorPickerPopoverProps {
 }
 ```
 
-## 3. Implement Gradient Mode Visualization
+## 2. Implement Gradient Mode Visualization
 
 The gradient display should change based on the selected gradient mode:
 

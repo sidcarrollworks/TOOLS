@@ -20,9 +20,6 @@ uniform float uGradientShiftSpeed;
 uniform sampler2D uColorStops;
 uniform int uColorStopCount;
 
-// Legacy color uniforms - kept for backward compatibility
-uniform vec3 uColors[4];
-
 uniform vec3 uLightDir;
 uniform float uDiffuseIntensity;
 uniform float uAmbientIntensity;
@@ -101,33 +98,9 @@ vec4 getColorStop(int index) {
 
 // Find the two color stops surrounding position t and interpolate between them
 vec3 multiStopGradient(float t) {
-    // If we don't have stops or have only one stop, use legacy colors
-    if (uColorStopCount <= 1) {
-        vec3 c1 = uColors[0];
-        vec3 c2 = uColors[1];
-        vec3 c3 = uColors[2];
-        vec3 c4 = uColors[3];
-        
-        // Choose gradient function based on mode
-        if (uGradientMode == 0) {
-            return bSpline(c1, c2, c3, c4, t);
-        } 
-        else if (uGradientMode == 1) {
-            if (t < 0.33) {
-                return linearGradient(c1, c2, t * 3.0);
-            } else if (t < 0.66) {
-                return linearGradient(c2, c3, (t - 0.33) * 3.0);
-            } else {
-                return linearGradient(c3, c4, (t - 0.66) * 3.0);
-            }
-        }
-        else if (uGradientMode == 2) {
-            return stepGradient(uColors, t);
-        }
-        else if (uGradientMode == 3) {
-            return smoothStepGradient(uColors, t);
-        }
-        return bSpline(c1, c2, c3, c4, t);
+    // If we don't have stops, use a fallback color
+    if (uColorStopCount <= 0) {
+        return vec3(1.0, 0.0, 1.0); // Error color (magenta)
     }
     
     // Edge cases - before first stop or after last stop

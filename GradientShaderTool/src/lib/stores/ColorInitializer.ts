@@ -105,45 +105,6 @@ export class ColorInitializer extends InitializerBase<ColorParameters> {
       updateFacade: true,
       registerEventListeners: true,
     });
-
-    // Add compatibility for old color parameters
-    this.handleLegacyColors();
-  }
-
-  /**
-   * Handle legacy color parameters for backward compatibility
-   */
-  private handleLegacyColors(): void {
-    const facade = facadeSignal.value;
-    if (!facade) return;
-
-    try {
-      // Create colorStops from individual colors in facade
-      const c1 =
-        facade.getParam("color1") ||
-        DEFAULT_COLOR_PARAMETERS.colorStops[0].color;
-      const c2 =
-        facade.getParam("color2") ||
-        DEFAULT_COLOR_PARAMETERS.colorStops[1].color;
-      const c3 =
-        facade.getParam("color3") ||
-        DEFAULT_COLOR_PARAMETERS.colorStops[2].color;
-      const c4 =
-        facade.getParam("color4") ||
-        DEFAULT_COLOR_PARAMETERS.colorStops[3].color;
-
-      const colorStops: ColorStop[] = [
-        { position: 0.0, color: c1 },
-        { position: 0.33, color: c2 },
-        { position: 0.66, color: c3 },
-        { position: 1.0, color: c4 },
-      ];
-
-      // Update the colorStops signal
-      this.updateParameter("colorStops", colorStops);
-    } catch (error) {
-      console.error("Error creating colorStops from legacy colors:", error);
-    }
   }
 
   /**
@@ -160,85 +121,24 @@ export class ColorInitializer extends InitializerBase<ColorParameters> {
     // Call the base implementation for regular parameters
     super.syncWithFacade();
 
-    // Special handling for colorStops - we need to create them from individual colors
+    // Special handling for colorStops - we need to check if they exist in facade params
     try {
-      // Get current colorStops
-      const currentColorStops = this.getSignal("colorStops").value;
-
-      // If we have at least 4 color stops already defined, we don't need to sync from facade's individual colors
-      if (currentColorStops.length >= 4) {
-        // Just update individual colors in facade for backward compatibility
-        this.syncColorsToFacade();
+      // Get colorStops from the facade
+      const facadeParams = facade.getAllParams();
+      if (facadeParams.colorStops && facadeParams.colorStops.length > 0) {
+        // Facade has colorStops parameter, use it directly
+        this.updateParameter("colorStops", facadeParams.colorStops);
         return true;
+      } else {
+        // No colorStops found in facade, use defaults
+        console.warn("No colorStops found in facade params, using defaults");
+        this.updateParameter("colorStops", DEFAULT_COLOR_PARAMETERS.colorStops);
       }
-
-      // Create colorStops from individual colors in facade
-      const c1 =
-        facade.getParam("color1") ||
-        DEFAULT_COLOR_PARAMETERS.colorStops[0].color;
-      const c2 =
-        facade.getParam("color2") ||
-        DEFAULT_COLOR_PARAMETERS.colorStops[1].color;
-      const c3 =
-        facade.getParam("color3") ||
-        DEFAULT_COLOR_PARAMETERS.colorStops[2].color;
-      const c4 =
-        facade.getParam("color4") ||
-        DEFAULT_COLOR_PARAMETERS.colorStops[3].color;
-
-      const colorStops: ColorStop[] = [
-        { position: 0.0, color: c1 },
-        { position: 0.33, color: c2 },
-        { position: 0.66, color: c3 },
-        { position: 1.0, color: c4 },
-      ];
-
-      // Update the colorStops signal
-      this.updateParameter("colorStops", colorStops);
     } catch (error) {
       console.error("Error syncing colorStops from facade:", error);
     }
 
     return true;
-  }
-
-  /**
-   * Sync individual color parameters to facade for backward compatibility
-   */
-  private syncColorsToFacade(): void {
-    const facade = facadeSignal.value;
-    if (!facade) return;
-
-    try {
-      const colorStops = this.getSignal("colorStops").value;
-
-      // Sort stops by position to ensure we get the right colors
-      const sortedStops = sortColorStops(colorStops);
-
-      // Find the closest stops to the legacy positions
-      const getClosestStop = (position: number) => {
-        return sortedStops.reduce((prev, curr) =>
-          Math.abs(curr.position - position) <
-          Math.abs(prev.position - position)
-            ? curr
-            : prev
-        );
-      };
-
-      // Use the closest stops for the legacy positions, or first/last for extremes
-      const color1 = sortedStops[0].color;
-      const color2 = getClosestStop(0.33).color;
-      const color3 = getClosestStop(0.66).color;
-      const color4 = sortedStops[sortedStops.length - 1].color;
-
-      // Set parameters directly on facade
-      facade.updateParam("color1", color1);
-      facade.updateParam("color2", color2);
-      facade.updateParam("color3", color3);
-      facade.updateParam("color4", color4);
-    } catch (error) {
-      console.error("Error syncing colors to facade:", error);
-    }
   }
 
   /**
@@ -346,29 +246,6 @@ export class ColorInitializer extends InitializerBase<ColorParameters> {
 
     // Update parameter
     return this.updateParameter("colorStops", newStops);
-  }
-
-  /**
-   * Update a color parameter
-   */
-  updateParameter<K extends keyof ColorParameters>(
-    key: K,
-    value: ColorParameters[K]
-  ): boolean {
-    // Special handling for colorStops
-    if (key === "colorStops") {
-      const result = super.updateParameter(key, value);
-
-      // Update facade with individual colors for backward compatibility
-      if (result) {
-        this.syncColorsToFacade();
-      }
-
-      return result;
-    }
-
-    // Default handling for other parameters
-    return super.updateParameter(key, value);
   }
 
   /**

@@ -6,11 +6,84 @@ import { PresetManager } from "./modules/PresetManager";
 import { Utils } from "./modules/Utils";
 import Stats from "stats.js";
 import { getCameraInitializer } from "./stores/CameraInitializer";
+import type { ColorStop } from "./types/ColorStop";
 
 // Define types
 export interface ShaderParams {
-  // Geometry type and parameters
-  geometryType: string; // 'plane', 'sphere', 'cube', etc.
+  // Geometry parameters
+  geometryType: string;
+  geometryWidth: number;
+  geometryHeight: number;
+  geometryDepth: number;
+  geometrySegments: number;
+  geometryScale: number;
+  showWireframe: boolean;
+
+  // Rotation parameters
+  autoRotate: boolean;
+  rotateX: number;
+  rotateY: number;
+  rotateZ: number;
+  rotationSpeed: number;
+
+  // Camera parameters
+  cameraDistance: number;
+  cameraPosX: number;
+  cameraPosY: number;
+  cameraPosZ: number;
+  cameraTargetX: number;
+  cameraTargetY: number;
+  cameraTargetZ: number;
+  cameraFov: number;
+
+  // Background
+  backgroundColor: string;
+
+  // Noise parameters
+  normalNoiseScaleX: number;
+  normalNoiseScaleY: number;
+  normalNoiseSpeed: number;
+  normalNoiseStrength: number;
+  normalNoiseShiftX: number;
+  normalNoiseShiftY: number;
+  normalNoiseShiftSpeed: number;
+
+  // Color parameters
+  colorNoiseScale: number;
+  colorNoiseSpeed: number;
+  gradientMode: number;
+  gradientShiftX: number;
+  gradientShiftY: number;
+  gradientShiftSpeed: number;
+
+  /** @deprecated Legacy color properties - use colorStops instead */
+  color1: string;
+  /** @deprecated Legacy color properties - use colorStops instead */
+  color2: string;
+  /** @deprecated Legacy color properties - use colorStops instead */
+  color3: string;
+  /** @deprecated Legacy color properties - use colorStops instead */
+  color4: string;
+
+  // Enhanced color stops array (replaces the need for individual color1-4)
+  colorStops: ColorStop[];
+
+  // Lighting parameters
+  lightDirX: number;
+  lightDirY: number;
+  lightDirZ: number;
+  diffuseIntensity: number;
+  ambientIntensity: number;
+  rimLightIntensity: number;
+
+  // Grain effect parameters
+  enableGrain: boolean;
+  grainIntensity: number;
+  grainScale: number;
+  grainDensity: number;
+  grainSpeed: number;
+  grainThreshold: number;
+
   // Plane geometry
   planeWidth: number;
   planeHeight: number;
@@ -28,68 +101,6 @@ export interface ShaderParams {
   cubeHeightSegments: number;
   cubeDepthSegments: number;
 
-  // Rotation
-  rotationX: number;
-  rotationY: number;
-  rotationZ: number;
-
-  // Camera
-  cameraDistance: number;
-  cameraFov: number;
-  cameraPosX: number;
-  cameraPosY: number;
-  cameraPosZ: number;
-  cameraTargetX: number;
-  cameraTargetY: number;
-  cameraTargetZ: number;
-
-  // Normal noise
-  normalNoiseScaleX: number;
-  normalNoiseScaleY: number;
-  normalNoiseSpeed: number;
-  normalNoiseStrength: number;
-  normalNoiseShiftX: number;
-  normalNoiseShiftY: number;
-  normalNoiseShiftSpeed: number;
-
-  // Color noise
-  colorNoiseScale: number;
-  colorNoiseSpeed: number;
-
-  // Grain effect
-  enableGrain: boolean;
-  grainIntensity: number;
-  grainScale: number;
-  grainDensity: number;
-  grainSpeed: number;
-  grainThreshold: number;
-
-  // Gradient shift
-  gradientShiftX: number;
-  gradientShiftY: number;
-  gradientShiftSpeed: number;
-
-  // Colors
-  gradientMode: number;
-  color1: string;
-  color2: string;
-  color3: string;
-  color4: string;
-
-  // Lighting
-  lightDirX: number;
-  lightDirY: number;
-  lightDirZ: number;
-  diffuseIntensity: number;
-  ambientIntensity: number;
-  rimLightIntensity: number;
-
-  // Visualization
-  backgroundColor: string;
-  showWireframe: boolean;
-  wireframeColor: string;
-  flatShading: boolean;
-
   // Animation
   animationSpeed: number;
   pauseAnimation: boolean;
@@ -105,27 +116,26 @@ export interface ShaderPresets {
 }
 
 export class ShaderApp {
-  // Three.js objects
-  scene: THREE.Scene | null;
-  camera: THREE.PerspectiveCamera | null;
-  renderer: THREE.WebGLRenderer | null;
-  controls: OrbitControls | null;
-  plane: THREE.Mesh | null;
-  geometry: THREE.BufferGeometry | null;
-  material: THREE.ShaderMaterial | null;
+  scene: THREE.Scene | null = null;
+  camera: THREE.PerspectiveCamera | null = null;
+  renderer: THREE.WebGLRenderer | null = null;
+  controls: OrbitControls | null = null;
+  plane: THREE.Mesh | null = null;
+  geometry: THREE.BufferGeometry | null = null;
+  material: THREE.ShaderMaterial | null = null;
 
-  // GUI and control state
+  // Parameters and presets
   params: ShaderParams;
   presets: ShaderPresets;
-  controllers: any[];
+  controllers: any[] = [];
 
-  // Animation state
-  time: number;
-  stats: Stats | null;
-  private _animationFrameId: number | null;
-  private _clock: THREE.Clock;
+  // Animation variables
+  time: number = 0;
+  stats: Stats | null = null;
+  private _animationFrameId: number | null = null;
+  private _clock: THREE.Clock = new THREE.Clock();
 
-  // Shader resources
+  // Shader variables
   shaders: {
     perlinNoise: string;
     vertex: string;
@@ -135,17 +145,15 @@ export class ShaderApp {
     sphereFragment: string;
     cubeFragment: string;
   };
-
-  // Uniform values for the shader
   uniforms: { [key: string]: THREE.IUniform };
-  uniformColors: THREE.Vector3[];
 
-  // Module instances
+  // Manager instances
   shaderLoader: ShaderLoader;
   sceneManager: SceneManager;
   presetManager: PresetManager;
   utils: Utils;
 
+  // DOM references
   // Reference to parent element
   parentElement: HTMLElement | null;
 
@@ -180,6 +188,82 @@ export class ShaderApp {
     this.params = {
       // Geometry type and parameters
       geometryType: "plane",
+      geometryWidth: 2,
+      geometryHeight: 2,
+      geometryDepth: 1,
+      geometrySegments: 128,
+      geometryScale: 1.0,
+      showWireframe: false,
+
+      // Rotation parameters
+      autoRotate: false,
+      rotateX: 0,
+      rotateY: 0,
+      rotateZ: 0,
+      rotationSpeed: 0.01,
+
+      // Camera
+      cameraDistance: 2,
+      cameraPosX: 0,
+      cameraPosY: 0,
+      cameraPosZ: 2,
+      cameraTargetX: 0,
+      cameraTargetY: 0,
+      cameraTargetZ: 0,
+      cameraFov: 90,
+
+      // Background
+      backgroundColor: "#111111",
+
+      // Normal noise
+      normalNoiseScaleX: 3.0,
+      normalNoiseScaleY: 3.0,
+      normalNoiseSpeed: 0.2,
+      normalNoiseStrength: 0.15,
+      normalNoiseShiftX: 0.0,
+      normalNoiseShiftY: 0.0,
+      normalNoiseShiftSpeed: 0.0,
+
+      // Color noise
+      colorNoiseScale: 2.0,
+      colorNoiseSpeed: 0.3,
+
+      // Gradient shift
+      gradientShiftX: 0.2,
+      gradientShiftY: 0.1,
+      gradientShiftSpeed: 0.05,
+
+      // Colors
+      gradientMode: 0, // 0: B-spline, 1: Linear, 2: Step, 3: Smooth step
+      color1: "#ff0000",
+      color2: "#00ff00",
+      color3: "#0000ff",
+      color4: "#ffff00",
+
+      // Enhanced color stops array (replaces the need for individual color1-4)
+      colorStops: [
+        { position: 0.0, color: "#ff0000" },
+        { position: 0.33, color: "#00ff00" },
+        { position: 0.66, color: "#0000ff" },
+        { position: 1.0, color: "#ffff00" },
+      ],
+
+      // Lighting
+      lightDirX: 0.5,
+      lightDirY: 0.8,
+      lightDirZ: 1.0,
+      diffuseIntensity: 0.5,
+      ambientIntensity: 0.5,
+      rimLightIntensity: 0.3,
+
+      // Grain effect
+      enableGrain: false,
+      grainIntensity: 0.1,
+      grainScale: 1.0,
+      grainDensity: 0.5,
+      grainSpeed: 0.1,
+      grainThreshold: 0.1,
+
       // Plane geometry
       planeWidth: 2,
       planeHeight: 2,
@@ -197,68 +281,6 @@ export class ShaderApp {
       cubeHeightSegments: 1,
       cubeDepthSegments: 1,
 
-      // Rotation
-      rotationX: -Math.PI / 4, // 45 degrees
-      rotationY: 0,
-      rotationZ: 0,
-
-      // Camera
-      cameraDistance: 2,
-      cameraFov: 90,
-      cameraPosX: 0,
-      cameraPosY: 0,
-      cameraPosZ: 2,
-      cameraTargetX: 0,
-      cameraTargetY: 0,
-      cameraTargetZ: 0,
-
-      // Normal noise
-      normalNoiseScaleX: 3.0,
-      normalNoiseScaleY: 3.0,
-      normalNoiseSpeed: 0.2,
-      normalNoiseStrength: 0.15,
-      normalNoiseShiftX: 0.0,
-      normalNoiseShiftY: 0.0,
-      normalNoiseShiftSpeed: 0.0,
-
-      // Color noise
-      colorNoiseScale: 2.0,
-      colorNoiseSpeed: 0.3,
-
-      // Grain effect
-      enableGrain: false,
-      grainIntensity: 0.1,
-      grainScale: 1.0,
-      grainDensity: 0.5,
-      grainSpeed: 0.1,
-      grainThreshold: 0.1,
-
-      // Gradient shift
-      gradientShiftX: 0.2,
-      gradientShiftY: 0.1,
-      gradientShiftSpeed: 0.05,
-
-      // Colors
-      gradientMode: 0, // 0: B-spline, 1: Linear, 2: Step, 3: Smooth step
-      color1: "#ff0000",
-      color2: "#00ff00",
-      color3: "#0000ff",
-      color4: "#ffff00",
-
-      // Lighting
-      lightDirX: 0.5,
-      lightDirY: 0.8,
-      lightDirZ: 1.0,
-      diffuseIntensity: 0.5,
-      ambientIntensity: 0.5,
-      rimLightIntensity: 0.3,
-
-      // Visualization
-      backgroundColor: "#111111",
-      showWireframe: false,
-      wireframeColor: "#ffffff",
-      flatShading: false,
-
       // Animation
       animationSpeed: 0.01,
       pauseAnimation: false,
@@ -268,13 +290,6 @@ export class ShaderApp {
     };
 
     // Uniforms for the shader
-    this.uniformColors = [
-      new THREE.Vector3(1, 0, 0),
-      new THREE.Vector3(0, 1, 0),
-      new THREE.Vector3(0, 0, 1),
-      new THREE.Vector3(1, 1, 0),
-    ];
-
     this.uniforms = {
       uTime: { value: 0.0 },
       uNoiseScaleX: { value: this.params.normalNoiseScaleX },
@@ -308,8 +323,6 @@ export class ShaderApp {
       uGradientShiftX: { value: this.params.gradientShiftX },
       uGradientShiftY: { value: this.params.gradientShiftY },
       uGradientShiftSpeed: { value: this.params.gradientShiftSpeed },
-
-      uColors: { value: this.uniformColors },
 
       uLightDir: {
         value: new THREE.Vector3(
