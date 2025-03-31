@@ -59,11 +59,35 @@ export class SceneManager {
     this.app.camera.position.z = this.app.params.cameraDistance;
 
     // Create renderer
+    // Check if WebGL2 is available
+    let webGL2Available = false;
+    try {
+      const canvas = document.createElement("canvas");
+      webGL2Available = !!(
+        window.WebGL2RenderingContext && canvas.getContext("webgl2")
+      );
+      console.log("WebGL2 available:", webGL2Available);
+    } catch (e) {
+      console.warn("WebGL2 detection failed:", e);
+    }
+
+    // Create renderer with appropriate context
     this.app.renderer = new THREE.WebGLRenderer({
       antialias: true,
       alpha: true,
       premultipliedAlpha: false,
+      canvas: undefined,
+      context: undefined,
+      powerPreference: "high-performance",
+      // THREE.js will use WebGL2 if available by default
     });
+
+    if (webGL2Available) {
+      console.info("Using WebGL2");
+    } else {
+      console.info("WebGL2 not available, using WebGL1");
+    }
+
     this.app.renderer.setSize(
       parentElement.clientWidth,
       parentElement.clientHeight

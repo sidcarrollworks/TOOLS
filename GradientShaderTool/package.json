@@ -6,12 +6,14 @@
   "scripts": {
     "dev": "vite",
     "build": "vite build",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "find-unused-code": "bun ts-prune --project"
   },
   "devDependencies": {
     "@preact/preset-vite": "^2.5.0",
     "@types/bun": "latest",
     "@types/node": "^18.19.3",
+    "ts-prune": "^0.10.3",
     "vite": "^4.5.1"
   },
   "peerDependencies": {
