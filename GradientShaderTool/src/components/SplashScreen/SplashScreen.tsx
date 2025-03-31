@@ -55,7 +55,7 @@ export const SplashScreen: FunctionComponent<SplashScreenProps> = ({
     >
       <div className={styles.container}>
         <div className={styles.content} onClick={(e) => e.stopPropagation()}>
-          <h1 className={styles.title}>Welcome to the Gradient Shader Tool.</h1>
+          <h1 className={styles.title}>Welcome to Gradient Lab.</h1>
           <div className={styles.description}>
             <p>
               I made this tool to help anyone create cool backgrounds for their
