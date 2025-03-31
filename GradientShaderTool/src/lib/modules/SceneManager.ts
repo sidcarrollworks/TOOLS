@@ -5,6 +5,8 @@ import * as THREE from "three";
 import { OrbitControls } from "three/examples/jsm/controls/OrbitControls.js";
 import { ShaderApp } from "../ShaderApp";
 import { getCameraInitializer } from "../stores/CameraInitializer";
+import { getColorInitializer } from "../stores/ColorInitializer";
+import type { ColorStop } from "../types/ColorStop";
 
 // Define the interface for camera settings updates
 interface CameraSettings {
@@ -23,6 +25,9 @@ export class SceneManager {
 
   // Add new property to control adaptive resolution
   private useAdaptiveResolution: boolean = false;
+
+  // Color stops texture for shader
+  private colorStopsTexture: THREE.DataTexture | null = null;
 
   /**
    * Create a SceneManager
@@ -478,7 +483,10 @@ export class SceneManager {
           : 0.0;
     }
 
-    // Convert each color param (hex) to a Three.js Color => Vector3
+    // Create or update the color stops texture
+    this.updateColorStopsTexture();
+
+    // Also update legacy color uniforms for backward compatibility
     const c1 = new THREE.Color(this.app.params.color1);
     const c2 = new THREE.Color(this.app.params.color2);
     const c3 = new THREE.Color(this.app.params.color3);
@@ -565,6 +573,99 @@ export class SceneManager {
 
     // Update background - removed exportTransparentBg reference
     // Background settings are now controlled through the facade
+  }
+
+  /**
+   * Create or update the color stops texture for the shader
+   */
+  private updateColorStopsTexture(): void {
+    try {
+      // Get color initializer
+      const colorInitializer = getColorInitializer();
+
+      // Get current color stops
+      const colorStops = colorInitializer.getSignal("colorStops").value;
+
+      // Handle empty case
+      if (!colorStops || colorStops.length === 0) {
+        console.warn("No color stops found, using defaults");
+        return;
+      }
+
+      // Sort stops by position
+      const sortedStops = [...colorStops].sort(
+        (a, b) => a.position - b.position
+      );
+      const stopCount = sortedStops.length;
+
+      // Debug the color stops
+      // this.debugColorStops(sortedStops);
+
+      // Create a texture to hold color stops (RGBA format)
+      // We use the alpha channel to store the stop position
+      const data = new Float32Array(stopCount * 4);
+
+      // Fill the texture data
+      sortedStops.forEach((stop, index) => {
+        const color = new THREE.Color(stop.color);
+        const i = index * 4;
+        data[i] = color.r;
+        data[i + 1] = color.g;
+        data[i + 2] = color.b;
+        data[i + 3] = stop.position;
+      });
+
+      // Important: We need to create a new texture each time to avoid WebGL errors
+      // This is better than trying to update an existing texture's dimensions
+      if (this.colorStopsTexture) {
+        // Dispose old texture to prevent memory leaks
+        this.colorStopsTexture.dispose();
+      }
+
+      // Create new texture
+      this.colorStopsTexture = new THREE.DataTexture(
+        data,
+        stopCount,
+        1,
+        THREE.RGBAFormat,
+        THREE.FloatType
+      );
+
+      // Set proper texture parameters for point sampling
+      this.colorStopsTexture.magFilter = THREE.NearestFilter;
+      this.colorStopsTexture.minFilter = THREE.NearestFilter;
+      this.colorStopsTexture.wrapS = THREE.ClampToEdgeWrapping;
+      this.colorStopsTexture.wrapT = THREE.ClampToEdgeWrapping;
+      this.colorStopsTexture.needsUpdate = true;
+
+      // Create/update uniforms
+      if (!this.app.uniforms.uColorStops) {
+        this.app.uniforms.uColorStops = { value: this.colorStopsTexture };
+      } else {
+        this.app.uniforms.uColorStops.value = this.colorStopsTexture;
+      }
+
+      // Create/update count uniform
+      if (!this.app.uniforms.uColorStopCount) {
+        this.app.uniforms.uColorStopCount = { value: stopCount };
+      } else {
+        this.app.uniforms.uColorStopCount.value = stopCount;
+      }
+    } catch (error) {
+      console.error("Error updating color stops texture:", error);
+    }
+  }
+
+  /**
+   * Debug helper to print color stop information
+   */
+  private debugColorStops(stops: ColorStop[]): void {
+    console.log("Color stops for texture:");
+    stops.forEach((stop, index) => {
+      console.log(
+        `Stop ${index}: color=${stop.color}, position=${stop.position}`
+      );
+    });
   }
 
   /**

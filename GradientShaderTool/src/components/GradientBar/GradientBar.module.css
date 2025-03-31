@@ -1,0 +1,96 @@
+/* GradientBar container */
+.gradientBarContainer {
+  width: 100%;
+  margin-bottom: 16px;
+}
+
+/* Gradient bar */
+.gradientBar {
+  height: 24px;
+  border-radius: var(--radius-md);
+  position: relative;
+  cursor: pointer;
+  user-select: none;
+  touch-action: none;
+}
+
+.gradientBarNoPointer {
+  cursor: default;
+}
+
+/* Color stops */
+.gradientStop {
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  position: absolute;
+  transform: translate(-50%, -50%);
+  top: 50%;
+  border: 2px solid var(--gray-8);
+  cursor: grab;
+  z-index: 1;
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+}
+
+.gradientStop.active {
+  border-color: var(--white);
+  box-shadow: 0 0 0 2px rgba(255, 255, 255, 0.2);
+  z-index: 10;
+}
+
+.gradientStop.dragging {
+  cursor: grabbing !important;
+  box-shadow: 0 0 0 3px rgba(255, 255, 255, 0.3), 0 2px 5px rgba(0, 0, 0, 0.3);
+  transition: none;
+}
+
+/* Remove button */
+.removeButton {
+  position: absolute;
+  top: -18px;
+  left: 50%;
+  transform: translateX(-50%);
+  background-color: var(--red-9);
+  color: white;
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  border: none;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  font-size: 10px;
+  padding: 0;
+  z-index: 11;
+}
+
+/* Color picker container */
+.colorPickerContainer {
+  margin-top: 12px;
+  display: flex;
+  align-items: center;
+}
+
+.positionIndicator {
+  margin-left: 8px;
+  color: var(--gray-11);
+  font-size: var(--font-size-sm);
+}
+
+/* Add stop button */
+.addStopButton {
+  margin-top: 8px;
+  padding: 4px 8px;
+  background: var(--gray-8);
+  color: white;
+  border: none;
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  font-size: var(--font-size-sm);
+  transition: background-color 0.2s;
+}
+
+.addStopButton:hover {
+  background: var(--gray-9);
+}
