@@ -102,7 +102,6 @@ export const PARAMETER_DEFINITIONS = {
   },
   transparentBackground: {
     defaultValue: DEFAULT_COLOR_PARAMETERS.transparentBackground,
-    facadeParam: "exportTransparentBg",
   },
 };
 
@@ -143,7 +142,9 @@ export class ColorInitializer extends InitializerBase<ColorParameters> {
       colorNoiseScale: facade.getParam("colorNoiseScale"),
       colorNoiseSpeed: facade.getParam("colorNoiseSpeed"),
       backgroundColor: facade.getParam("backgroundColor"),
-      transparentBackground: facade.getParam("exportTransparentBg"),
+      transparentBackground:
+        this.getSignal("transparentBackground")?.value ??
+        DEFAULT_COLOR_PARAMETERS.transparentBackground,
     };
 
     // Call the base implementation
@@ -183,13 +184,8 @@ export class ColorInitializer extends InitializerBase<ColorParameters> {
       }
     });
 
-    // Force update of the export store transparent setting
-    if (this.getSignal("transparentBackground")) {
-      const transparentValue = facade.getParam("exportTransparentBg");
-
-      // Update our signal
-      this.getWritableSignal("transparentBackground").value = transparentValue;
-    }
+    // We don't need to update from exportTransparentBg anymore
+    // The transparency setting is managed through the signal system
 
     return true;
   }
@@ -214,17 +210,18 @@ export class ColorInitializer extends InitializerBase<ColorParameters> {
     // Update the parameter through the base method
     const result = this.updateParameter("transparentBackground", value);
 
-    // Always update the facade parameter directly for immediate visual feedback
-    // This is critical to ensure the export works correctly
+    // Always update the scene for immediate visual feedback using the event system
     const facade = facadeSignal.value;
     if (facade) {
       try {
-        facade.updateParam("exportTransparentBg", value);
+        // Use the parameter-changed event to trigger the SceneManager update
+        facade.emit("parameter-changed", {
+          paramName: "transparencyUpdate",
+          value,
+          source: "user",
+        });
       } catch (error) {
-        console.error(
-          "Error updating facade exportTransparentBg parameter:",
-          error
-        );
+        console.error("Error updating transparency setting:", error);
       }
     }
 

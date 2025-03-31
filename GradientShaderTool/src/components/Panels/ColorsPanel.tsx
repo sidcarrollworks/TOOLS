@@ -58,6 +58,38 @@ export const ColorsPanel: FunctionComponent<ColorsPanelProps> = () => {
     // Force ColorInitializer to sync with facade
     colorInitializer.syncWithFacade();
 
+    // Get transparency setting from ExportInitializer to ensure consistency
+    const getTransparencyFromExport = async () => {
+      try {
+        const { getExportInitializer } = await import(
+          "../../lib/stores/ExportInitializer"
+        );
+        const exportInitializer = getExportInitializer();
+        const transparentValue =
+          !!exportInitializer.getSignal("transparent").value;
+
+        // Update local state with the export value
+        setColorState((current) => ({
+          ...current,
+          transparentBackground: transparentValue,
+        }));
+
+        // Also update the ColorInitializer to keep them in sync
+        colorInitializer.updateParameter(
+          "transparentBackground",
+          transparentValue
+        );
+      } catch (error) {
+        console.error(
+          "Could not get transparency setting from ExportInitializer:",
+          error
+        );
+      }
+    };
+
+    // Call the function to get transparency
+    getTransparencyFromExport();
+
     // First, try to get colors directly from facade for immediate accurate values
     const facade = facadeSignal.value;
     if (facade && facade.isInitialized()) {
@@ -78,7 +110,8 @@ export const ColorsPanel: FunctionComponent<ColorsPanelProps> = () => {
           colorNoiseSpeed: facade.getParam("colorNoiseSpeed"),
 
           backgroundColor: facade.getParam("backgroundColor"),
-          transparentBackground: facade.getParam("exportTransparentBg"),
+          // Don't try to get exportTransparentBg from facade anymore
+          transparentBackground: colorState.transparentBackground,
         };
 
         // Set color state directly from facade
@@ -140,7 +173,8 @@ export const ColorsPanel: FunctionComponent<ColorsPanelProps> = () => {
           colorNoiseSpeed: facade.getParam("colorNoiseSpeed"),
 
           backgroundColor: facade.getParam("backgroundColor"),
-          transparentBackground: facade.getParam("exportTransparentBg"),
+          // Keep existing transparency setting since we can't get it directly from facade anymore
+          transparentBackground: colorState.transparentBackground,
         };
 
         // Force update local state with facade values

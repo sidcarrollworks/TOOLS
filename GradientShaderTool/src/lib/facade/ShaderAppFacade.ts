@@ -110,6 +110,18 @@ export class ShaderAppFacade extends EventEmitter implements IShaderAppFacade {
 
       this.initialized = true;
 
+      // Set up handler for transparency updates from ExportInitializer
+      this.on("parameter-changed", (event) => {
+        if (
+          event.paramName === "transparencyUpdate" &&
+          this.app &&
+          this.app.sceneManager
+        ) {
+          const transparent = !!event.value;
+          this.app.sceneManager.setBackgroundTransparency(transparent);
+        }
+      });
+
       // Start performance monitoring if enabled
       if (this.config.performance.enableStats && this.app.stats) {
         container.appendChild(this.app.stats.dom);
@@ -769,38 +781,22 @@ export class ShaderAppFacade extends EventEmitter implements IShaderAppFacade {
   // === Export ===
 
   /**
-   * Capture the current state of animation parameters
+   * Capture the current animation state for later restoration after export
    * @private
-   * @returns Object containing the current animation state
    */
   private captureAnimationState(): Record<string, any> {
     if (!this.app) {
-      throw new Error("App not initialized");
+      throw new Error("ShaderApp is not initialized");
     }
 
+    // Capture the animation state
     return {
-      // Animation control parameters
+      // Animation parameters
       animationSpeed: this.app.params.animationSpeed,
+      normalNoiseSpeed: this.app.params.normalNoiseSpeed,
+      colorNoiseSpeed: this.app.params.colorNoiseSpeed,
       pauseAnimation: this.app.params.pauseAnimation,
       time: this.app.time,
-
-      // Normal noise (distortion) parameters
-      normalNoiseScaleX: this.app.params.normalNoiseScaleX,
-      normalNoiseScaleY: this.app.params.normalNoiseScaleY,
-      normalNoiseSpeed: this.app.params.normalNoiseSpeed,
-      normalNoiseStrength: this.app.params.normalNoiseStrength,
-      normalNoiseShiftX: this.app.params.normalNoiseShiftX,
-      normalNoiseShiftY: this.app.params.normalNoiseShiftY,
-      normalNoiseShiftSpeed: this.app.params.normalNoiseShiftSpeed,
-
-      // Color and gradient parameters
-      colorNoiseScale: this.app.params.colorNoiseScale,
-      colorNoiseSpeed: this.app.params.colorNoiseSpeed,
-      gradientShiftSpeed: this.app.params.gradientShiftSpeed,
-
-      // Export parameters
-      exportTransparentBg: this.app.params.exportTransparentBg,
-      exportHighQuality: this.app.params.exportHighQuality,
 
       // Add real timestamp to track how long export takes
       realTimestamp: performance.now(),
@@ -808,69 +804,130 @@ export class ShaderAppFacade extends EventEmitter implements IShaderAppFacade {
   }
 
   /**
-   * Capture the current renderer state
+   * Capture the current renderer state for validation
    * @private
    * @returns Object containing the current renderer state
    */
   private captureRendererState(): Record<string, any> {
     if (!this.app || !this.app.renderer) {
-      throw new Error("Renderer not initialized");
+      throw new Error("ShaderApp or renderer is not initialized");
     }
 
     const originalColor = this.app.renderer.getClearColor(new THREE.Color());
     const originalAlpha = this.app.renderer.getClearAlpha();
 
     return {
-      clearColor: originalColor.clone(),
+      clearColor: originalColor.getHex(),
       clearAlpha: originalAlpha,
     };
   }
 
   /**
-   * Configure the renderer for export
+   * Configure the renderer for export, returning the original state for later restoration
    * @private
    * @param options Export options
-   * @returns The original renderer state for restoration
+   * @returns Original renderer state for restoration
    */
   private configureRendererForExport(
     options: ExportImageOptions
   ): Record<string, any> {
     if (!this.app || !this.app.renderer) {
-      throw new Error("Renderer not initialized");
+      throw new Error("ShaderApp or renderer is not initialized");
     }
 
-    // Capture current renderer state
-    const rendererState = this.captureRendererState();
+    // Store original renderer clear color and alpha
+    const originalClearColor = this.app.renderer.getClearColor(
+      new THREE.Color()
+    );
+    const originalClearAlpha = this.app.renderer.getClearAlpha();
 
-    // Apply transparent background if needed
-    if (options.transparent) {
-      this.app.renderer.setClearColor(0x000000, 0); // Black with 0 opacity
+    // Store original renderer state
+    const rendererState = {
+      clearColor: originalClearColor.getHex(),
+      clearAlpha: originalClearAlpha,
+    };
+
+    // Use the SceneManager to set background transparency
+    if (this.app.sceneManager) {
+      this.app.sceneManager.setBackgroundTransparency(
+        options.transparent || false
+      );
     } else {
-      const bgColor = new THREE.Color(this.app.params.backgroundColor);
-      this.app.renderer.setClearColor(bgColor);
+      // Fallback if SceneManager isn't available
+      if (options.transparent) {
+        this.app.renderer.setClearColor(0x000000, 0);
+      } else {
+        const bgColor = new THREE.Color(this.app.params.backgroundColor);
+        this.app.renderer.setClearColor(bgColor);
+      }
     }
-
-    // Set export parameters
-    this.app.params.exportTransparentBg = options.transparent ?? false;
-    this.app.params.exportHighQuality = options.highQuality ?? false;
 
     return rendererState;
   }
 
   /**
-   * Restore renderer to its original state
+   * Restore the renderer to its original state
    * @private
    * @param rendererState The original renderer state to restore
    */
   private restoreRendererState(rendererState: Record<string, any>): void {
     if (!this.app || !this.app.renderer) {
-      throw new Error("Renderer not initialized");
+      throw new Error("ShaderApp or renderer is not initialized");
     }
 
+    // Directly restore the original clear color and alpha
     this.app.renderer.setClearColor(
       rendererState.clearColor,
       rendererState.clearAlpha
     );
+
+    // Make sure to reset the checkered background if SceneManager is available
+    if (this.app.sceneManager && rendererState.clearAlpha === 1) {
+      this.app.sceneManager.setBackgroundTransparency(false);
+    }
+  }
+
+  /**
+   * Restore the animation state after export
+   * @private
+   * @param animState Animation state to restore
+   * @param wasAnimating Whether animation was running before export
+   * @param elapsedTime Time elapsed during export
+   */
+  private restoreAnimationState(
+    animState: Record<string, any>,
+    wasAnimating: boolean,
+    elapsedTime: number
+  ): void {
+    if (!this.app) {
+      throw new Error("ShaderApp is not initialized");
+    }
+
+    // Restore animation parameters
+    this.app.params.animationSpeed = animState.animationSpeed;
+    this.app.params.normalNoiseSpeed = animState.normalNoiseSpeed;
+    this.app.params.colorNoiseSpeed = animState.colorNoiseSpeed;
+    this.app.params.pauseAnimation = animState.pauseAnimation;
+
+    // Calculate elapsed shader time if animation was running
+    if (wasAnimating) {
+      // Add the equivalent shader time that would have passed during export
+      const timeIncrement = animState.animationSpeed * (elapsedTime / 1000.0);
+      // Time is only updated when animation is running
+      this.app.time = animState.time + timeIncrement;
+
+      if (this.app.uniforms && this.app.uniforms.uTime) {
+        this.app.uniforms.uTime.value = this.app.time;
+      }
+    }
+
+    if (this.config.debug.enabled) {
+      console.log(
+        "EXPORT: Restored animation state, elapsed real time:",
+        elapsedTime.toFixed(2),
+        "ms"
+      );
+    }
   }
 
   /**
@@ -906,112 +963,6 @@ export class ShaderAppFacade extends EventEmitter implements IShaderAppFacade {
         `Failed to generate image data URL: ${(error as Error).message}`
       );
     }
-  }
-
-  /**
-   * Restore animation state after export
-   * @private
-   * @param animState The animation state to restore
-   * @param wasAnimating Whether animation was running before export
-   * @param elapsedTime Time elapsed during export process (in ms)
-   */
-  private restoreAnimationState(
-    animState: Record<string, any>,
-    wasAnimating: boolean,
-    elapsedTime: number
-  ): void {
-    if (!this.app) {
-      throw new Error("App not initialized");
-    }
-
-    // Restore export parameters
-    this.app.params.exportTransparentBg = animState.exportTransparentBg;
-    this.app.params.exportHighQuality = animState.exportHighQuality;
-
-    // Calculate elapsed shader time if animation was running
-    if (wasAnimating) {
-      // Calculate how much shader time would have elapsed during export
-      const elapsedShaderTime = elapsedTime * 0.001 * animState.animationSpeed;
-
-      if (this.config.debug.enabled) {
-        console.log(
-          `EXPORT: Adjusting time - Original: ${animState.time}, Adding: ${elapsedShaderTime}`
-        );
-      }
-
-      // Set time to original + calculated elapsed time
-      this.app.time = animState.time + elapsedShaderTime;
-    } else {
-      // If animation wasn't running, just restore the original time
-      this.app.time = animState.time;
-    }
-
-    // Create a batch update for all animation parameters
-    const animParams = {
-      normalNoiseScaleX: animState.normalNoiseScaleX,
-      normalNoiseScaleY: animState.normalNoiseScaleY,
-      normalNoiseSpeed: animState.normalNoiseSpeed,
-      normalNoiseStrength: animState.normalNoiseStrength,
-      normalNoiseShiftX: animState.normalNoiseShiftX,
-      normalNoiseShiftY: animState.normalNoiseShiftY,
-      normalNoiseShiftSpeed: animState.normalNoiseShiftSpeed,
-      colorNoiseScale: animState.colorNoiseScale,
-      colorNoiseSpeed: animState.colorNoiseSpeed,
-      gradientShiftSpeed: animState.gradientShiftSpeed,
-      animationSpeed: animState.animationSpeed,
-    };
-
-    // Update parameters without emitting events (to avoid UI flicker)
-    // We'll manually emit events after everything is restored
-    Object.entries(animParams).forEach(([key, value]) => {
-      (this.app!.params as any)[key] = value;
-    });
-
-    // Force uniforms update
-    this.app.updateParams(false);
-
-    // Directly update critical animation uniforms to ensure consistency
-    if (this.app.uniforms) {
-      this.app.uniforms.uNoiseSpeed.value = animState.normalNoiseSpeed;
-      this.app.uniforms.uNoiseShiftSpeed.value =
-        animState.normalNoiseShiftSpeed;
-      this.app.uniforms.uColorNoiseSpeed.value = animState.colorNoiseSpeed;
-      this.app.uniforms.uGradientShiftSpeed.value =
-        animState.gradientShiftSpeed;
-    }
-
-    // Emit critical parameter change events to ensure UI synchronization
-    // These are the parameters most likely to be affected by the export process
-    const criticalParams = [
-      "normalNoiseSpeed",
-      "normalNoiseShiftSpeed",
-      "colorNoiseSpeed",
-      "gradientShiftSpeed",
-      "animationSpeed",
-    ];
-
-    criticalParams.forEach((paramName) => {
-      const paramValue = (this.app!.params as any)[paramName];
-
-      if (this.config.debug.enabled) {
-        console.log(
-          `EXPORT: Emitting parameter-changed event for ${paramName}: ${paramValue}`
-        );
-      }
-
-      this.emit("parameter-changed", {
-        paramName,
-        value: paramValue,
-        source: "preset", // Use "preset" as the source since we're restoring to a previous state
-      });
-    });
-
-    // Emit a general export-complete notification parameter
-    this.emit("parameter-changed", {
-      paramName: "exportComplete",
-      value: true,
-      source: "user",
-    });
   }
 
   /**
@@ -1173,6 +1124,28 @@ export class ShaderAppFacade extends EventEmitter implements IShaderAppFacade {
         throw new Error("ShaderApp is not initialized");
       }
 
+      // Get the current transparency setting from ExportInitializer if available
+      let transparentSetting = mergedOptions.transparent || false;
+      try {
+        // Dynamic import to avoid circular dependencies
+        const { getExportInitializer } = await import(
+          "../stores/ExportInitializer"
+        );
+        const exportInitializer = getExportInitializer();
+        // Get the current transparency setting
+        transparentSetting =
+          exportInitializer.getSignal("transparent").value ||
+          transparentSetting;
+
+        // Ensure our merged options have the correct transparency value
+        mergedOptions.transparent = transparentSetting;
+      } catch (error) {
+        console.warn(
+          "Could not get transparency setting from ExportInitializer:",
+          error
+        );
+      }
+
       // Get shaders and uniforms from the app
       const vertexShader =
         this.app.params.geometryType === "sphere"
@@ -1227,14 +1200,171 @@ const material = new THREE.ShaderMaterial({
   uniforms
 });`;
       } else if (format === "html") {
-        // Import HTMLExporter dynamically to avoid circular dependencies
-        const { HTMLExporter } = await import("../modules/export/HTMLExporter");
-        const htmlExporter = new HTMLExporter(this.app!);
+        // Generate HTML export directly instead of using HTMLExporter
+        const params = this.app.params;
 
-        // Generate HTML parts
-        const htmlSetup = htmlExporter.generateHTMLSetup();
-        const sceneSetup = htmlExporter.generateSceneSetup();
-        const geometryAnimation = htmlExporter.generateGeometryAndAnimation();
+        // Use the transparency setting we got from ExportInitializer or merged options
+        const transparentBg = transparentSetting;
+
+        // Log transparency setting for debugging purposes
+        console.log(
+          `[Code Export] Using transparency setting: ${transparentBg}`
+        );
+
+        const bgStyle = transparentBg
+          ? "background-color: transparent; background-image: linear-gradient(45deg, #808080 25%, transparent 25%), linear-gradient(-45deg, #808080 25%, transparent 25%), linear-gradient(45deg, transparent 75%, #808080 75%), linear-gradient(-45deg, transparent 75%, #808080 75%); background-size: 20px 20px; background-position: 0 0, 0 10px, 10px -10px, -10px 0px;"
+          : `background-color: ${params.backgroundColor};`;
+
+        const htmlSetup = `<!DOCTYPE html>
+<html>
+<head>
+  <title>Gradient Shader</title>
+  <style>
+    body { margin: 0; overflow: hidden; ${bgStyle} }
+    canvas { display: block; width: 100%; height: 100vh; }
+  </style>
+</head>
+<body>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+  <script>
+    // Your shader code will go here
+  </script>
+</body>
+</html>`;
+
+        // Generate scene setup
+        const rendererOptions = transparentBg
+          ? "{ antialias: true, alpha: true, preserveDrawingBuffer: true }"
+          : "{ antialias: true }";
+
+        const clearColorCode = transparentBg
+          ? "renderer.setClearColor(0x000000, 0); // Fully transparent"
+          : `renderer.setClearColor(new THREE.Color("${params.backgroundColor}"), 1.0); // Solid background`;
+
+        // Default wireframe color if not defined in params
+        const wireframeColor = params.wireframeColor || "#ffffff";
+
+        const sceneSetup = `// Initialize Three.js scene
+const scene = new THREE.Scene();
+const camera = new THREE.PerspectiveCamera(${
+          params.cameraFov
+        }, window.innerWidth / window.innerHeight, 0.1, 1000);
+
+// Set camera position
+camera.position.set(${params.cameraPosX.toFixed(
+          4
+        )}, ${params.cameraPosY.toFixed(4)}, ${params.cameraPosZ.toFixed(4)});
+
+// Make camera look at the target point
+camera.lookAt(${params.cameraTargetX.toFixed(
+          4
+        )}, ${params.cameraTargetY.toFixed(4)}, ${params.cameraTargetZ.toFixed(
+          4
+        )});
+
+// Create renderer
+const renderer = new THREE.WebGLRenderer(${rendererOptions});
+renderer.setSize(window.innerWidth, window.innerHeight);
+${clearColorCode}
+document.body.appendChild(renderer.domElement);
+
+${
+  transparentBg
+    ? `
+// NOTE: Transparency in WebGL has limitations!
+// 1. The preserveDrawingBuffer option is required for some export use cases
+// 2. Some browsers may handle alpha differently - test in multiple browsers
+// 3. For production use, you might need additional handling for mobile devices
+`
+    : ""
+}
+
+// Create shader material with your custom parameters
+const uniforms = {
+  uTime: { value: 0.0 },
+  uNoiseScaleX: { value: ${params.normalNoiseScaleX} },
+  uNoiseScaleY: { value: ${params.normalNoiseScaleY} },
+  uNoiseSpeed: { value: ${params.normalNoiseSpeed} },
+  uNoiseStrength: { value: ${params.normalNoiseStrength} },
+  uNoiseShiftX: { value: ${params.normalNoiseShiftX} },
+  uNoiseShiftY: { value: ${params.normalNoiseShiftY} },
+  uNoiseShiftSpeed: { value: ${params.normalNoiseShiftSpeed} },
+  uColorNoiseScale: { value: ${params.colorNoiseScale} },
+  uColorNoiseSpeed: { value: ${params.colorNoiseSpeed} },
+  uGradientMode: { value: ${params.gradientMode} },
+  uGeometryType: { value: ${params.geometryType === "sphere" ? 1.0 : 0.0} },
+  uGradientShiftX: { value: ${params.gradientShiftX} },
+  uGradientShiftY: { value: ${params.gradientShiftY} },
+  uGradientShiftSpeed: { value: ${params.gradientShiftSpeed} },
+  uColors: { 
+    value: [
+      new THREE.Vector3(${this.getRGBValues(params.color1)}),
+      new THREE.Vector3(${this.getRGBValues(params.color2)}),
+      new THREE.Vector3(${this.getRGBValues(params.color3)}),
+      new THREE.Vector3(${this.getRGBValues(params.color4)})
+    ] 
+  },
+  uLightDir: { 
+    value: new THREE.Vector3(${params.lightDirX}, ${params.lightDirY}, ${
+          params.lightDirZ
+        }).normalize() 
+  },
+  uDiffuseIntensity: { value: ${params.diffuseIntensity} },
+  uAmbientIntensity: { value: ${params.ambientIntensity} },
+  uRimLightIntensity: { value: ${params.rimLightIntensity} }
+};`;
+
+        // Generate geometry and animation code
+        let geometryCode = "";
+        switch (params.geometryType) {
+          case "sphere":
+            geometryCode = `const geometry = new THREE.SphereGeometry(${params.sphereRadius}, ${params.sphereWidthSegments}, ${params.sphereHeightSegments});`;
+            break;
+          case "plane":
+          default:
+            geometryCode = `const geometry = new THREE.PlaneGeometry(${params.planeWidth}, ${params.planeHeight}, ${params.planeSegments}, ${params.planeSegments});`;
+            break;
+        }
+
+        const geometryAnimation = `// Create geometry and mesh
+${geometryCode}
+
+// Set material wireframe property
+material.wireframe = ${params.showWireframe};
+
+const plane = new THREE.Mesh(geometry, material);
+plane.rotation.x = ${params.rotationX};
+plane.rotation.y = ${params.rotationY};
+plane.rotation.z = ${params.rotationZ};
+scene.add(plane);
+
+// Animation loop
+let clock = new THREE.Clock();
+
+function animate() {
+  requestAnimationFrame(animate);
+  
+  // Get delta time for frame-rate independent animation
+  const delta = clock.getDelta();
+  // Maximum delta to prevent huge jumps if the tab loses focus
+  const maxDelta = 1/30;
+  const cappedDelta = Math.min(delta, maxDelta);
+  
+  // Update time uniform using delta time for frame-rate independence
+  uniforms.uTime.value += ${params.animationSpeed} * cappedDelta * 60.0;
+  
+  renderer.render(scene, camera);
+}
+
+// Handle window resize
+window.addEventListener('resize', () => {
+  camera.aspect = window.innerWidth / window.innerHeight;
+  camera.updateProjectionMatrix();
+  renderer.setSize(window.innerWidth, window.innerHeight);
+});
+
+// Start animation loop
+animate();`;
 
         // Format shaders with backticks to ensure proper multi-line strings in JavaScript
         // Add extra escaping to preserve the backticks in the resulting code
@@ -1289,6 +1419,17 @@ const material = new THREE.ShaderMaterial({
       this.handleExportError(error, "code");
       throw error;
     }
+  }
+
+  /**
+   * Get RGB values from hex color
+   * @private
+   * @param hexColor - Hex color string
+   * @returns RGB values as comma-separated string
+   */
+  private getRGBValues(hexColor: string): string {
+    const color = new THREE.Color(hexColor);
+    return `${color.r}, ${color.g}, ${color.b}`;
   }
 
   // === Private Helper Methods ===

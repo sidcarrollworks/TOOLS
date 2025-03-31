@@ -70,6 +70,7 @@ export class SceneManager {
       antialias: true,
       alpha: true,
       premultipliedAlpha: false,
+      preserveDrawingBuffer: true,
       canvas: undefined,
       context: undefined,
       powerPreference: "high-performance",
@@ -95,35 +96,9 @@ export class SceneManager {
       (window as any).threeRenderer = this.app.renderer;
     }
 
-    // Set clear color based on transparent background setting
-    if (this.app.params.exportTransparentBg) {
-      // Set transparent background (alpha = 0)
-      this.app.renderer.setClearColor(0x000000, 0);
+    // Set clear color based on transparent background setting (using default value)
+    this.setBackgroundTransparency(false);
 
-      // Apply checkered background to the canvas element
-      const canvas = this.app.renderer.domElement;
-      canvas.style.backgroundColor = "#191919";
-      canvas.style.backgroundImage = `
-        linear-gradient(45deg, #222222 25%, transparent 25%), 
-        linear-gradient(-45deg, #222222 25%, transparent 25%),
-        linear-gradient(45deg, transparent 75%, #222222 75%),
-        linear-gradient(-45deg, transparent 75%, #222222 75%)
-      `;
-      canvas.style.backgroundSize = "20px 20px";
-      canvas.style.backgroundPosition = "0 0, 0 10px, 10px -10px, -10px 0px";
-    } else {
-      // Set solid background color
-      this.app.renderer.setClearColor(
-        new THREE.Color(this.app.params.backgroundColor)
-      );
-
-      // Remove checkered background
-      const canvas = this.app.renderer.domElement;
-      canvas.style.backgroundColor = "";
-      canvas.style.backgroundImage = "";
-      canvas.style.backgroundSize = "";
-      canvas.style.backgroundPosition = "";
-    }
     targetElement.appendChild(this.app.renderer.domElement);
 
     // Setup OrbitControls
@@ -588,35 +563,8 @@ export class SceneManager {
       }
     }
 
-    // Update background
-    if (this.app.params.exportTransparentBg) {
-      // Set transparent background (alpha = 0)
-      this.app.renderer.setClearColor(0x000000, 0);
-
-      // Apply checkered background to the canvas element
-      const canvas = this.app.renderer.domElement;
-      canvas.style.backgroundColor = "#191919";
-      canvas.style.backgroundImage = `
-        linear-gradient(45deg, #222222 25%, transparent 25%), 
-        linear-gradient(-45deg, #222222 25%, transparent 25%),
-        linear-gradient(45deg, transparent 75%, #222222 75%),
-        linear-gradient(-45deg, transparent 75%, #222222 75%)
-      `;
-      canvas.style.backgroundSize = "20px 20px";
-      canvas.style.backgroundPosition = "0 0, 0 10px, 10px -10px, -10px 0px";
-    } else {
-      // Set solid background color
-      this.app.renderer.setClearColor(
-        new THREE.Color(this.app.params.backgroundColor)
-      );
-
-      // Remove checkered background
-      const canvas = this.app.renderer.domElement;
-      canvas.style.backgroundColor = "";
-      canvas.style.backgroundImage = "";
-      canvas.style.backgroundSize = "";
-      canvas.style.backgroundPosition = "";
-    }
+    // Update background - removed exportTransparentBg reference
+    // Background settings are now controlled through the facade
   }
 
   /**
@@ -790,6 +738,47 @@ export class SceneManager {
     if (!enabled && this._geometryUpdateCount > 3) {
       this._geometryUpdateCount = 0;
       this.recreateGeometry();
+    }
+  }
+
+  /**
+   * Set background transparency for the renderer
+   * @param transparent Whether the background should be transparent
+   */
+  public setBackgroundTransparency(transparent: boolean): void {
+    if (!this.app || !this.app.renderer) return;
+
+    if (transparent) {
+      // Set transparent background (alpha = 0)
+      this.app.renderer.setClearColor(0x000000, 0);
+
+      // Apply checkered background to the canvas element for UI visibility
+      const canvas = this.app.renderer.domElement;
+      canvas.style.backgroundColor = "#191919";
+      canvas.style.backgroundImage = `
+        linear-gradient(45deg, #222222 25%, transparent 25%), 
+        linear-gradient(-45deg, #222222 25%, transparent 25%),
+        linear-gradient(45deg, transparent 75%, #222222 75%),
+        linear-gradient(-45deg, transparent 75%, #222222 75%)
+      `;
+      canvas.style.backgroundSize = "20px 20px";
+      canvas.style.backgroundPosition = "0 0, 0 10px, 10px -10px, -10px 0px";
+    } else {
+      // Set solid background color - explicitly setting alpha to 1.0 for full opacity
+      const bgColor = new THREE.Color(this.app.params.backgroundColor);
+      this.app.renderer.setClearColor(bgColor, 1.0);
+
+      // Remove checkered background
+      const canvas = this.app.renderer.domElement;
+      canvas.style.backgroundColor = "";
+      canvas.style.backgroundImage = "";
+      canvas.style.backgroundSize = "";
+      canvas.style.backgroundPosition = "";
+    }
+
+    // Force a render update if scene and camera are available
+    if (this.app.scene && this.app.camera) {
+      this.app.renderer.render(this.app.scene, this.app.camera);
     }
   }
 }

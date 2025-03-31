@@ -240,20 +240,23 @@ export class ExportInitializer extends InitializerBase<ExportParameters> {
   }
 
   /**
-   * Override syncWithFacade to ensure proper synchronization
+   * Override syncWithFacade to handle additional logic
    */
-  syncWithFacade(): boolean {
+  public override syncWithFacade(): boolean {
     const facade = this.getFacade();
     if (!facade || !facade.isInitialized()) {
-      // No facade available for sync
       return false;
     }
 
     // Get values from facade first so we can compare
+    // Since exportTransparentBg and exportHighQuality are no longer accessible,
+    // we'll just proceed with syncing based on our stored values
     const beforeValues = {
-      transparent: facade.getParam("exportTransparentBg"),
-      highQuality: facade.getParam("exportHighQuality"),
-      // Don't try to get other parameters that might not exist in the facade
+      // These properties are now managed internally, not from facade
+      transparent:
+        this.transparent?.value ?? DEFAULT_EXPORT_PARAMETERS.transparent,
+      highQuality:
+        this.highQuality?.value ?? DEFAULT_EXPORT_PARAMETERS.highQuality,
     };
 
     // Call the base implementation which handles sync based on parameter definitions
@@ -281,14 +284,8 @@ export class ExportInitializer extends InitializerBase<ExportParameters> {
         minify: this.minify.value,
       };
 
-      // Ensure facade has the correct values
-      try {
-        facade.updateParam("exportTransparentBg", this.transparent.value);
-        facade.updateParam("exportHighQuality", this.highQuality.value);
-      } catch (error) {
-        // Error updating facade params
-        return false;
-      }
+      // We no longer update facade directly with these parameters
+      // They will be applied during export operations as needed
     } else {
       // Some signals not initialized during sync
       return false;
@@ -321,19 +318,9 @@ export class ExportInitializer extends InitializerBase<ExportParameters> {
 
     const result = this.updateParameters(updates);
 
-    // Directly update facade parameters for immediate effect
-    const facade = this.getFacade();
-    if (facade && facade.isInitialized()) {
-      try {
-        if (settings.transparent !== undefined) {
-          facade.updateParam("exportTransparentBg", settings.transparent);
-        }
-        if (settings.highQuality !== undefined) {
-          facade.updateParam("exportHighQuality", settings.highQuality);
-        }
-      } catch (error) {
-        // Error updating facade params
-      }
+    // If transparency setting changes, update the scene's background immediately
+    if (settings.transparent !== undefined) {
+      this.applyTransparencyToScene(settings.transparent);
     }
 
     return result;
@@ -375,16 +362,8 @@ export class ExportInitializer extends InitializerBase<ExportParameters> {
     // First, update our own parameter
     const result = this.updateParameter("transparent", transparent);
 
-    // Always update the facade parameter directly for immediate visual feedback
-    // This is critical to ensure the export works correctly
-    const facade = facadeSignal.value;
-    if (facade) {
-      try {
-        facade.updateParam("exportTransparentBg", transparent);
-      } catch (error) {
-        // Error updating facade parameter
-      }
-    }
+    // Apply transparency to the scene
+    this.applyTransparencyToScene(transparent);
 
     // Only sync with ColorInitializer if this update didn't come from it
     if (source !== "color") {
@@ -408,6 +387,33 @@ export class ExportInitializer extends InitializerBase<ExportParameters> {
     }
 
     return result;
+  }
+
+  /**
+   * Apply transparency setting to the scene through the SceneManager
+   * @private
+   */
+  private applyTransparencyToScene(transparent: boolean): void {
+    // Get the facade from the signal
+    const facade = facadeSignal.value;
+    if (!facade || !facade.isInitialized()) {
+      return;
+    }
+
+    try {
+      // Access the scene manager indirectly through an event
+      // This avoids direct coupling to the internal 'app' property
+
+      // Create a custom event that will be handled in ShaderAppFacade
+      facade.emit("parameter-changed", {
+        paramName: "transparencyUpdate",
+        value: transparent,
+        source: "user",
+      });
+    } catch (error) {
+      // Error updating background transparency
+      console.warn("Error applying transparency to scene:", error);
+    }
   }
 
   /**

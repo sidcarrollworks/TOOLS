@@ -140,6 +140,7 @@ export interface ExportCodeOptions {
   includeLib?: boolean;
   minify?: boolean;
   fileName?: string;
+  transparent?: boolean;
 }
 
 // Main ShaderAppFacade interface

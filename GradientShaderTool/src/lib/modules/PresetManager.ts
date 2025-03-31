@@ -96,13 +96,16 @@ export class PresetManager {
     this.app.params.animationSpeed = 0.01;
     this.app.params.pauseAnimation = false;
 
-    // Reset export options
-    this.app.params.exportTransparentBg = false;
-    this.app.params.exportHighQuality = true;
+    // Reset export options are now handled through the ExportInitializer
 
     // Recreate geometry and update all parameters
     this.app.recreateGeometry();
     this.updateAllParams();
+
+    // Setting the background to non-transparent since it has been removed from params
+    if (this.app.sceneManager) {
+      this.app.sceneManager.setBackgroundTransparency(false);
+    }
   }
 
   /**
@@ -179,6 +182,11 @@ export class PresetManager {
     // Recreate geometry and update all parameters
     this.app.recreateGeometry();
     this.updateAllParams();
+
+    // Setting the background to non-transparent since it has been removed from params
+    if (this.app.sceneManager) {
+      this.app.sceneManager.setBackgroundTransparency(false);
+    }
   }
 
   /**
@@ -244,6 +252,11 @@ export class PresetManager {
     // Recreate geometry and update all parameters
     this.app.recreateGeometry();
     this.updateAllParams();
+
+    // Setting the background to non-transparent since it has been removed from params
+    if (this.app.sceneManager) {
+      this.app.sceneManager.setBackgroundTransparency(false);
+    }
   }
 
   /**
@@ -312,5 +325,10 @@ export class PresetManager {
     // Recreate geometry and update all parameters
     this.app.recreateGeometry();
     this.updateAllParams();
+
+    // Setting the background to non-transparent since it has been removed from params
+    if (this.app.sceneManager) {
+      this.app.sceneManager.setBackgroundTransparency(false);
+    }
   }
 }

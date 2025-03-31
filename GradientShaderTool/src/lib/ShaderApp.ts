@@ -4,7 +4,6 @@ import { ShaderLoader } from "./modules/ShaderLoader";
 import { SceneManager } from "./modules/SceneManager";
 import { PresetManager } from "./modules/PresetManager";
 import { Utils } from "./modules/Utils";
-import { ExportManager } from "./modules/ExportManager";
 import Stats from "stats.js";
 import { getCameraInitializer } from "./stores/CameraInitializer";
 
@@ -95,10 +94,6 @@ export interface ShaderParams {
   animationSpeed: number;
   pauseAnimation: boolean;
 
-  // Export options
-  exportTransparentBg: boolean;
-  exportHighQuality: boolean;
-
   // Performance options
   useAdaptiveResolution: boolean;
 
@@ -150,7 +145,6 @@ export class ShaderApp {
   sceneManager: SceneManager;
   presetManager: PresetManager;
   utils: Utils;
-  exportManager: ExportManager;
 
   // Reference to parent element
   parentElement: HTMLElement | null;
@@ -269,10 +263,6 @@ export class ShaderApp {
       animationSpeed: 0.01,
       pauseAnimation: false,
 
-      // Export options
-      exportTransparentBg: false,
-      exportHighQuality: true,
-
       // Performance options
       useAdaptiveResolution: false,
     };
@@ -338,7 +328,6 @@ export class ShaderApp {
     this.sceneManager = new SceneManager(this);
     this.presetManager = new PresetManager(this);
     this.utils = new Utils();
-    this.exportManager = new ExportManager(this);
 
     // Preset functions
     this.presets = {
@@ -378,7 +367,7 @@ export class ShaderApp {
       this.sceneManager.setupScene(this.parentElement);
 
       // Set up performance stats - pass false to hide stats by default
-      this.utils.setupStats(this, false);
+      // this.utils.setupStats(this, false);
 
       // Load default preset
       this.presetManager.presetAbstractArt();
@@ -532,21 +521,6 @@ export class ShaderApp {
 
     // End stats measurement
     if (this.stats) this.stats.end();
-  }
-
-  /**
-   * Save canvas as image
-   * @returns The data URL of the saved image, or null if save failed
-   */
-  saveAsImage(): string | null {
-    return this.exportManager.saveAsImage();
-  }
-
-  /**
-   * Export code (shaders, parameters, etc.)
-   */
-  exportCode(): void {
-    this.exportManager.exportCode();
   }
 
   /**

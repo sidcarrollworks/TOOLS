@@ -24,6 +24,7 @@ import {
 } from "../Panels";
 import SavePanel from "../Panels/SavePanel";
 import { facadeSignal } from "../../app";
+import { ExportPanel } from "../Export";
 
 // Create a signal for the active panel
 export const activePanelSignal = signal<string | null>("presets");
@@ -37,49 +38,6 @@ interface SidePanelProps {
 export const SidePanel: FunctionComponent<SidePanelProps> = ({ visible }) => {
   // Use facadeSignal instead of useFacade
   const facade = useComputed(() => facadeSignal.value);
-  const exportUIRef = useRef<any>(null);
-
-  // Initialize ExportUI when facade is available
-  useEffect(() => {
-    if (facade.value && facade.value.isInitialized()) {
-      // Dynamically import the ShaderApp to get access to it
-      import("../../lib/ShaderApp")
-        .then(({ ShaderApp }) => {
-          // Import ExportUI
-          import("../../lib/modules/export/ExportUI")
-            .then(({ ExportUI }) => {
-              // We can't access the app property directly, so we'll just use exportAsCode directly
-              if (facade.value && !exportUIRef.current) {
-                // Create a dummy app instance just for the ExportUI
-                // This is a workaround to avoid accessing the internal ShaderApp
-                const dummyApp = {
-                  exportCode: () => {
-                    if (facade.value) {
-                      facade.value.exportAsCode();
-                    }
-                  },
-                };
-
-                exportUIRef.current = new ExportUI(dummyApp as any);
-              }
-            })
-            .catch((err) => {
-              console.error("Error loading ExportUI:", err);
-            });
-        })
-        .catch((err) => {
-          console.error("Error loading ShaderApp:", err);
-        });
-    }
-
-    // Clean up on unmount
-    return () => {
-      if (exportUIRef.current) {
-        exportUIRef.current.dispose();
-        exportUIRef.current = null;
-      }
-    };
-  }, [facade.value]);
 
   // Check both the prop and the signal for visibility
   if (!visible || !sidePanelVisibleSignal.value) return null;
@@ -96,11 +54,7 @@ export const SidePanel: FunctionComponent<SidePanelProps> = ({ visible }) => {
 
   // Handle export code click
   const handleExportCodeClick = () => {
-    if (exportUIRef.current) {
-      exportUIRef.current.showExportCode();
-    } else {
-      console.error("ExportUI instance not available");
-    }
+    ExportPanel.showExportDialog();
   };
 
   // Handle container click to prevent propagation

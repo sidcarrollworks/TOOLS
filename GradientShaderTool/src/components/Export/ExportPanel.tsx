@@ -1,5 +1,6 @@
 import type { FunctionComponent, JSX } from "preact";
 import { useState, useEffect } from "preact/hooks";
+import { render, h } from "preact";
 import {
   Dialog,
   DialogOverlay,
@@ -18,6 +19,7 @@ import { facadeSignal } from "../../app";
 interface ExportPanelProps {
   isOpen: boolean;
   onOpenChange: (open: boolean) => void;
+  facade?: any; // optional for direct rendering
 }
 
 interface ExportMethod {
@@ -27,13 +29,26 @@ interface ExportMethod {
   icon?: JSX.Element;
 }
 
-export const ExportPanel: FunctionComponent<ExportPanelProps> = ({
+// Extended FunctionComponent type with static methods
+interface ExportPanelComponent extends FunctionComponent<ExportPanelProps> {
+  showExportDialog: () => void;
+  dispose: () => void;
+}
+
+// Static container reference
+let modalContainer: HTMLDivElement | null = null;
+
+export const ExportPanel: ExportPanelComponent = ({
   isOpen,
   onOpenChange,
+  facade,
 }) => {
   // Get the stores
   const initializer = getExportInitializer();
   const uiStore = getUIStore();
+
+  // Use the passed facade or get from global signal
+  const activeFacade = facade || facadeSignal.value;
 
   const [activeMethod, setActiveMethod] = useState<string>("js");
   const [codeTitle, setCodeTitle] = useState<string>("");
@@ -79,8 +94,7 @@ export const ExportPanel: FunctionComponent<ExportPanelProps> = ({
     setCodeSections([]);
 
     try {
-      const facade = facadeSignal.value;
-      if (!facade) {
+      if (!activeFacade) {
         throw new Error("Shader application not initialized");
       }
 
@@ -91,7 +105,7 @@ export const ExportPanel: FunctionComponent<ExportPanelProps> = ({
         );
 
         // Call the facade directly to export code
-        const jsCode = await facade.exportAsCode({
+        const jsCode = await activeFacade.exportAsCode({
           format: "js",
           includeLib: true,
         });
@@ -168,7 +182,7 @@ ${cameraHelpers}
         );
 
         // Call the facade directly to export code
-        const shaderCode = await facade.exportAsCode({ format: "glsl" });
+        const shaderCode = await activeFacade.exportAsCode({ format: "glsl" });
         setCodeSections([{ title: "", code: shaderCode, language: "glsl" }]);
       } else if (methodId === "html") {
         setCodeTitle("HTML Export");
@@ -176,10 +190,23 @@ ${cameraHelpers}
           "Complete standalone HTML page with embedded Three.js and shader implementation. Just save and open in any browser."
         );
 
+        // Get current transparency setting from ExportInitializer
+        const { getExportInitializer } = await import(
+          "../../lib/stores/ExportInitializer"
+        );
+        const exportInitializer = getExportInitializer();
+        const transparentBg =
+          !!exportInitializer.getSignal("transparent").value;
+
+        console.log(
+          `[ExportPanel] Using transparency: ${transparentBg} for HTML export`
+        );
+
         // Get the HTML code directly from the facade
-        const htmlCode = await facade.exportAsCode({
+        const htmlCode = await activeFacade.exportAsCode({
           format: "html",
           includeLib: true,
+          transparent: transparentBg, // Explicitly pass the transparency setting
         });
 
         setCodeSections([
@@ -246,4 +273,65 @@ ${cameraHelpers}
       </DialogOverlay>
     </Dialog>
   );
+};
+
+// Static methods for showing the export dialog directly
+ExportPanel.showExportDialog = () => {
+  // Create container if it doesn't exist
+  if (!modalContainer) {
+    modalContainer = document.createElement("div");
+    modalContainer.id = "export-modal-container";
+    document.body.appendChild(modalContainer);
+  }
+
+  const handleOpenChange = (isOpen: boolean) => {
+    // Re-render with updated state
+    if (modalContainer) {
+      render(
+        h(ExportPanel, {
+          isOpen,
+          onOpenChange: handleOpenChange,
+        }),
+        modalContainer
+      );
+
+      // Track modal state in UIStore
+      if (isOpen) {
+        getUIStore().openModal("export");
+      } else {
+        getUIStore().closeModal();
+      }
+
+      // Clean up when closed
+      if (!isOpen) {
+        setTimeout(() => {
+          if (modalContainer) {
+            render(null, modalContainer);
+          }
+        }, 300); // Small delay to let animation complete
+      }
+    }
+  };
+
+  // Initial render with open state
+  if (modalContainer) {
+    render(
+      h(ExportPanel, {
+        isOpen: true,
+        onOpenChange: handleOpenChange,
+      }),
+      modalContainer
+    );
+  }
+};
+
+// Clean up method to dispose the modal container
+ExportPanel.dispose = () => {
+  if (modalContainer) {
+    render(null, modalContainer);
+    if (modalContainer.parentNode) {
+      modalContainer.parentNode.removeChild(modalContainer);
+    }
+    modalContainer = null;
+  }
 };

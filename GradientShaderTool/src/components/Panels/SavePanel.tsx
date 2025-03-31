@@ -32,9 +32,32 @@ const SavePanel: FunctionComponent<SavePanelProps> = () => {
     width: 0,
     height: 0,
   });
+  const [exportSuccess, setExportSuccess] = useState(false);
+  const [exportError, setExportError] = useState(false);
 
   // Get canvas dimensions on component mount
   useEffect(() => {
+    // First, get the current transparency setting from ExportInitializer
+    const initializeTransparency = async () => {
+      try {
+        const { getExportInitializer } = await import(
+          "../../lib/stores/ExportInitializer"
+        );
+        const exportInitializer = getExportInitializer();
+        const transparentValue =
+          !!exportInitializer.getSignal("transparent").value;
+
+        // Update state with the export value
+        setTransparentBg(transparentValue);
+      } catch (error) {
+        console.error("Could not get transparency setting:", error);
+      }
+    };
+
+    // Initialize transparency setting
+    initializeTransparency();
+
+    // Get canvas dimensions
     const facade = facadeSignal.value;
     if (facade && facade.isInitialized()) {
       try {
@@ -57,52 +80,19 @@ const SavePanel: FunctionComponent<SavePanelProps> = () => {
   const handleTransparentBgChange = (checked: boolean) => {
     setTransparentBg(checked);
 
-    // Update app parameter directly
+    // Update through the ExportInitializer
     const facade = facadeSignal.value;
     if (facade && facade.isInitialized()) {
       try {
-        const app = (facade as any).app;
-        if (app) {
-          // Update the parameter
-          app.params.exportTransparentBg = checked;
-
-          // Apply background change immediately
-          if (app.renderer) {
-            if (checked) {
-              // Set transparent background
-              app.renderer.setClearColor(0x000000, 0);
-
-              // Apply checkered background to the canvas element for visual feedback
-              const canvas = app.renderer.domElement;
-              canvas.style.backgroundColor = "#191919";
-              canvas.style.backgroundImage = `
-                linear-gradient(45deg, #222222 25%, transparent 25%), 
-                linear-gradient(-45deg, #222222 25%, transparent 25%),
-                linear-gradient(45deg, transparent 75%, #222222 75%),
-                linear-gradient(-45deg, transparent 75%, #222222 75%)
-              `;
-              canvas.style.backgroundSize = "20px 20px";
-              canvas.style.backgroundPosition =
-                "0 0, 0 10px, 10px -10px, -10px 0px";
-            } else {
-              // Set solid background color
-              const bgColor = new THREE.Color(app.params.backgroundColor);
-              app.renderer.setClearColor(bgColor);
-
-              // Remove checkered background
-              const canvas = app.renderer.domElement;
-              canvas.style.backgroundColor = "";
-              canvas.style.backgroundImage = "";
-              canvas.style.backgroundSize = "";
-              canvas.style.backgroundPosition = "";
-            }
-
-            // Force a render to update the scene immediately
-            if (app.scene && app.camera) {
-              app.renderer.render(app.scene, app.camera);
-            }
-          }
-        }
+        // Import the ExportInitializer to update the transparency setting
+        import("../../lib/stores/ExportInitializer")
+          .then(({ getExportInitializer }) => {
+            const exportInitializer = getExportInitializer();
+            exportInitializer.updateTransparentBackground(checked);
+          })
+          .catch((error) => {
+            console.warn("Error importing ExportInitializer:", error);
+          });
       } catch (error) {
         console.warn("Error updating transparent background:", error);
       }
@@ -112,14 +102,19 @@ const SavePanel: FunctionComponent<SavePanelProps> = () => {
   const handleHighQualityChange = (checked: boolean) => {
     setHighQuality(checked);
 
-    // Update app parameter directly
+    // Update through the ExportInitializer
     const facade = facadeSignal.value;
     if (facade && facade.isInitialized()) {
       try {
-        const app = (facade as any).app;
-        if (app) {
-          app.params.exportHighQuality = checked;
-        }
+        // Import the ExportInitializer to update the high quality setting
+        import("../../lib/stores/ExportInitializer")
+          .then(({ getExportInitializer }) => {
+            const exportInitializer = getExportInitializer();
+            exportInitializer.updateParameter("highQuality", checked);
+          })
+          .catch((error) => {
+            console.warn("Error importing ExportInitializer:", error);
+          });
       } catch (error) {
         console.warn("Error updating high quality setting:", error);
       }
@@ -133,230 +128,48 @@ const SavePanel: FunctionComponent<SavePanelProps> = () => {
 
   // Basic direct save image function
   const saveImage = async () => {
-    const facade = facadeSignal.value;
-    if (!facade || !facade.isInitialized()) {
-      console.error("Cannot save: Application not ready");
-      return;
-    }
-
     try {
       setIsExporting(true);
 
-      // Get the app instance directly
-      const app = (facade as any).app;
-      if (!app || !app.renderer) {
-        throw new Error("Renderer not available");
-      }
-
-      // IMPORTANT: Store ALL animation-related values
-      const originalTimeValue = app.time;
-      const originalPauseState = app.params.pauseAnimation;
-      const originalAnimationSpeed = app.params.animationSpeed;
-
-      // Completely stop animation by setting speed to 0 and pausing
-      app.params.animationSpeed = 0;
-      app.params.pauseAnimation = true;
-
-      // Force time value to be exactly what it was before
-      app.time = originalTimeValue;
-      app.uniforms.uTime.value = originalTimeValue;
-
-      // Store original renderer settings
-      const originalColor = app.renderer.getClearColor(new THREE.Color());
-      const originalAlpha = app.renderer.getClearAlpha();
-
-      // CRITICAL FIX: Check if preserveDrawingBuffer is enabled
-      const hasPreserveDrawingBuffer = app.renderer
-        .getContext()
-        .getContextAttributes().preserveDrawingBuffer;
-
-      // For transparent background with no preserveDrawingBuffer, we need to work around it
-      const needsTransparencyWorkaround =
-        transparentBg && !hasPreserveDrawingBuffer;
-
-      if (needsTransparencyWorkaround) {
-        // Using transparency workaround due to missing preserveDrawingBuffer
-      }
-
-      // Apply transparent background if needed
-      if (transparentBg) {
-        app.renderer.setClearColor(0x000000, 0); // Black with 0 opacity
-      } else {
-        const bgColor = new THREE.Color(app.params.backgroundColor);
-        app.renderer.setClearColor(bgColor);
-      }
-
-      // Store original geometry settings
-      const originalSettings: any = {};
-
-      // Apply high quality settings if needed
-      if (highQuality) {
-        // Store and update geometry settings based on type
-        switch (app.params.geometryType) {
-          case "plane":
-            originalSettings.planeSegments = app.params.planeSegments;
-            app.params.planeSegments = Math.max(
-              originalSettings.planeSegments * 2,
-              256
-            );
-            break;
-
-          case "sphere":
-            originalSettings.sphereWidthSegments =
-              app.params.sphereWidthSegments;
-            originalSettings.sphereHeightSegments =
-              app.params.sphereHeightSegments;
-            app.params.sphereWidthSegments = Math.max(
-              originalSettings.sphereWidthSegments * 2,
-              128
-            );
-            app.params.sphereHeightSegments = Math.max(
-              originalSettings.sphereHeightSegments * 2,
-              128
-            );
-            break;
-
-          case "cube":
-            originalSettings.cubeWidthSegments = app.params.cubeWidthSegments;
-            originalSettings.cubeHeightSegments = app.params.cubeHeightSegments;
-            originalSettings.cubeDepthSegments = app.params.cubeDepthSegments;
-            app.params.cubeWidthSegments = Math.max(
-              originalSettings.cubeWidthSegments * 2,
-              16
-            );
-            app.params.cubeHeightSegments = Math.max(
-              originalSettings.cubeHeightSegments * 2,
-              16
-            );
-            app.params.cubeDepthSegments = Math.max(
-              originalSettings.cubeDepthSegments * 2,
-              16
-            );
-            break;
-        }
-
-        // Recreate geometry with higher quality
-        app.recreateGeometry();
-      }
-
-      // Force a render frame with our frozen time
-      app.renderer.render(app.scene, app.camera);
-
-      // Get the canvas and export as image
-      const canvas = app.renderer.domElement;
-      const mimeType =
-        imageFormat === "jpg"
-          ? "image/jpeg"
-          : imageFormat === "webp"
-          ? "image/webp"
-          : "image/png";
-
-      // Important: JPEG format doesn't support transparency, so warn if needed
-      if (transparentBg && imageFormat === "jpg") {
-        // JPEG format doesn't support transparency. Using PNG instead.
-        const pngDataUrl = canvas.toDataURL("image/png");
-
-        // Trigger download with PNG instead
-        const link = document.createElement("a");
-        link.href = pngDataUrl;
-        link.download = `gradient-shader.png`;
-        document.body.appendChild(link);
-        link.click();
-        document.body.removeChild(link);
-      } else if (needsTransparencyWorkaround) {
-        // Apply workaround for transparency when preserveDrawingBuffer is not enabled
-
-        // 1. Create a new canvas with the same dimensions
-        const offscreenCanvas = document.createElement("canvas");
-        offscreenCanvas.width = canvas.width;
-        offscreenCanvas.height = canvas.height;
-        const ctx = offscreenCanvas.getContext("2d");
-
-        if (!ctx) {
-          throw new Error(
-            "Failed to create canvas context for transparency workaround"
-          );
-        }
-
-        // 2. Draw the WebGL canvas to our new canvas, preserving transparency
-        ctx.drawImage(canvas, 0, 0);
-
-        // 3. Get the data URL from our offscreen canvas
-        const dataUrl = offscreenCanvas.toDataURL(
-          mimeType === "image/jpeg" ? "image/png" : mimeType
-        );
-
-        // 4. Trigger download
-        const link = document.createElement("a");
-        link.href = dataUrl;
-        link.download = `gradient-shader.${
-          mimeType === "image/jpeg" ? "png" : imageFormat
-        }`;
-        document.body.appendChild(link);
-        link.click();
-        document.body.removeChild(link);
-      } else {
-        // For PNG and WebP which support transparency and no workaround needed
-        const quality = imageFormat === "jpg" ? 0.95 : undefined;
-        const dataUrl = canvas.toDataURL(mimeType, quality);
-
-        // Trigger download
-        const link = document.createElement("a");
-        link.href = dataUrl;
-        link.download = `gradient-shader.${imageFormat}`;
-        document.body.appendChild(link);
-        link.click();
-        document.body.removeChild(link);
-      }
-
-      // CRITICAL: Reset everything in proper order:
-
-      // 1. First restore renderer settings
-      app.renderer.setClearColor(originalColor, originalAlpha);
-
-      // 2. Restore original geometry if we changed it
-      if (highQuality) {
-        // Restore geometry settings based on type
-        switch (app.params.geometryType) {
-          case "plane":
-            app.params.planeSegments = originalSettings.planeSegments;
-            break;
-
-          case "sphere":
-            app.params.sphereWidthSegments =
-              originalSettings.sphereWidthSegments;
-            app.params.sphereHeightSegments =
-              originalSettings.sphereHeightSegments;
-            break;
-
-          case "cube":
-            app.params.cubeWidthSegments = originalSettings.cubeWidthSegments;
-            app.params.cubeHeightSegments = originalSettings.cubeHeightSegments;
-            app.params.cubeDepthSegments = originalSettings.cubeDepthSegments;
-            break;
-        }
-
-        // Recreate geometry with original settings
-        app.recreateGeometry();
-      }
-
-      // 3. Reset time and animation values to exactly what they were
-      app.time = originalTimeValue;
-      app.uniforms.uTime.value = originalTimeValue;
-      app.params.animationSpeed = originalAnimationSpeed;
-      app.params.pauseAnimation = originalPauseState;
-
-      // 4. Force one more render to ensure everything is correct
-      // Use direct renderer call instead of animate which might advance time
-      app.renderer.render(app.scene, app.camera);
-
-      // Export complete
-    } catch (error) {
-      console.error("Error saving image:", error);
-      alert(
-        "Failed to save image: " +
-          (error instanceof Error ? error.message : String(error))
+      // Use the ExportInitializer to handle the export process
+      const { getExportInitializer } = await import(
+        "../../lib/stores/ExportInitializer"
       );
+      const exportInitializer = getExportInitializer();
+
+      // Make sure the export settings are up to date
+      exportInitializer.updateParameters({
+        transparent: transparentBg,
+        highQuality: highQuality,
+        imageFormat: imageFormat,
+      });
+
+      // Export the image
+      const imageDataUrl = await exportInitializer.exportImage();
+
+      // Download the image
+      const linkElement = document.createElement("a");
+      linkElement.href = imageDataUrl;
+
+      // Set the filename based on format
+      const timestamp = new Date()
+        .toISOString()
+        .replace(/[:.]/g, "-")
+        .substring(0, 19);
+      linkElement.download = `gradient-shader-${timestamp}.${imageFormat}`;
+
+      // Trigger the download
+      document.body.appendChild(linkElement);
+      linkElement.click();
+      document.body.removeChild(linkElement);
+
+      // Show success message
+      setExportSuccess(true);
+      setTimeout(() => setExportSuccess(false), 3000);
+    } catch (error) {
+      console.error("Error exporting image:", error);
+      setExportError(true);
+      setTimeout(() => setExportError(false), 3000);
     } finally {
       setIsExporting(false);
     }
