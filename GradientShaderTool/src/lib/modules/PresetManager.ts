@@ -2,6 +2,7 @@
  * PresetManager - Manages preset configurations for the shader app
  */
 import { ShaderApp } from "../ShaderApp";
+import type { ColorStop } from "../types/ColorStop";
 
 export class PresetManager {
   private app: ShaderApp;
@@ -26,6 +27,24 @@ export class PresetManager {
   }
 
   /**
+   * Helper to create color stops array from individual colors
+   * @deprecated Use direct ColorStop arrays instead
+   */
+  public createColorStops(
+    color1: string,
+    color2: string,
+    color3: string,
+    color4: string
+  ): ColorStop[] {
+    return [
+      { position: 0.0, color: color1 },
+      { position: 0.33, color: color2 },
+      { position: 0.66, color: color3 },
+      { position: 1.0, color: color4 },
+    ];
+  }
+
+  /**
    * Source Milk preset
    */
   presetDefault(): void {
@@ -35,9 +54,9 @@ export class PresetManager {
     this.app.params.planeSegments = 128;
 
     // Reset rotation
-    this.app.params.rotationX = -1.1;
-    this.app.params.rotationY = 0;
-    this.app.params.rotationZ = 0;
+    this.app.params.rotateX = -1.1;
+    this.app.params.rotateY = 0;
+    this.app.params.rotateZ = 0;
 
     // Reset camera settings
     this.app.params.cameraDistance = 0.9;
@@ -75,10 +94,14 @@ export class PresetManager {
 
     // Reset colors
     this.app.params.gradientMode = 0; // B-spline
-    this.app.params.color1 = "#ffffff";
-    this.app.params.color2 = "#ffffff";
-    this.app.params.color3 = "#ffffff";
-    this.app.params.color4 = "#ffffff";
+
+    // Set default colors (all white)
+    this.app.params.colorStops = [
+      { position: 0.0, color: "#ffffff" },
+      { position: 0.33, color: "#ffffff" },
+      { position: 0.66, color: "#ffffff" },
+      { position: 1.0, color: "#ffffff" },
+    ];
 
     // Reset lighting
     this.app.params.lightDirX = 0.5;
@@ -118,9 +141,9 @@ export class PresetManager {
     this.app.params.planeSegments = 208;
 
     // Set rotation - slightly tilted for better wave visibility
-    this.app.params.rotationX = -Math.PI / 3.5;
-    this.app.params.rotationY = Math.PI / 24;
-    this.app.params.rotationZ = 0;
+    this.app.params.rotateX = -Math.PI / 3.5;
+    this.app.params.rotateY = Math.PI / 24;
+    this.app.params.rotateZ = 0;
 
     // Camera settings for better ocean view
     this.app.params.cameraDistance = 1.2;
@@ -158,10 +181,14 @@ export class PresetManager {
 
     // Set colors - enhanced oceanic palette with deeper blues and foam highlights
     this.app.params.gradientMode = 1; // Linear interpolation
-    this.app.params.color1 = "#003b75"; // Deep ocean blue
-    this.app.params.color2 = "#0066aa"; // Mid-ocean blue
-    this.app.params.color3 = "#00bbee"; // Surface blue
-    this.app.params.color4 = "#aaeeff"; // Foam/highlights
+
+    // Set ocean colors
+    this.app.params.colorStops = [
+      { position: 0.0, color: "#003b75" }, // Deep ocean blue
+      { position: 0.33, color: "#0066aa" },
+      { position: 0.66, color: "#00bbee" }, // Surface blue
+      { position: 1.0, color: "#aaeeff" }, // Foam/highlights
+    ];
 
     // Set lighting - improved to create realistic water reflections
     this.app.params.lightDirX = 0.6;
@@ -199,9 +226,9 @@ export class PresetManager {
     this.app.params.planeSegments = 160;
 
     // Set rotation
-    this.app.params.rotationX = -Math.PI / 4;
-    this.app.params.rotationY = 0;
-    this.app.params.rotationZ = 0;
+    this.app.params.rotateX = -Math.PI / 4; // 45 degrees
+    this.app.params.rotateY = 0;
+    this.app.params.rotateZ = 0;
 
     // Set normal noise
     this.app.params.normalNoiseScaleX = 1.6;
@@ -229,10 +256,14 @@ export class PresetManager {
 
     // Set colors - lava theme
     this.app.params.gradientMode = 3; // Smooth step
-    this.app.params.color1 = "#9f0000";
-    this.app.params.color2 = "#ff3000";
-    this.app.params.color3 = "#ff6633";
-    this.app.params.color4 = "#ff9900";
+
+    // Set lava colors
+    this.app.params.colorStops = [
+      { position: 0.0, color: "#9f0000" }, // Deep lava
+      { position: 0.33, color: "#ff3000" },
+      { position: 0.66, color: "#ff6633" },
+      { position: 1.0, color: "#ff9900" }, // Hot spots
+    ];
 
     // Set lighting
     this.app.params.lightDirX = 0.5;
@@ -248,6 +279,7 @@ export class PresetManager {
 
     // Set animation
     this.app.params.animationSpeed = 0.008;
+    this.app.params.pauseAnimation = false;
 
     // Recreate geometry and update all parameters
     this.app.recreateGeometry();
@@ -269,9 +301,9 @@ export class PresetManager {
     this.app.params.planeSegments = 100;
 
     // Set rotation
-    this.app.params.rotationX = -Math.PI / 2.854;
-    this.app.params.rotationY = 0;
-    this.app.params.rotationZ = 0;
+    this.app.params.rotateX = -Math.PI / 2.854;
+    this.app.params.rotateY = 0;
+    this.app.params.rotateZ = 0;
 
     // Set normal noise
     this.app.params.normalNoiseScaleX = 1.7;
@@ -299,10 +331,14 @@ export class PresetManager {
 
     // Set colors - vibrant colors
     this.app.params.gradientMode = 3; // Smooth step function
-    this.app.params.color1 = "#fdfdf7";
-    this.app.params.color2 = "#e84855";
-    this.app.params.color3 = "#2b3a67";
-    this.app.params.color4 = "#20ffe8";
+
+    // Set abstract art colors
+    this.app.params.colorStops = [
+      { position: 0.0, color: "#fdfdf7" }, // Off-white
+      { position: 0.33, color: "#e84855" }, // Vibrant red
+      { position: 0.66, color: "#2b3a67" }, // Deep blue
+      { position: 1.0, color: "#20ffe8" }, // Cyan
+    ];
 
     // Set lighting
     this.app.params.lightDirX = 0.5;
@@ -319,8 +355,10 @@ export class PresetManager {
     // Set Camera
     this.app.params.cameraDistance = 0.9;
     this.app.params.cameraFov = 30;
+
     // Set animation
     this.app.params.animationSpeed = 0.005;
+    this.app.params.pauseAnimation = false;
 
     // Recreate geometry and update all parameters
     this.app.recreateGeometry();

@@ -1241,9 +1241,6 @@ const material = new THREE.ShaderMaterial({
           ? "renderer.setClearColor(0x000000, 0); // Fully transparent"
           : `renderer.setClearColor(new THREE.Color("${params.backgroundColor}"), 1.0); // Solid background`;
 
-        // Default wireframe color if not defined in params
-        const wireframeColor = params.wireframeColor || "#ffffff";
-
         const sceneSetup = `// Initialize Three.js scene
 const scene = new THREE.Scene();
 const camera = new THREE.PerspectiveCamera(${
@@ -1333,9 +1330,9 @@ ${geometryCode}
 material.wireframe = ${params.showWireframe};
 
 const plane = new THREE.Mesh(geometry, material);
-plane.rotation.x = ${params.rotationX};
-plane.rotation.y = ${params.rotationY};
-plane.rotation.z = ${params.rotationZ};
+plane.rotation.x = ${params.rotateX};
+plane.rotation.y = ${params.rotateY};
+plane.rotation.z = ${params.rotateZ};
 scene.add(plane);
 
 // Animation loop

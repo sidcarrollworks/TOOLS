@@ -1,6 +1,8 @@
 import { Signal } from "@preact/signals-core";
 import { InitializerBase } from "./InitializerBase";
 import { facadeSignal } from "../../app";
+import { sortColorStops, MAX_COLOR_STOPS } from "../types/ColorStop";
+import type { ColorStop } from "../types/ColorStop";
 
 /**
  * Interface for color and gradient parameters
@@ -12,11 +14,8 @@ export interface ColorParameters {
   gradientShiftY: number;
   gradientShiftSpeed: number;
 
-  // Color parameters
-  color1: string;
-  color2: string;
-  color3: string;
-  color4: string;
+  // Color stops array (replaces individual color1-4)
+  colorStops: ColorStop[];
 
   // Color noise parameters
   colorNoiseScale: number;
@@ -37,11 +36,13 @@ export const DEFAULT_COLOR_PARAMETERS: ColorParameters = {
   gradientShiftY: 0,
   gradientShiftSpeed: 0,
 
-  // Color defaults
-  color1: "#ff0000",
-  color2: "#00ff00",
-  color3: "#0000ff",
-  color4: "#ffff00",
+  // Default color stops (replacing individual colors)
+  colorStops: [
+    { position: 0.0, color: "#ff0000" },
+    { position: 0.33, color: "#00ff00" },
+    { position: 0.66, color: "#0000ff" },
+    { position: 1.0, color: "#ffff00" },
+  ],
 
   // Color noise defaults
   colorNoiseScale: 1.0,
@@ -72,21 +73,9 @@ export const PARAMETER_DEFINITIONS = {
     defaultValue: DEFAULT_COLOR_PARAMETERS.gradientShiftSpeed,
     facadeParam: "gradientShiftSpeed",
   },
-  color1: {
-    defaultValue: DEFAULT_COLOR_PARAMETERS.color1,
-    facadeParam: "color1",
-  },
-  color2: {
-    defaultValue: DEFAULT_COLOR_PARAMETERS.color2,
-    facadeParam: "color2",
-  },
-  color3: {
-    defaultValue: DEFAULT_COLOR_PARAMETERS.color3,
-    facadeParam: "color3",
-  },
-  color4: {
-    defaultValue: DEFAULT_COLOR_PARAMETERS.color4,
-    facadeParam: "color4",
+  colorStops: {
+    defaultValue: DEFAULT_COLOR_PARAMETERS.colorStops,
+    // No direct facade parameter for this, we'll handle it specially
   },
   colorNoiseScale: {
     defaultValue: DEFAULT_COLOR_PARAMETERS.colorNoiseScale,
@@ -129,75 +118,134 @@ export class ColorInitializer extends InitializerBase<ColorParameters> {
       return false;
     }
 
-    // Get current values from facade before sync
-    const beforeValues = {
-      color1: facade.getParam("color1"),
-      color2: facade.getParam("color2"),
-      color3: facade.getParam("color3"),
-      color4: facade.getParam("color4"),
-      gradientMode: facade.getParam("gradientMode"),
-      gradientShiftX: facade.getParam("gradientShiftX"),
-      gradientShiftY: facade.getParam("gradientShiftY"),
-      gradientShiftSpeed: facade.getParam("gradientShiftSpeed"),
-      colorNoiseScale: facade.getParam("colorNoiseScale"),
-      colorNoiseSpeed: facade.getParam("colorNoiseSpeed"),
-      backgroundColor: facade.getParam("backgroundColor"),
-      transparentBackground:
-        this.getSignal("transparentBackground")?.value ??
-        DEFAULT_COLOR_PARAMETERS.transparentBackground,
-    };
-
-    // Call the base implementation
+    // Call the base implementation for regular parameters
     super.syncWithFacade();
 
-    // Verify sync was successful and force update any mismatched values
-    Object.entries(beforeValues).forEach(([key, facadeValue]) => {
-      // Skip transparentBackground which is handled separately
-      if (key === "transparentBackground") return;
-
-      // Get the parameter key (removing "facade" if it exists)
-      const paramKey = key as keyof ColorParameters;
-
-      // Check if we have a signal for this parameter
-      if (this.parameterSignals.has(paramKey)) {
-        const signal = this.getWritableSignal(paramKey);
-        const currentValue = signal.value;
-
-        // Check if the values don't match (allowing for minor float differences)
-        const isNumber = typeof facadeValue === "number";
-        const valuesDiffer = isNumber
-          ? Math.abs(((currentValue as number) - facadeValue) as number) >
-            0.0001
-          : currentValue !== facadeValue;
-
-        if (valuesDiffer) {
-          // Mismatch detected, forcing update
-
-          // Force update the signal
-          this.isSyncing = true;
-          try {
-            signal.value = facadeValue as any;
-          } finally {
-            this.isSyncing = false;
-          }
-        }
+    // Special handling for colorStops - we need to check if they exist in facade params
+    try {
+      // Get colorStops from the facade
+      const facadeParams = facade.getAllParams();
+      if (facadeParams.colorStops && facadeParams.colorStops.length > 0) {
+        // Facade has colorStops parameter, use it directly
+        this.updateParameter("colorStops", facadeParams.colorStops);
+        return true;
+      } else {
+        // No colorStops found in facade, use defaults
+        console.warn("No colorStops found in facade params, using defaults");
+        this.updateParameter("colorStops", DEFAULT_COLOR_PARAMETERS.colorStops);
       }
-    });
-
-    // We don't need to update from exportTransparentBg anymore
-    // The transparency setting is managed through the signal system
+    } catch (error) {
+      console.error("Error syncing colorStops from facade:", error);
+    }
 
     return true;
   }
 
   /**
-   * Update a single color parameter
+   * Add a new color stop
+   * @param color - Color hex string
+   * @param position - Position (0-1)
+   * @returns true if successful
    */
-  updateParameter<K extends keyof ColorParameters>(
-    key: K,
-    value: ColorParameters[K]
-  ): boolean {
-    return super.updateParameter(key, value);
+  addColorStop(color: string, position: number): boolean {
+    // Get current color stops
+    const currentStops = this.getSignal("colorStops").value;
+
+    // Check if we've reached the maximum
+    if (currentStops.length >= MAX_COLOR_STOPS) {
+      console.warn(`Maximum of ${MAX_COLOR_STOPS} color stops reached`);
+      return false;
+    }
+
+    // Clamp position to valid range
+    const clampedPosition = Math.max(0, Math.min(1, position));
+
+    // Add new stop
+    const newStops = [...currentStops, { position: clampedPosition, color }];
+
+    // Sort stops by position
+    const sortedStops = sortColorStops(newStops);
+
+    // Update parameter
+    return this.updateParameter("colorStops", sortedStops);
+  }
+
+  /**
+   * Remove a color stop
+   * @param index - Index of stop to remove
+   * @returns true if successful
+   */
+  removeColorStop(index: number): boolean {
+    // Get current color stops
+    const currentStops = this.getSignal("colorStops").value;
+
+    // Ensure we maintain at least one color stop
+    if (currentStops.length <= 1) {
+      console.warn("Cannot remove the last color stop");
+      return false;
+    }
+
+    // Remove stop at index
+    const newStops = currentStops.filter((_, i) => i !== index);
+
+    // Update parameter
+    return this.updateParameter("colorStops", newStops);
+  }
+
+  /**
+   * Update a color stop's position
+   * @param index - Index of stop to update
+   * @param position - New position
+   * @returns true if successful
+   */
+  updateColorStopPosition(index: number, position: number): boolean {
+    // Get current color stops
+    const currentStops = this.getSignal("colorStops").value;
+
+    // Check if index is valid
+    if (index < 0 || index >= currentStops.length) {
+      console.warn(`Invalid color stop index: ${index}`);
+      return false;
+    }
+
+    // Clamp position to valid range
+    const clampedPosition = Math.max(0, Math.min(1, position));
+
+    // Create new array with updated position
+    const newStops = currentStops.map((stop, i) =>
+      i === index ? { ...stop, position: clampedPosition } : stop
+    );
+
+    // Sort stops by position
+    const sortedStops = sortColorStops(newStops);
+
+    // Update parameter
+    return this.updateParameter("colorStops", sortedStops);
+  }
+
+  /**
+   * Update a color stop's color
+   * @param index - Index of stop to update
+   * @param color - New color
+   * @returns true if successful
+   */
+  updateColorStopColor(index: number, color: string): boolean {
+    // Get current color stops
+    const currentStops = this.getSignal("colorStops").value;
+
+    // Check if index is valid
+    if (index < 0 || index >= currentStops.length) {
+      console.warn(`Invalid color stop index: ${index}`);
+      return false;
+    }
+
+    // Create new array with updated color
+    const newStops = currentStops.map((stop, i) =>
+      i === index ? { ...stop, color } : stop
+    );
+
+    // Update parameter
+    return this.updateParameter("colorStops", newStops);
   }
 
   /**

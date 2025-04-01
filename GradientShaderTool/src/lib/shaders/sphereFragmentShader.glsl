@@ -8,7 +8,11 @@ uniform float uGradientShiftX;
 uniform float uGradientShiftY;
 uniform float uGradientShiftSpeed;
 
-// Four user-defined colors:
+// Color stop data
+uniform sampler2D uColorStops;
+uniform int uColorStopCount;
+
+// Legacy color uniforms - kept for backward compatibility
 uniform vec3 uColors[4];
 
 uniform vec3 uLightDir;
@@ -21,6 +25,9 @@ uniform float uRimLightIntensity;
 varying vec2 vUv;
 varying vec3 vNormal;
 varying float vNoise;
+
+// Maximum number of color stops we can process
+#define MAX_COLOR_STOPS 10
 
 // Linear interpolation between two colors
 vec3 linearGradient(vec3 colorA, vec3 colorB, float t) {
@@ -64,6 +71,118 @@ vec3 bSpline(vec3 P0, vec3 P1, vec3 P2, vec3 P3, float t) {
     return P0 * w0 + P1 * w1 + P2 * w2 + P3 * w3;
 }
 
+// Get color and position from the color stops texture
+vec4 getColorStop(int index) {
+    // Handle edge case where there are no stops at all - avoid division by zero
+    if (uColorStopCount <= 0) {
+        // Return a bright error color with position 0
+        return vec4(1.0, 0.0, 1.0, 0.0);
+    }
+    
+    // Clamp index to valid range
+    int clampedIndex = index;
+    if (clampedIndex >= uColorStopCount) {
+        clampedIndex = uColorStopCount - 1;
+    }
+    
+    // Normalize the index to 0..1 range based on actual texture width
+    // Handle special case where we have exactly 1 stop to avoid division by zero
+    float normIndex = (uColorStopCount == 1) ? 0.0 : float(clampedIndex) / float(uColorStopCount - 1);
+    return texture2D(uColorStops, vec2(normIndex, 0.0));
+}
+
+// Find the two color stops surrounding position t and interpolate between them
+vec3 multiStopGradient(float t) {
+    // If we don't have stops or have only one stop, use legacy colors
+    if (uColorStopCount <= 1) {
+        vec3 c1 = uColors[0];
+        vec3 c2 = uColors[1];
+        vec3 c3 = uColors[2];
+        vec3 c4 = uColors[3];
+        
+        // Choose gradient function based on mode
+        if (uGradientMode == 0) {
+            return bSpline(c1, c2, c3, c4, t);
+        } 
+        else if (uGradientMode == 1) {
+            if (t < 0.33) {
+                return linearGradient(c1, c2, t * 3.0);
+            } else if (t < 0.66) {
+                return linearGradient(c2, c3, (t - 0.33) * 3.0);
+            } else {
+                return linearGradient(c3, c4, (t - 0.66) * 3.0);
+            }
+        }
+        else if (uGradientMode == 2) {
+            return stepGradient(uColors, t);
+        }
+        else if (uGradientMode == 3) {
+            return smoothStepGradient(uColors, t);
+        }
+        return bSpline(c1, c2, c3, c4, t);
+    }
+    
+    // Edge cases - before first stop or after last stop
+    vec4 firstStop = getColorStop(0);
+    vec4 lastStop = getColorStop(uColorStopCount - 1);
+    
+    if (t <= firstStop.a) {
+        return firstStop.rgb;
+    }
+    
+    if (t >= lastStop.a) {
+        return lastStop.rgb;
+    }
+    
+    // Default color in case we don't find a pair (shouldn't happen)
+    vec3 resultColor = vec3(1.0, 0.0, 1.0); // Bright magenta as error indicator
+    
+    // Find the two stops we're between
+    for (int i = 0; i < MAX_COLOR_STOPS - 1; i++) {
+        if (i >= uColorStopCount - 1) break;
+        
+        vec4 stop1 = getColorStop(i);
+        vec4 stop2 = getColorStop(i + 1);
+        
+        float pos1 = stop1.a;
+        float pos2 = stop2.a;
+        
+        if (t >= pos1 && t <= pos2) {
+            // Normalize t between these stops
+            float localT = (t - pos1) / (pos2 - pos1);
+            
+            // Apply gradient mode between these two stops
+            if (uGradientMode == 0) {
+                // For B-spline, we need 4 control points
+                // Get prev and next stops if available, otherwise duplicate
+                vec3 prevColor = i > 0 ? getColorStop(i - 1).rgb : stop1.rgb;
+                vec3 nextColor = i < uColorStopCount - 2 ? getColorStop(i + 2).rgb : stop2.rgb;
+                
+                // Return B-spline interpolation
+                resultColor = bSpline(prevColor, stop1.rgb, stop2.rgb, nextColor, localT);
+            } 
+            else if (uGradientMode == 1) {
+                // Linear interpolation
+                resultColor = linearGradient(stop1.rgb, stop2.rgb, localT);
+            }
+            else if (uGradientMode == 2) {
+                // Step function - return first color
+                resultColor = stop1.rgb;
+            }
+            else if (uGradientMode == 3) {
+                // Smooth step
+                resultColor = mix(stop1.rgb, stop2.rgb, smoothstep(0.0, 1.0, localT));
+            }
+            else {
+                // Default to linear
+                resultColor = linearGradient(stop1.rgb, stop2.rgb, localT);
+            }
+        }
+    }
+    
+    return resultColor;
+}
+
 void main() {
     // For a sphere, we use the normalized normal vector for noise sampling
     // This ensures seamless noise across the sphere surface
@@ -86,41 +205,8 @@ void main() {
     // Map to [0,1] range
     float t = (noiseVal + 1.0) * 0.5;
     
-    // Get our 4 colors
-    vec3 c1 = uColors[0];
-    vec3 c2 = uColors[1];
-    vec3 c3 = uColors[2];
-    vec3 c4 = uColors[3];
-    
-    // Choose gradient function based on mode
-    vec3 chosenColor;
-    
-    if (uGradientMode == 0) {
-        // B-spline (original)
-        chosenColor = bSpline(c1, c2, c3, c4, t);
-    } 
-    else if (uGradientMode == 1) {
-        // Linear interpolation between all 4 colors
-        if (t < 0.33) {
-            chosenColor = linearGradient(c1, c2, t * 3.0);
-        } else if (t < 0.66) {
-            chosenColor = linearGradient(c2, c3, (t - 0.33) * 3.0);
-        } else {
-            chosenColor = linearGradient(c3, c4, (t - 0.66) * 3.0);
-        }
-    }
-    else if (uGradientMode == 2) {
-        // Step function (hard transitions)
-        chosenColor = stepGradient(uColors, t);
-    }
-    else if (uGradientMode == 3) {
-        // Smooth step (softer transitions)
-        chosenColor = smoothStepGradient(uColors, t);
-    }
-    else {
-        // Fallback to B-spline
-        chosenColor = bSpline(c1, c2, c3, c4, t);
-    }
+    // Get color from our multi-stop gradient function
+    vec3 chosenColor = multiStopGradient(t);
 
     // Balanced lighting for sphere
     vec3 light = normalize(uLightDir);

@@ -5,6 +5,8 @@ import * as THREE from "three";
 import { OrbitControls } from "three/examples/jsm/controls/OrbitControls.js";
 import { ShaderApp } from "../ShaderApp";
 import { getCameraInitializer } from "../stores/CameraInitializer";
+import { getColorInitializer } from "../stores/ColorInitializer";
+import type { ColorStop } from "../types/ColorStop";
 
 // Define the interface for camera settings updates
 interface CameraSettings {
@@ -23,6 +25,9 @@ export class SceneManager {
 
   // Add new property to control adaptive resolution
   private useAdaptiveResolution: boolean = false;
+
+  // Color stops texture for shader
+  private colorStopsTexture: THREE.DataTexture | null = null;
 
   /**
    * Create a SceneManager
@@ -356,9 +361,9 @@ export class SceneManager {
     this.app.plane = new THREE.Mesh(this.app.geometry, this.app.material);
 
     // Set the rotation
-    this.app.plane.rotation.x = this.app.params.rotationX;
-    this.app.plane.rotation.y = this.app.params.rotationY;
-    this.app.plane.rotation.z = this.app.params.rotationZ;
+    this.app.plane.rotation.x = this.app.params.rotateX;
+    this.app.plane.rotation.y = this.app.params.rotateY;
+    this.app.plane.rotation.z = this.app.params.rotateZ;
 
     // Add to scene
     this.app.scene.add(this.app.plane);
@@ -478,16 +483,8 @@ export class SceneManager {
           : 0.0;
     }
 
-    // Convert each color param (hex) to a Three.js Color => Vector3
-    const c1 = new THREE.Color(this.app.params.color1);
-    const c2 = new THREE.Color(this.app.params.color2);
-    const c3 = new THREE.Color(this.app.params.color3);
-    const c4 = new THREE.Color(this.app.params.color4);
-
-    this.app.uniforms.uColors.value[0].set(c1.r, c1.g, c1.b);
-    this.app.uniforms.uColors.value[1].set(c2.r, c2.g, c2.b);
-    this.app.uniforms.uColors.value[2].set(c3.r, c3.g, c3.b);
-    this.app.uniforms.uColors.value[3].set(c4.r, c4.g, c4.b);
+    // Create or update the color stops texture
+    this.updateColorStopsTexture();
 
     // Update lighting
     // IMPORTANT: We create a normalized copy of the light direction for the shader
@@ -517,54 +514,111 @@ export class SceneManager {
       this.app.material.wireframe = this.app.params.showWireframe;
     }
 
-    // Update plane transform
-    if (this.app.plane) {
-      this.app.plane.rotation.x = this.app.params.rotationX;
-      this.app.plane.rotation.y = this.app.params.rotationY;
-      this.app.plane.rotation.z = this.app.params.rotationZ;
+    // Update camera if requested
+    if (updateCamera) {
+      this.updateCamera();
     }
+  }
 
-    // Update camera parameters only if explicitly requested
-    if (updateCamera && this.app.camera && this.app.controls) {
-      // Update camera FOV
-      if (this.app.camera.fov !== this.app.params.cameraFov) {
-        this.app.camera.fov = this.app.params.cameraFov;
-        this.app.camera.updateProjectionMatrix();
+  /**
+   * Create or update the color stops texture for the shader
+   */
+  private updateColorStopsTexture(): void {
+    try {
+      let colorStops;
+
+      // First check if colorStops exist directly in app.params
+      if (this.app.params.colorStops && this.app.params.colorStops.length > 0) {
+        colorStops = this.app.params.colorStops;
+      } else {
+        // Fall back to ColorInitializer
+        const colorInitializer = getColorInitializer();
+        colorStops = colorInitializer.getSignal("colorStops").value;
       }
 
-      // Update camera distance if using OrbitControls
-      const currentDistance = this.app.camera.position.distanceTo(
-        this.app.controls.target
+      // Handle empty case
+      if (!colorStops || colorStops.length === 0) {
+        console.warn("No color stops found, using defaults");
+        return;
+      }
+
+      // Sort stops by position
+      const sortedStops = [...colorStops].sort(
+        (a, b) => a.position - b.position
       );
-      if (Math.abs(currentDistance - this.app.params.cameraDistance) > 0.01) {
-        // Calculate new position while maintaining direction
-        const direction = this.app.camera.position
-          .clone()
-          .sub(this.app.controls.target)
-          .normalize();
-        const newPosition = direction
-          .multiplyScalar(this.app.params.cameraDistance)
-          .add(this.app.controls.target);
-        this.app.camera.position.copy(newPosition);
-        this.app.controls.update();
+      const stopCount = sortedStops.length;
+
+      // Debug the color stops
+      // this.debugColorStops(sortedStops);
+
+      // Create a texture to hold color stops (RGBA format)
+      // We use the alpha channel to store the stop position
+      const data = new Float32Array(stopCount * 4);
+
+      // Fill the texture data
+      sortedStops.forEach((stop, index) => {
+        const color = new THREE.Color(stop.color);
+        const i = index * 4;
+        data[i] = color.r;
+        data[i + 1] = color.g;
+        data[i + 2] = color.b;
+        data[i + 3] = stop.position;
+      });
+
+      // Important: We need to create a new texture each time to avoid WebGL errors
+      // This is better than trying to update an existing texture's dimensions
+      if (this.colorStopsTexture) {
+        // Dispose old texture to prevent memory leaks
+        this.colorStopsTexture.dispose();
       }
-    }
 
-    // Always save current camera position and target to params
-    if (this.app.camera) {
-      this.app.params.cameraPosX = this.app.camera.position.x;
-      this.app.params.cameraPosY = this.app.camera.position.y;
-      this.app.params.cameraPosZ = this.app.camera.position.z;
+      // Create new texture
+      this.colorStopsTexture = new THREE.DataTexture(
+        data,
+        stopCount,
+        1,
+        THREE.RGBAFormat,
+        THREE.FloatType
+      );
 
-      if (this.app.controls) {
-        this.app.params.cameraTargetX = this.app.controls.target.x;
-        this.app.params.cameraTargetY = this.app.controls.target.y;
-        this.app.params.cameraTargetZ = this.app.controls.target.z;
+      // Set proper texture parameters for point sampling
+      this.colorStopsTexture.magFilter = THREE.NearestFilter;
+      this.colorStopsTexture.minFilter = THREE.NearestFilter;
+      this.colorStopsTexture.wrapS = THREE.ClampToEdgeWrapping;
+      this.colorStopsTexture.wrapT = THREE.ClampToEdgeWrapping;
+      this.colorStopsTexture.needsUpdate = true;
+
+      // Create/update uniforms
+      if (!this.app.uniforms.uColorStops) {
+        this.app.uniforms.uColorStops = { value: this.colorStopsTexture };
+      } else {
+        this.app.uniforms.uColorStops.value = this.colorStopsTexture;
       }
-    }
 
-    // Update background - removed exportTransparentBg reference
-    // Background settings are now controlled through the facade
+      // Create/update count uniform
+      if (!this.app.uniforms.uColorStopCount) {
+        this.app.uniforms.uColorStopCount = { value: stopCount };
+      } else {
+        this.app.uniforms.uColorStopCount.value = stopCount;
+      }
+
+      console.log("Updated color stops texture with", stopCount, "stops");
+    } catch (error) {
+      console.error("Error updating color stops texture:", error);
+    }
+  }
+
+  /**
+   * Debug color stops by printing them to the console
+   * @param sortedStops Sorted array of color stops
+   */
+  private debugColorStops(sortedStops: ColorStop[]): void {
+    console.log("Color stops for texture:");
+    sortedStops.forEach((stop, index) => {
+      console.log(
+        `Stop ${index}: color=${stop.color}, position=${stop.position}`
+      );
+    });
   }
 
   /**
@@ -713,9 +767,9 @@ export class SceneManager {
     this.app.plane = new THREE.Mesh(this.app.geometry, this.app.material);
 
     // Set the rotation
-    this.app.plane.rotation.x = this.app.params.rotationX;
-    this.app.plane.rotation.y = this.app.params.rotationY;
-    this.app.plane.rotation.z = this.app.params.rotationZ;
+    this.app.plane.rotation.x = this.app.params.rotateX;
+    this.app.plane.rotation.y = this.app.params.rotateY;
+    this.app.plane.rotation.z = this.app.params.rotateZ;
 
     // Add to scene
     this.app.scene.add(this.app.plane);
@@ -779,6 +833,70 @@ export class SceneManager {
     // Force a render update if scene and camera are available
     if (this.app.scene && this.app.camera) {
       this.app.renderer.render(this.app.scene, this.app.camera);
+    }
+  }
+
+  /**
+   * Update camera position and target
+   */
+  private updateCamera(): void {
+    if (!this.app.camera || !this.app.controls) return;
+
+    // Update camera position based on parameters
+    this.app.camera.position.set(
+      this.app.params.cameraPosX,
+      this.app.params.cameraPosY,
+      this.app.params.cameraPosZ
+    );
+
+    // Update camera target
+    this.app.controls.target.set(
+      this.app.params.cameraTargetX,
+      this.app.params.cameraTargetY,
+      this.app.params.cameraTargetZ
+    );
+
+    // Update camera properties
+    if (this.app.camera.fov !== this.app.params.cameraFov) {
+      this.app.camera.fov = this.app.params.cameraFov;
+      this.app.camera.updateProjectionMatrix();
+    }
+
+    // Update orbital controls
+    this.app.controls.update();
+
+    // Update the CameraInitializer with current camera values
+    try {
+      // Create an update function that uses requestAnimationFrame
+      const updateSettings = () => {
+        // Get the camera initializer
+        const cameraInitializer = getCameraInitializer();
+
+        // Update camera position and target
+        cameraInitializer.updateFromFacade(
+          this.app.camera?.position.x || 0,
+          this.app.camera?.position.y || 0,
+          this.app.camera?.position.z || 0,
+          this.app.controls?.target.x || 0,
+          this.app.controls?.target.y || 0,
+          this.app.controls?.target.z || 0
+        );
+      };
+
+      // Cancel existing animation frame if there is one
+      if (this._cameraUpdateAnimFrame) {
+        cancelAnimationFrame(this._cameraUpdateAnimFrame);
+      }
+
+      // Use requestAnimationFrame for smoother updates aligned with render cycle
+      this._cameraUpdateAnimFrame = requestAnimationFrame(updateSettings);
+    } catch (error) {
+      console.error("Error updating camera settings:", error);
+    }
+
+    // Update the dev panel if it's been set up
+    if ("updateDevPanel" in this.app) {
+      (this.app as any).updateDevPanel();
     }
   }
 }
