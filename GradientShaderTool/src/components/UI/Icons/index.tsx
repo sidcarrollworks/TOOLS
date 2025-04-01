@@ -1,4 +1,4 @@
-import { type FunctionComponent } from "preact";
+import type { FunctionComponent } from "preact";
 import "./icons.css";
 
 export interface IconProps {

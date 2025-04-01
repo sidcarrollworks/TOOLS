@@ -4,7 +4,7 @@ import { MAX_COLOR_STOPS } from "../../lib/types/ColorStop";
 import type { ColorStop } from "../../lib/types/ColorStop";
 import { GradientMode } from "../../lib/types/ColorStop";
 import { ColorInput } from "../UI";
-import { X } from "../UI/Icons/X";
+import { X } from "../UI/Icons";
 import {
   getCSSGradientStyle,
   renderGradientToCanvas,
