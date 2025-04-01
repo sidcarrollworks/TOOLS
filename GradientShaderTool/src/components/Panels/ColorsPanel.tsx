@@ -15,7 +15,7 @@ import {
 import { useSignalValue } from "../../lib/hooks/useSignals";
 import { facadeSignal } from "../../app";
 import { MAX_COLOR_STOPS } from "../../lib/types/ColorStop";
-import { GradientBar } from "../GradientBar/GradientBar";
+import { GradientBar, isColorPickerActive } from "../GradientBar";
 
 interface ColorsPanelProps {
   // No props needed for now
@@ -127,8 +127,31 @@ export const ColorsPanel: FunctionComponent<ColorsPanelProps> = () => {
 
     // Set up polling interval to keep UI updated with any external changes
     const intervalId = setInterval(() => {
-      syncWithInitializer();
-    }, 500);
+      // Check if color picker is currently being interacted with
+      if (isColorPickerActive()) {
+        console.log(
+          "[ColorsPanel] Skipping sync - color picker is being interacted with"
+        );
+        return;
+      }
+
+      // Instead of forcing a full sync on every interval, just check for changes
+      const facade = facadeSignal.value;
+      if (facade && facade.isInitialized()) {
+        // Check only specific parameters that might change externally
+        const facadeGradientMode = facade.getParam("gradientMode");
+        const facadeNoiseScale = facade.getParam("colorNoiseScale");
+
+        // Only update if there's an actual difference
+        if (
+          facadeGradientMode !== colorState.gradientMode ||
+          facadeNoiseScale !== colorState.colorNoiseScale
+        ) {
+          console.log("[ColorsPanel] External change detected, syncing state");
+          syncWithInitializer();
+        }
+      }
+    }, 1000); // Interval of 1000ms
 
     // Set up facade event listener for preset changes
     if (facade) {

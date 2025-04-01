@@ -74,9 +74,26 @@ export const DirectionControl: FunctionalComponent<DirectionControlProps> = ({
     // Skip reinitialization if we're currently dragging
     if (isDraggingRef.current) return;
 
+    // Calculate the target magnitude (0-1) based on the speed prop
+    const range = maxSpeed - minSpeed;
+    const targetMagnitude =
+      range > 0 ? Math.max(0, Math.min(1, (speed - minSpeed) / range)) : 0;
+
+    // Calculate the initial angle from props. Handle the case where both are 0.
+    // Note: We use the raw valueX and valueY props here to determine the intended direction.
+    const angle = valueX === 0 && valueY === 0 ? 0 : Math.atan2(valueY, valueX);
+
+    // Calculate the internal x and y based on the target magnitude and angle.
+    // These values represent the position on the control (0-1 range).
+    // We need to use the *flipped* signs compared to the input props because the
+    // display logic later flips them back (-signals.valueX.value / max).
+    // So, if input valueX is positive, internal x should be negative to point right.
+    const initialInternalX = targetMagnitude * Math.cos(angle);
+    const initialInternalY = targetMagnitude * Math.sin(angle);
+
     // Initialize or re-initialize signals
-    const valueXSignal = signal(valueX);
-    const valueYSignal = signal(valueY);
+    const valueXSignal = signal(initialInternalX);
+    const valueYSignal = signal(initialInternalY);
     const isDraggingSignal = signal(false);
     const isHoveredSignal = signal(false);
 

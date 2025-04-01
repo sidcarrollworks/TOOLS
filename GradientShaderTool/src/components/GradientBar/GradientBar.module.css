@@ -1,7 +1,7 @@
 /* GradientBar container */
 .gradientBarContainer {
   width: 100%;
-  margin-bottom: 16px;
+  /* margin-bottom: 16px; */
 }
 
 /* Gradient bar */
@@ -38,7 +38,8 @@
   position: absolute;
   transform: translate(-50%, -50%);
   top: 50%;
-  border: 2px solid var(--gray-8);
+  border: 2px solid var(--gray-a12);
+  box-shadow: 0 0 2px var(--gray-1);
   cursor: grab;
   z-index: 1; /* Above canvas but below active stop */
   transition: border-color 0.15s ease, box-shadow 0.15s ease;

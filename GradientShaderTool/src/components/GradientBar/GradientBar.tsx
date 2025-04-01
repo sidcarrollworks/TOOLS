@@ -1,15 +1,25 @@
 import type { FunctionComponent } from "preact";
-import { useRef, useState, useEffect } from "preact/hooks";
+import { useRef, useState, useEffect, useMemo } from "preact/hooks";
 import { MAX_COLOR_STOPS } from "../../lib/types/ColorStop";
 import type { ColorStop } from "../../lib/types/ColorStop";
 import { GradientMode } from "../../lib/types/ColorStop";
-import { ColorInput } from "../UI";
 import { X } from "../UI/Icons";
 import {
   getCSSGradientStyle,
   renderGradientToCanvas,
 } from "../../lib/modules/GradientRenderer";
 import styles from "./GradientBar.module.css";
+import colorPickerService from "./ColorPickerService";
+
+// Create a global flag to track if color picker interactions are happening
+// This will be used to prevent polling during color picker interactions
+let isColorPickerInteracting = false;
+export const setColorPickerInteracting = (value: boolean) => {
+  isColorPickerInteracting = value;
+  console.log(`[Global] Color picker interaction state: ${value}`);
+};
+export const getColorPickerInteracting = (): boolean =>
+  isColorPickerInteracting;
 
 // Enhanced ColorStop that includes a unique ID for tracking
 interface EnhancedColorStop extends ColorStop {
@@ -60,7 +70,13 @@ const GradientBar: FunctionComponent<GradientBarProps> = ({
   const dragStopIdRef = useRef<string | null>(null);
   const isDraggingRef = useRef<boolean>(false);
 
-  // Update enhanced stops when input props change
+  // Ref for the entire component
+  const componentRef = useRef<HTMLDivElement>(null);
+
+  // Track last mousedown target for deselection
+  const lastMouseDownTargetRef = useRef<EventTarget | null>(null);
+
+  // Initialize enhanced stops from props
   useEffect(() => {
     const updatedEnhanced = colorStops.map((stop) => {
       // Find existing enhanced stop with matching position and color
@@ -76,6 +92,56 @@ const GradientBar: FunctionComponent<GradientBarProps> = ({
     setEnhancedStops(updatedEnhanced);
   }, [colorStops]);
 
+  // Handle document click listener for deselection
+  useEffect(() => {
+    // This handler will check for clicks outside the GradientBar when a color stop is active
+    // but the color picker is NOT open (since ColorPickerService handles that case now)
+    const handleOutsideClick = (event: MouseEvent) => {
+      // Skip if no active stop (nothing to deselect)
+      if (!activeStopId) return;
+
+      // Skip during drag operations
+      if (isDragging || isDraggingRef.current || justFinishedDragging.current) {
+        // If we just finished dragging, reset that flag
+        if (justFinishedDragging.current) {
+          justFinishedDragging.current = false;
+          isDraggingRef.current = false;
+        }
+        return;
+      }
+
+      // Skip if the color picker is open - it will handle outside clicks itself
+      if (colorPickerService.isOpen()) {
+        return;
+      }
+
+      // Skip if click is inside the gradient bar
+      const isInGradientBar = !!(
+        componentRef.current &&
+        componentRef.current.contains(event.target as Node)
+      );
+      if (isInGradientBar) return;
+
+      // We've confirmed this is a click outside the gradient bar and the picker is not open
+      // Time to deselect the active stop
+      if (process.env.NODE_ENV === "development") {
+        console.log(
+          "[GradientBar] Outside click detected - deselecting stop",
+          activeStopId
+        );
+      }
+
+      setActiveStopId(null);
+    };
+
+    // Use mousedown instead of click for better responsiveness
+    document.addEventListener("mousedown", handleOutsideClick);
+
+    return () => {
+      document.removeEventListener("mousedown", handleOutsideClick);
+    };
+  }, [activeStopId, isDragging]);
+
   // Sort color stops by position for rendering
   const sortedStops = [...enhancedStops].sort(
     (a, b) => a.position - b.position
@@ -84,11 +150,6 @@ const GradientBar: FunctionComponent<GradientBarProps> = ({
   // Find currently active/selected color stop
   const activeStop = activeStopId
     ? enhancedStops.find((stop) => stop.id === activeStopId) || null
-    : null;
-
-  // Find the index of the active stop
-  const activeStopIndex = activeStop
-    ? enhancedStops.findIndex((stop) => stop.id === activeStop.id)
     : null;
 
   // Generate CSS gradient style from color stops
@@ -126,15 +187,55 @@ const GradientBar: FunctionComponent<GradientBarProps> = ({
     renderGradientToCanvas(canvas, sortedStops, gradientMode);
   }, [sortedStops, gradientMode, height]);
 
-  // Handle stop selection
+  // Handle stop selection and show color picker
   const handleStopClick = (stop: EnhancedColorStop, e: MouseEvent) => {
+    // Make sure clicks on the stop don't bubble up and trigger outside click handlers
+    e.preventDefault();
     e.stopPropagation();
+
+    // Set the active stop
     setActiveStopId(stop.id);
+
+    // Get the position of the color stop in the gradient bar
+    if (barRef.current) {
+      const barRect = barRef.current.getBoundingClientRect();
+      const stopPosX = barRect.left + stop.position * barRect.width;
+
+      // Position the color picker to be centered above the color stop
+      const pickerPos = {
+        x: stopPosX - 100, // Center based on 200px width
+        y: barRect.top - 245, // Estimate popover height (approx 235px) + 10px gap
+      };
+
+      // Only open color picker if not dragging
+      if (!isDragging) {
+        colorPickerService.openPicker({
+          position: pickerPos,
+          color: stop.color,
+          onColorChange: handleColorPickerChange,
+          onOutsideClick: () => {
+            if (process.env.NODE_ENV === "development") {
+              console.log(
+                "[GradientBar] ColorPicker outside click - deselecting stop"
+              );
+            }
+            setActiveStopId(null);
+          },
+          onDelete: () => {
+            handleRemoveStop(stop, e);
+            setActiveStopId(null);
+          },
+        });
+      }
+    }
   };
 
   // Handle adding a new color stop
   const handleBarClick = (e: MouseEvent) => {
-    // Skip if we just finished dragging to prevent creating unwanted stops
+    // Close any open color picker when clicking on the bar
+    colorPickerService.closePicker(false);
+
+    // Skip if we just finished dragging
     if (justFinishedDragging.current) {
       justFinishedDragging.current = false;
       return;
@@ -227,12 +328,22 @@ const GradientBar: FunctionComponent<GradientBarProps> = ({
 
   // Handle start dragging
   const handleMouseDown = (stop: EnhancedColorStop, e: MouseEvent) => {
+    if (process.env.NODE_ENV === "development") {
+      console.log("[GradientBar] Mouse down on stop", {
+        stopId: stop.id,
+        activeStopId,
+      });
+    }
     e.stopPropagation();
     e.preventDefault(); // Prevent text selection during drag
+
+    // Close color picker when starting to drag
+    colorPickerService.closePicker(false);
 
     // Update both state and refs for drag tracking
     setIsDragging(true);
     isDraggingRef.current = true;
+    justFinishedDragging.current = false; // Reset the flag
 
     setDragStopId(stop.id);
     dragStopIdRef.current = stop.id;
@@ -242,33 +353,46 @@ const GradientBar: FunctionComponent<GradientBarProps> = ({
     // Create handlers that close over the current state
     const handleMove = (moveEvent: MouseEvent) => {
       moveEvent.preventDefault();
+      moveEvent.stopPropagation();
 
       // Use the ref value for drag stop ID to avoid closure issues
       updateStopPosition(moveEvent.clientX, dragStopIdRef.current);
     };
 
     const handleEnd = (endEvent: MouseEvent) => {
+      if (process.env.NODE_ENV === "development") {
+        console.log("[GradientBar] Mouse up after drag", {
+          isDraggingBefore: isDragging,
+          isDraggingRefBefore: isDraggingRef.current,
+        });
+      }
       endEvent.preventDefault();
-      endEvent.stopPropagation(); // Prevent the click event on the bar
+      endEvent.stopPropagation(); // Prevent the click event from bubbling
 
-      // Update both state and refs
-      setIsDragging(false);
-      isDraggingRef.current = false;
-
-      setDragStopId(null);
-      dragStopIdRef.current = null;
-
-      // Set the flag to prevent immediate click handling
+      // Set the flag that will prevent the outside click handler from processing this as a click
       justFinishedDragging.current = true;
 
-      // Reset the flag after a short delay
-      setTimeout(() => {
-        justFinishedDragging.current = false;
-      }, 100);
-
-      // Remove all event listeners
+      // Remove all event listeners first
       document.removeEventListener("mousemove", handleMove);
       document.removeEventListener("mouseup", handleEnd);
+
+      // Update state for UI rendering
+      setIsDragging(false);
+      setDragStopId(null);
+
+      // Update drag ref - keep this in sync
+      dragStopIdRef.current = null;
+
+      // We'll reset justFinishedDragging in the outside click handler
+      // on the next legitimate click
+
+      if (process.env.NODE_ENV === "development") {
+        console.log("[GradientBar] Drag state after update", {
+          isDragging: false,
+          isDraggingRef: isDraggingRef.current,
+          justFinishedDragging: true,
+        });
+      }
     };
 
     // Store handlers in refs for cleanup
@@ -280,14 +404,24 @@ const GradientBar: FunctionComponent<GradientBarProps> = ({
     document.addEventListener("mouseup", handleEnd);
   };
 
-  // Handle color change
-  const handleColorChange = (color: string) => {
-    if (activeStopIndex === null) return;
+  // Handle color change from the color picker
+  const handleColorPickerChange = (color: string) => {
+    if (process.env.NODE_ENV === "development") {
+      console.log("[GradientBar] Color picker changed", {
+        activeStopId,
+        color,
+      });
+    }
+    if (!activeStop) return;
 
-    // Update color in enhanced stops
+    // Skip if the color hasn't actually changed
+    if (activeStop.color === color) return;
+
+    // Update color in local state
     const newEnhancedStops = enhancedStops.map((stop) =>
-      stop.id === activeStopId ? { ...stop, color } : stop
+      stop.id === activeStop.id ? { ...stop, color } : stop
     );
+
     setEnhancedStops(newEnhancedStops);
 
     // Notify parent with standard ColorStop objects
@@ -300,11 +434,15 @@ const GradientBar: FunctionComponent<GradientBarProps> = ({
 
   // Handle removing a stop
   const handleRemoveStop = (stop: EnhancedColorStop, e: MouseEvent) => {
-    e.stopPropagation();
+    // Prevent any event bubbling that could trigger other handlers
     e.preventDefault();
+    e.stopPropagation();
 
     // Don't allow removing if we only have one stop
     if (enhancedStops.length <= 1) return;
+
+    // Close color picker
+    colorPickerService.closePicker(false);
 
     // Remove stop by ID
     const newEnhancedStops = enhancedStops.filter((s) => s.id !== stop.id);
@@ -326,6 +464,9 @@ const GradientBar: FunctionComponent<GradientBarProps> = ({
   // Clean up event listeners
   useEffect(() => {
     return () => {
+      // Close the color picker
+      colorPickerService.closePicker(false);
+
       // Use the handler refs to ensure we're removing the correct handlers
       if (mouseMoveHandlerRef.current) {
         document.removeEventListener("mousemove", mouseMoveHandlerRef.current);
@@ -337,8 +478,26 @@ const GradientBar: FunctionComponent<GradientBarProps> = ({
     };
   }, []);
 
+  // Track state changes
+  useEffect(() => {
+    if (process.env.NODE_ENV === "development") {
+      console.log("[GradientBar] isDragging state changed:", isDragging);
+    }
+    // Sync the ref with the state
+    isDraggingRef.current = isDragging;
+  }, [isDragging]);
+
+  useEffect(() => {
+    if (process.env.NODE_ENV === "development") {
+      console.log("[GradientBar] activeStopId changed:", activeStopId);
+    }
+  }, [activeStopId]);
+
   return (
-    <div className={`${styles.gradientBarContainer} ${className}`}>
+    <div
+      ref={componentRef}
+      className={`${styles.gradientBarContainer} ${className}`}
+    >
       {/* Gradient bar */}
       <div
         ref={barRef}
@@ -379,34 +538,10 @@ const GradientBar: FunctionComponent<GradientBarProps> = ({
               }}
               onClick={(e) => handleStopClick(stop, e as MouseEvent)}
               onMouseDown={(e) => handleMouseDown(stop, e as MouseEvent)}
-            >
-              {/* Remove button (visible on active stop) */}
-              {isActive && enhancedStops.length > 1 && (
-                <button
-                  className={styles.removeButton}
-                  onClick={(e) => handleRemoveStop(stop, e as MouseEvent)}
-                >
-                  <X size={10} />
-                </button>
-              )}
-            </div>
+            />
           );
         })}
       </div>
-
-      {/* Selected stop color picker */}
-      {activeStop && (
-        <div className={styles.colorPickerContainer}>
-          <ColorInput
-            value={activeStop.color}
-            onChange={handleColorChange}
-            debounce={5}
-          />
-          <div className={styles.positionIndicator}>
-            Position: {Math.round(activeStop.position * 100)}%
-          </div>
-        </div>
-      )}
     </div>
   );
 };

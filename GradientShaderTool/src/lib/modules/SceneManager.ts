@@ -549,7 +549,7 @@ export class SceneManager {
       const stopCount = sortedStops.length;
 
       // Debug the color stops
-      this.debugColorStops(sortedStops);
+      // this.debugColorStops(sortedStops);
 
       // Create a texture to hold color stops (RGBA format)
       // We use the alpha channel to store the stop position
