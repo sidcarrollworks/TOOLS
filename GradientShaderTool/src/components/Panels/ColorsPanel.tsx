@@ -25,10 +25,10 @@ interface ColorsPanelProps {
  * Color gradient mode options
  */
 const GRADIENT_MODE_OPTIONS = [
-  { label: "B-Spline", value: 0 },
-  { label: "Linear", value: 1 },
-  { label: "Step", value: 2 },
   { label: "Smooth Step", value: 3 },
+  { label: "Linear", value: 1 },
+  { label: "B-Spline", value: 0 },
+  { label: "Step", value: 2 },
 ];
 
 export const ColorsPanel: FunctionComponent<ColorsPanelProps> = () => {

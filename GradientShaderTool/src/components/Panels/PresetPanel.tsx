@@ -12,10 +12,10 @@ import { getDistortionInitializer } from "../../lib/stores/DistortionInitializer
 import { getCameraInitializer } from "../../lib/stores/CameraInitializer";
 
 // Import preset images
-import abstractImage from "../../assets/presetImages/abstract.png";
-import lavaImage from "../../assets/presetImages/lava.png";
-import oceanwavesImage from "../../assets/presetImages/oceanwaves.png";
-import sourcemilkImage from "../../assets/presetImages/sourcemilk.png";
+import abstractImage from "../../assets/presetImages/abstract.webp";
+import lavaImage from "../../assets/presetImages/lava.webp";
+import oceanwavesImage from "../../assets/presetImages/oceanwaves.webp";
+import sourcemilkImage from "../../assets/presetImages/sourcemilk.webp";
 
 // Mapping from preset ID to facade preset name
 const presetIdToFacadeName = new Map<string, string>([
