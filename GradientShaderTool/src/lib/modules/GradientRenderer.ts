@@ -177,6 +177,18 @@ function renderBSplineGradient(
   for (let x = 0; x < width; x++) {
     const position = x / (width - 1); // Normalize to 0-1
 
+    // Handle areas outside the defined stops
+    if (position < stops[0].position) {
+      ctx.fillStyle = stops[0].color;
+      ctx.fillRect(x, 0, 1, height);
+      continue;
+    }
+    if (position > stops[stops.length - 1].position) {
+      ctx.fillStyle = stops[stops.length - 1].color;
+      ctx.fillRect(x, 0, 1, height);
+      continue;
+    }
+
     // Find the segment this position belongs to
     let segmentStart = 0;
     while (
@@ -208,8 +220,12 @@ function renderBSplineGradient(
     if (segmentStart < stops.length - 1) {
       const startPos = stops[segmentStart].position;
       const endPos = stops[segmentStart + 1].position;
-      localT = (position - startPos) / (endPos - startPos);
+      localT =
+        endPos > startPos ? (position - startPos) / (endPos - startPos) : 0;
     }
+
+    // Clamp localT to [0, 1] to prevent extrapolation
+    localT = Math.max(0, Math.min(1, localT));
 
     // Calculate weights
     const weights = bSplineWeight(localT);
@@ -287,6 +303,20 @@ function renderSmoothStepGradient(
   for (let x = 0; x < width; x++) {
     const position = x / (width - 1);
 
+    // Handle areas outside the defined stops
+    if (position < stops[0].position) {
+      const rgb = hexToRgb(stops[0].color);
+      ctx.fillStyle = `rgb(${rgb[0]}, ${rgb[1]}, ${rgb[2]})`;
+      ctx.fillRect(x, 0, 1, height);
+      continue;
+    }
+    if (position > stops[stops.length - 1].position) {
+      const rgb = hexToRgb(stops[stops.length - 1].color);
+      ctx.fillStyle = `rgb(${rgb[0]}, ${rgb[1]}, ${rgb[2]})`;
+      ctx.fillRect(x, 0, 1, height);
+      continue;
+    }
+
     // Find the segment this position belongs to
     let segmentIndex = 0;
     while (
@@ -311,10 +341,11 @@ function renderSmoothStepGradient(
     // Calculate local t within segment
     const startPos = stops[segmentIndex].position;
     const endPos = stops[segmentIndex + 1].position;
-    const localT = (position - startPos) / (endPos - startPos);
+    const localT =
+      endPos > startPos ? (position - startPos) / (endPos - startPos) : 0;
 
-    // Apply smoothstep function to localT
-    const t = smoothstep(localT);
+    // Clamp localT and apply smoothstep function
+    const t = smoothstep(Math.max(0, Math.min(1, localT)));
 
     // Linear interpolation with smoothstep easing
     const r = Math.round(color1[0] * (1 - t) + color2[0] * t);
