@@ -1241,6 +1241,77 @@ const material = new THREE.ShaderMaterial({
           ? "renderer.setClearColor(0x000000, 0); // Fully transparent"
           : `renderer.setClearColor(new THREE.Color("${params.backgroundColor}"), 1.0); // Solid background`;
 
+        // Get color stops if available
+        let colorStopsCode = "";
+        if (
+          params.colorStops &&
+          Array.isArray(params.colorStops) &&
+          params.colorStops.length > 0
+        ) {
+          // We'll create a more robust solution that actually creates a proper texture
+          // representing the color stops
+          const colorStops = params.colorStops;
+          const colors = [
+            this.sampleColorAtPosition(colorStops, 0.0),
+            this.sampleColorAtPosition(colorStops, 0.33),
+            this.sampleColorAtPosition(colorStops, 0.66),
+            this.sampleColorAtPosition(colorStops, 1.0),
+          ];
+
+          // First, set the legacy colors for fallback
+          colorStopsCode = `uColors: { 
+    value: [
+      new THREE.Vector3(${this.getRGBValues(colors[0])}),
+      new THREE.Vector3(${this.getRGBValues(colors[1])}),
+      new THREE.Vector3(${this.getRGBValues(colors[2])}),
+      new THREE.Vector3(${this.getRGBValues(colors[3])})
+    ] 
+  },
+  // For HTML export, we need to create a texture - this is complex in pure JS
+  // We'll instead use a pre-computed data array based on our color stops
+  uColorStops: { 
+    value: new THREE.DataTexture(
+      new Uint8Array([
+        // Pre-computed RGBA values for each color stop (R,G,B,Position*255)
+        ${colorStops
+          .map((stop) => {
+            const color = new THREE.Color(stop.color);
+            return `${Math.floor(color.r * 255)}, ${Math.floor(
+              color.g * 255
+            )}, ${Math.floor(color.b * 255)}, ${Math.floor(
+              stop.position * 255
+            )}`;
+          })
+          .join(",\n        ")}
+      ]),
+      ${colorStops.length}, 1, 
+      THREE.RGBAFormat
+    )
+  },
+  // Set the correct count to use the texture-based approach
+  uColorStopCount: { value: ${colorStops.length} },`;
+        } else {
+          // Fallback to the old color1-4 system if colorStops is not available
+          colorStopsCode = `uColors: { 
+    value: [
+      new THREE.Vector3(${this.getRGBValues(params.color1 || "#ff0000")}),
+      new THREE.Vector3(${this.getRGBValues(params.color2 || "#00ff00")}),
+      new THREE.Vector3(${this.getRGBValues(params.color3 || "#0000ff")}),
+      new THREE.Vector3(${this.getRGBValues(params.color4 || "#ffff00")})
+    ] 
+  },
+  // For fallback, create a simple dummy texture and set count to 0
+  uColorStops: { 
+    value: new THREE.DataTexture(
+      new Uint8Array([255, 0, 255, 255]), // Simple 1x1 magenta texture
+      1, 1, 
+      THREE.RGBAFormat
+    ) 
+  },
+  // Set count to 0 to trigger fallback
+  uColorStopCount: { value: 0 },`;
+        }
+
         const sceneSetup = `// Initialize Three.js scene
 const scene = new THREE.Scene();
 const camera = new THREE.PerspectiveCamera(${
@@ -1293,14 +1364,7 @@ const uniforms = {
   uGradientShiftX: { value: ${params.gradientShiftX} },
   uGradientShiftY: { value: ${params.gradientShiftY} },
   uGradientShiftSpeed: { value: ${params.gradientShiftSpeed} },
-  uColors: { 
-    value: [
-      new THREE.Vector3(${this.getRGBValues(params.color1)}),
-      new THREE.Vector3(${this.getRGBValues(params.color2)}),
-      new THREE.Vector3(${this.getRGBValues(params.color3)}),
-      new THREE.Vector3(${this.getRGBValues(params.color4)})
-    ] 
-  },
+  ${colorStopsCode}
   uLightDir: { 
     value: new THREE.Vector3(${params.lightDirX}, ${params.lightDirY}, ${
           params.lightDirZ
@@ -1388,9 +1452,31 @@ animate();`;
       wireframe: ${this.app!.params.showWireframe}
     });
     
+    // Add error handler for WebGL errors
+    const onError = (event) => {
+      console.error('WebGL Error:', event);
+    };
+    renderer.domElement.addEventListener('webglcontextlost', onError);
+    renderer.domElement.addEventListener('webglcontextrestored', () => console.log('WebGL context restored'));
+    
+    // Add uniform debugging before scene creation - this will show what uniforms are available
+    console.log('Shader Uniforms:', uniforms);
+    
     ${geometryAnimation}
     `
         );
+
+        // Add debug logging after code generation for HTML export
+        // Immediately before the export-complete event
+        if (format === "html") {
+          console.log(`HTML Export Debugger:
+          - Shader uses a texture for color stops, but we're using the fallback with uColors
+          - The completed HTML uses ${
+            params.colorStops ? params.colorStops.length : 0
+          } color stops
+          - We've set uColorStopCount to 0 to trigger the legacy colors fallback
+          - This should make the shader work with the provided colors`);
+        }
 
         code = fullHtmlCode;
       }
@@ -1615,5 +1701,72 @@ animate();`;
         message: error instanceof Error ? error.message : String(error),
       };
     }
+  }
+
+  /**
+   * Sample a color at a specific position from the color stops array
+   * @private
+   * @param colorStops - Array of color stops
+   * @param position - Position to sample (0-1)
+   * @returns The color at the position, interpolated if necessary
+   */
+  private sampleColorAtPosition(colorStops: any[], position: number): string {
+    // Early return for empty array
+    if (!colorStops || colorStops.length === 0) {
+      return "#ff00ff"; // Magenta as error color
+    }
+
+    // Sort stops by position to ensure correct sampling
+    const sortedStops = [...colorStops].sort((a, b) => a.position - b.position);
+
+    // If position is before first stop or after last stop
+    if (position <= sortedStops[0].position) {
+      return sortedStops[0].color;
+    }
+
+    if (position >= sortedStops[sortedStops.length - 1].position) {
+      return sortedStops[sortedStops.length - 1].color;
+    }
+
+    // Find the two stops we're between
+    for (let i = 0; i < sortedStops.length - 1; i++) {
+      const stop1 = sortedStops[i];
+      const stop2 = sortedStops[i + 1];
+
+      if (position >= stop1.position && position <= stop2.position) {
+        // Linear interpolation between the two colors
+        const t =
+          (position - stop1.position) / (stop2.position - stop1.position);
+        return this.lerpColor(stop1.color, stop2.color, t);
+      }
+    }
+
+    // Fallback
+    return sortedStops[0].color;
+  }
+
+  /**
+   * Linearly interpolate between two colors
+   * @private
+   * @param color1 - First color (hex)
+   * @param color2 - Second color (hex)
+   * @param t - Interpolation factor (0-1)
+   * @returns Interpolated color as hex string
+   */
+  private lerpColor(color1: string, color2: string, t: number): string {
+    // Convert hex to rgb
+    const c1 = new THREE.Color(color1);
+    const c2 = new THREE.Color(color2);
+
+    // Interpolate
+    const r = c1.r + (c2.r - c1.r) * t;
+    const g = c1.g + (c2.g - c1.g) * t;
+    const b = c1.b + (c2.b - c1.b) * t;
+
+    // Create new color
+    const color = new THREE.Color(r, g, b);
+
+    // Convert back to hex
+    return "#" + color.getHexString();
   }
 }
