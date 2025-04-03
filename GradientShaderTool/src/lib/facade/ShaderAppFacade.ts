@@ -1225,8 +1225,10 @@ const material = new THREE.ShaderMaterial({
   </style>
 </head>
 <body>
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
-  <script>
+  <script type="module">
+    // Import Three.js from CDN (v0.174.0)
+    import * as THREE from 'https://unpkg.com/three@0.174.0/build/three.module.js';
+    
     // Your shader code will go here
   </script>
 </body>
@@ -1234,8 +1236,8 @@ const material = new THREE.ShaderMaterial({
 
         // Generate scene setup
         const rendererOptions = transparentBg
-          ? "{ antialias: true, alpha: true, preserveDrawingBuffer: true }"
-          : "{ antialias: true }";
+          ? "{ antialias: true, alpha: true, preserveDrawingBuffer: true, powerPreference: 'high-performance' }"
+          : "{ antialias: true, powerPreference: 'high-performance' }";
 
         const clearColorCode = transparentBg
           ? "renderer.setClearColor(0x000000, 0); // Fully transparent"
@@ -1248,14 +1250,17 @@ const material = new THREE.ShaderMaterial({
           Array.isArray(params.colorStops) &&
           params.colorStops.length > 0
         ) {
-          // We'll create a more robust solution that actually creates a proper texture
-          // representing the color stops
-          const colorStops = params.colorStops;
+          // For HTML export, we'll use the legacy uColors fallback that's built into the shaders
+          // This is because we can't easily create a texture for uColorStops in the exported HTML
+          // The shaders have a fallback mechanism that uses uColors when uColorStopCount <= 1
+
+          // Map the color stops to the four main colors used in the legacy system
+          // We'll sample at 0.0, 0.33, 0.66, and 1.0
           const colors = [
-            this.sampleColorAtPosition(colorStops, 0.0),
-            this.sampleColorAtPosition(colorStops, 0.33),
-            this.sampleColorAtPosition(colorStops, 0.66),
-            this.sampleColorAtPosition(colorStops, 1.0),
+            this.sampleColorAtPosition(params.colorStops, 0.0),
+            this.sampleColorAtPosition(params.colorStops, 0.33),
+            this.sampleColorAtPosition(params.colorStops, 0.66),
+            this.sampleColorAtPosition(params.colorStops, 1.0),
           ];
 
           // First, set the legacy colors for fallback
@@ -1270,26 +1275,10 @@ const material = new THREE.ShaderMaterial({
   // For HTML export, we need to create a texture - this is complex in pure JS
   // We'll instead use a pre-computed data array based on our color stops
   uColorStops: { 
-    value: new THREE.DataTexture(
-      new Uint8Array([
-        // Pre-computed RGBA values for each color stop (R,G,B,Position*255)
-        ${colorStops
-          .map((stop) => {
-            const color = new THREE.Color(stop.color);
-            return `${Math.floor(color.r * 255)}, ${Math.floor(
-              color.g * 255
-            )}, ${Math.floor(color.b * 255)}, ${Math.floor(
-              stop.position * 255
-            )}`;
-          })
-          .join(",\n        ")}
-      ]),
-      ${colorStops.length}, 1, 
-      THREE.RGBAFormat
-    )
+    value: createColorStopsTexture()
   },
   // Set the correct count to use the texture-based approach
-  uColorStopCount: { value: ${colorStops.length} },`;
+  uColorStopCount: { value: ${params.colorStops.length} },`;
         } else {
           // Fallback to the old color1-4 system if colorStops is not available
           colorStopsCode = `uColors: { 
@@ -1302,11 +1291,7 @@ const material = new THREE.ShaderMaterial({
   },
   // For fallback, create a simple dummy texture and set count to 0
   uColorStops: { 
-    value: new THREE.DataTexture(
-      new Uint8Array([255, 0, 255, 255]), // Simple 1x1 magenta texture
-      1, 1, 
-      THREE.RGBAFormat
-    ) 
+    value: createDummyTexture()
   },
   // Set count to 0 to trigger fallback
   uColorStopCount: { value: 0 },`;
@@ -1330,9 +1315,12 @@ camera.lookAt(${params.cameraTargetX.toFixed(
           4
         )});
 
-// Create renderer
+// Create renderer with modern options
 const renderer = new THREE.WebGLRenderer(${rendererOptions});
 renderer.setSize(window.innerWidth, window.innerHeight);
+renderer.setPixelRatio(window.devicePixelRatio);
+// Modern color space setting (replaces deprecated outputEncoding)
+renderer.outputColorSpace = THREE.SRGBColorSpace;
 ${clearColorCode}
 document.body.appendChild(renderer.domElement);
 
@@ -1345,6 +1333,72 @@ ${
 // 3. For production use, you might need additional handling for mobile devices
 `
     : ""
+}
+
+// Helper function to create a texture from color stops
+function createColorStopsTexture() {
+  // Create sorted copy of the stops
+  const colorStops = [
+    ${
+      params.colorStops
+        ? params.colorStops
+            .map(
+              (stop) =>
+                `{ position: ${stop.position}, color: new THREE.Color("${stop.color}") }`
+            )
+            .join(",\n    ")
+        : ""
+    }
+  ];
+  const sortedStops = [...colorStops].sort((a, b) => a.position - b.position);
+  
+  // Size of the texture - one pixel per color stop
+  const width = sortedStops.length;
+  const height = 1;
+  
+  // Create data array (RGBA format, 4 bytes per pixel)
+  const data = new Uint8Array(width * height * 4);
+  
+  // Fill texture with color stop data
+  // Each pixel has RGB from the color and A (alpha) from the position
+  for (let i = 0; i < sortedStops.length; i++) {
+    const baseIndex = i * 4;
+    const stop = sortedStops[i];
+    
+    // RGB from the color (0-255)
+    data[baseIndex] = Math.floor(stop.color.r * 255);
+    data[baseIndex + 1] = Math.floor(stop.color.g * 255);
+    data[baseIndex + 2] = Math.floor(stop.color.b * 255);
+    
+    // Position (0-1) stored in alpha channel
+    data[baseIndex + 3] = Math.floor(stop.position * 255);
+  }
+  
+  // Create the texture with modern settings
+  const texture = new THREE.DataTexture(
+    data,
+    width,
+    height,
+    THREE.RGBAFormat
+  );
+  
+  // Required for DataTexture to work properly
+  texture.needsUpdate = true;
+  // Use LinearSRGBColorSpace for correct shader interpretation
+  // The shader expects raw linear values, not sRGB-encoded ones
+  texture.colorSpace = THREE.LinearSRGBColorSpace;
+  
+  return texture;
+}
+
+// Helper function to create a dummy texture
+function createDummyTexture() {
+  const data = new Uint8Array([255, 0, 255, 255]); // Simple 1x1 magenta texture
+  const texture = new THREE.DataTexture(data, 1, 1, THREE.RGBAFormat);
+  texture.needsUpdate = true; // Required for DataTexture to work properly
+  // Use LinearSRGBColorSpace for correct shader interpretation
+  texture.colorSpace = THREE.LinearSRGBColorSpace;
+  return texture;
 }
 
 // Create shader material with your custom parameters
@@ -1400,7 +1454,7 @@ plane.rotation.z = ${params.rotateZ};
 scene.add(plane);
 
 // Animation loop
-let clock = new THREE.Clock();
+const clock = new THREE.Clock();
 
 function animate() {
   requestAnimationFrame(animate);
@@ -1422,7 +1476,23 @@ window.addEventListener('resize', () => {
   camera.aspect = window.innerWidth / window.innerHeight;
   camera.updateProjectionMatrix();
   renderer.setSize(window.innerWidth, window.innerHeight);
+  renderer.setPixelRatio(window.devicePixelRatio);
 });
+
+// Add error handler for WebGL errors
+renderer.domElement.addEventListener('webglcontextlost', (event) => {
+  console.error('WebGL context lost:', event);
+});
+renderer.domElement.addEventListener('webglcontextrestored', () => {
+  console.log('WebGL context restored');
+  // Re-initialize any resources that need it
+  if (uniforms.uColorStops && uniforms.uColorStops.value) {
+    uniforms.uColorStops.value.needsUpdate = true;
+  }
+});
+
+// Debug info in console
+console.log('Shader Uniforms:', uniforms);
 
 // Start animation loop
 animate();`;
@@ -1452,16 +1522,6 @@ animate();`;
       wireframe: ${this.app!.params.showWireframe}
     });
     
-    // Add error handler for WebGL errors
-    const onError = (event) => {
-      console.error('WebGL Error:', event);
-    };
-    renderer.domElement.addEventListener('webglcontextlost', onError);
-    renderer.domElement.addEventListener('webglcontextrestored', () => console.log('WebGL context restored'));
-    
-    // Add uniform debugging before scene creation - this will show what uniforms are available
-    console.log('Shader Uniforms:', uniforms);
-    
     ${geometryAnimation}
     `
         );
@@ -1470,12 +1530,12 @@ animate();`;
         // Immediately before the export-complete event
         if (format === "html") {
           console.log(`HTML Export Debugger:
-          - Shader uses a texture for color stops, but we're using the fallback with uColors
+          - Using Three.js version 0.174.0 with ES modules
+          - Modern renderer settings: SRGBColorSpace, explicit pixel ratio
           - The completed HTML uses ${
             params.colorStops ? params.colorStops.length : 0
           } color stops
-          - We've set uColorStopCount to 0 to trigger the legacy colors fallback
-          - This should make the shader work with the provided colors`);
+          - DataTexture created for color stops with needsUpdate=true`);
         }
 
         code = fullHtmlCode;
