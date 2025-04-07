@@ -65,12 +65,12 @@ export const ExportPanel: ExportPanelComponent = ({
     //   description: "Use in existing Three.js projects.",
     //   icon: <JS height={16} width={16} />,
     // },
-    // {
-    //   id: "shader",
-    //   name: "Shaders",
-    //   description: "Export just the shader code",
-    //   icon: <OpenGL height={16} width={16} />,
-    // },
+    {
+      id: "shader",
+      name: "Shaders",
+      description: "Export just the shader code",
+      icon: <OpenGL height={16} width={16} />,
+    },
     {
       id: "html",
       name: "HTML",

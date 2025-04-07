@@ -39,7 +39,7 @@ export const KeyboardHints: FunctionComponent<KeyboardHintsProps> = ({
         <kbd>Ctrl</kbd>+<kbd>D</kbd> Dev Panel
       </span>
       <span className={styles.divider}> </span>
-      <a
+      {/* <a
         className={styles.link}
         href="https://discord.gg/Trvu6JvM6J"
         target="_blank"
@@ -56,7 +56,7 @@ export const KeyboardHints: FunctionComponent<KeyboardHintsProps> = ({
         <Button size="small" variant="primary" style={{ width: "100%" }}>
           Support this tool!
         </Button>
-      </a>
+      </a> */}
     </div>
   );
 };
